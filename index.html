@@ -141,4 +141,17 @@ document.getElementById('result').textContent='$'+(balance*risk/100).toFixed(2);
 }
 </script>
 </body>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://whcmrzdvaiqfmgvlfqxo.supabase.co/rest/v1/
+';
+const SUPABASE_KEY = ' sb_publishable_EsWQFeqMpYC6ZVexRkCV7Q_qC1tvKJI';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+window.traderwinSupabase = supabase;
+
+console.log('Traderwin database connection initialized');
+</script>
 </html>
