@@ -148,13 +148,11 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   DEMO MODE ONLY: Saving your preferences does not connect to a broker or place trades. Broker automation requires secure backend integration, broker authorization, testing and risk controls.
  </div>
 
- <!-- PERSONAL BOT SETUP -->
  <div class="card" style="margin-top:15px">
   <h3>⚙️ Personal Bot Setup</h3>
   <p class="muted">Choose your preferred broker and trading instrument. These settings belong to your signed-in account.</p>
 
   <form id="botSetupForm">
-
    <div class="field">
     <label for="botBroker">Choose or enter your broker</label>
     <input id="botBroker" list="brokerOptions" placeholder="Choose or type a broker" required maxlength="80">
@@ -202,18 +200,22 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  </div>
 
  <div class="grid" style="margin-top:15px">
-  <div class="card">
-   <h3>Deriv Demo Bot</h3>
-   <p class="muted">Future integration for supported Deriv markets and demo accounts.</p>
-   <p class="status">Connection: Not connected</p>
-   <button class="secondary" disabled>Demo integration pending</button>
+
+  <div class="card" id="derivCard">
+   <h3>Deriv Account Connection</h3>
+   <p class="muted">Securely authorize your own Deriv account. Each signed-in user connects their own account.</p>
+   <p class="status" id="derivConnectionStatus">Connection: Not connected</p>
+   <button id="connectDerivButton" type="button">Connect Deriv Account</button>
+   <p class="muted">Authorization is separate from bot activation. No trades will be placed by connecting.</p>
   </div>
+
   <div class="card">
    <h3>MT5 Demo Bot</h3>
    <p class="muted">Future integration for MetaTrader 5 through a secure trading service.</p>
    <p class="status">Connection: Not connected</p>
-   <button class="secondary" disabled>Demo integration pending</button>
+   <button class="secondary" disabled>MT5 integration pending</button>
   </div>
+
  </div>
 
  <div class="card" style="margin-top:15px">
@@ -399,7 +401,7 @@ document.getElementById("year").textContent=new Date().getFullYear();
 calculateRisk();
 </script>
 
-<!-- SUPABASE AUTHENTICATION AND BOT SETTINGS -->
+<!-- SUPABASE AUTHENTICATION, BOT SETTINGS AND DERIV CONNECTION -->
 <script>
 (async function(){
 
@@ -426,11 +428,56 @@ calculateRisk();
    return;
   }
 
-  const currentUser=data.session.user;
-
   document.body.style.visibility="visible";
 
   loadChart();
+
+  // DERIV SECURE ACCOUNT CONNECTION
+  const connectButton=document.getElementById("connectDerivButton");
+  const derivStatus=document.getElementById("derivConnectionStatus");
+
+  connectButton.addEventListener("click",async function(){
+
+   connectButton.disabled=true;
+   connectButton.textContent="Preparing secure connection...";
+   derivStatus.textContent="Checking your login session...";
+
+   try{
+
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+
+    if(sessionError||!sessionData.session){
+     throw new Error("Your login session has expired. Please sign in again.");
+    }
+
+    const response=await fetch("/api/deriv/start",{
+     method:"POST",
+     headers:{
+      "Authorization":"Bearer "+sessionData.session.access_token
+     },
+     credentials:"same-origin",
+     cache:"no-store"
+    });
+
+    const result=await response.json().catch(()=>({}));
+
+    if(!response.ok||!result.authorizationUrl){
+     throw new Error(result.error||"Could not start Deriv authorization.");
+    }
+
+    derivStatus.textContent="Opening secure Deriv authorization...";
+    window.location.assign(result.authorizationUrl);
+
+   }catch(error){
+
+    console.error("Deriv connection error:",error);
+    derivStatus.textContent=error.message||"Deriv connection could not start.";
+    connectButton.disabled=false;
+    connectButton.textContent="Try Connecting Again";
+
+   }
+
+  });
 
   // PERSONAL BOT SETTINGS: SAVE FOR THE SIGNED-IN USER
   const botForm=document.getElementById("botSetupForm");
@@ -493,7 +540,6 @@ calculateRisk();
     }
 
     botMessage.textContent="Success! Your bot preferences have been saved. Account mode: DEMO. Automation: OFF.";
-
     botForm.reset();
 
    }catch(error){
