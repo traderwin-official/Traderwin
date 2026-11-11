@@ -6,11 +6,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TRADERWIN | Trade Smarter</title>
 <meta name="description" content="Traderwin trading dashboard, market analysis, risk management and trading education.">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://s3.tradingview.com/tv.js"></script>
+
 <style>
 :root{--bg:#080d17;--panel:#111b2b;--gold:#f5bd45;--muted:#9eabc0;--green:#25c58a;--red:#f16c75}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:#f4f6fa;font-family:Arial,sans-serif}
+body{margin:0;background:var(--bg);color:#f4f6fa;font-family:Arial,sans-serif;visibility:hidden}
 header{background:#101a29;border-bottom:1px solid #26364b;padding:16px 5%;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .logo{font-size:23px;font-weight:900;color:var(--gold);letter-spacing:1px}
 .logo span{color:white}
@@ -48,10 +51,10 @@ section{margin:28px 0}
 .status{font-size:12px;color:var(--green)}
 footer{text-align:center;padding:30px 15px;background:#101a29;color:var(--muted);font-size:13px}
 ul{padding-left:20px;color:#dce4ee;line-height:1.8}
-.hidden{display:none}
 @media(max-width:600px){header{padding:14px}nav{gap:10px}.hero{padding:38px 5%}main{padding:18px 4%}.chart{height:420px}}
 </style>
 </head>
+
 <body>
 
 <header>
@@ -77,7 +80,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 
 <section id="markets">
  <h2 class="section-title">Market <span>Overview</span></h2>
- <p class="muted">Choose a market category to explore. Displayed prices and charts may be indicative and are not executable broker quotes.</p>
+ <p class="muted">Displayed prices and charts may be indicative and are not executable broker quotes.</p>
  <div class="tabs" id="marketTabs">
   <button class="active" data-market="Forex">Forex</button>
   <button data-market="Gold">Gold</button>
@@ -115,7 +118,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <button data-time="W">Weekly</button>
   </div>
   <div id="tradingview_chart" class="chart"></div>
-  <p class="muted">Chart supplied by TradingView. Confirm prices, spreads and execution on your own broker platform before trading.</p>
+  <p class="muted">Chart supplied by TradingView. Confirm prices, spreads and execution on your broker platform before trading.</p>
  </div>
 </section>
 
@@ -257,6 +260,7 @@ function showMarkets(category){
   container.appendChild(card);
  });
 }
+
 document.querySelectorAll("#marketTabs button").forEach(button=>{
  button.addEventListener("click",()=>{
   document.querySelectorAll("#marketTabs button").forEach(b=>b.classList.remove("active"));
@@ -267,6 +271,7 @@ document.querySelectorAll("#marketTabs button").forEach(button=>{
 showMarkets("Forex");
 
 let selectedTime="15";
+
 function loadChart(){
  const symbol=document.getElementById("symbol").value;
  const target=document.getElementById("tradingview_chart");
@@ -288,7 +293,9 @@ function loadChart(){
   container_id:"tradingview_chart"
  });
 }
+
 document.getElementById("symbol").addEventListener("change",loadChart);
+
 document.querySelectorAll("#timeTabs button").forEach(button=>{
  button.addEventListener("click",()=>{
   document.querySelectorAll("#timeTabs button").forEach(b=>b.classList.remove("active"));
@@ -302,43 +309,94 @@ function calculateRisk(){
  const balance=Number(document.getElementById("balance").value);
  const percent=Number(document.getElementById("riskPercent").value);
  const output=document.getElementById("riskResult");
+
  if(!Number.isFinite(balance)||!Number.isFinite(percent)||balance<=0||percent<=0||percent>100){
   output.textContent="Enter valid positive values. Risk must be 100% or less.";
   return;
  }
  output.textContent="$"+(balance*percent/100).toFixed(2);
 }
+
 function analyseLevels(){
  const support=Number(document.getElementById("support").value);
  const resistance=Number(document.getElementById("resistance").value);
  const current=Number(document.getElementById("current").value);
  const result=document.getElementById("levelResult");
- if(!support||!resistance||!current||resistance<=support){
+
+ if(!Number.isFinite(support)||!Number.isFinite(resistance)||!Number.isFinite(current)||
+    document.getElementById("support").value===""||
+    document.getElementById("resistance").value===""||
+    document.getElementById("current").value===""||
+    resistance<=support){
   result.textContent="Enter valid support, resistance and current prices.";
   return;
  }
+
  if(current<=support) result.textContent="Price is at or below the support level. Watch for confirmation.";
  else if(current>=resistance) result.textContent="Price is at or above the resistance level. Watch for confirmation.";
  else result.textContent="Price is between support and resistance. Monitor price action.";
 }
+
 document.getElementById("year").textContent=new Date().getFullYear();
 calculateRisk();
-loadChart();
 </script>
 
-<script type="module">
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+<!-- SINGLE SUPABASE AUTHENTICATION CLIENT -->
+<script>
+(async function(){
 
-const SUPABASE_URL = "https://whcmrzdvaiqfmgvlfqxo.supabase.co";
-const SUPABASE_KEY = "sb_publishable_EsWQFeqMpYC6ZVexRkCV7Q_qC1tvKJI";
+ const SUPABASE_URL="https://whcmrzdvaiqfmgvlfqxo.supabase.co";
+ const SUPABASE_KEY="sb_publishable_EsWQFeqMpYC6ZVexRkCV7Q_qC1tvKJI";
 
-try {
- const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
- window.traderwinSupabase = supabase;
- console.log("Traderwin database client initialized.");
-} catch (error) {
- console.error("Database initialization failed:", error);
-}
+ try{
+
+  const client=window.supabase.createClient(
+   SUPABASE_URL,
+   SUPABASE_KEY
+  );
+
+  window.traderwinAuth=client;
+
+  const {data,error}=await client.auth.getSession();
+
+  if(error||!data.session){
+   window.location.replace("/auth.html");
+   return;
+  }
+
+  // Show dashboard only after session check succeeds.
+  document.body.style.visibility="visible";
+
+  // Load TradingView after the dashboard becomes visible.
+  loadChart();
+
+  // Add sign-out button.
+  const logout=document.createElement("button");
+  logout.textContent="Sign Out";
+  logout.style.cssText="position:fixed;top:12px;right:12px;z-index:99999;padding:10px 16px;background:#d7a83c;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer";
+
+  logout.onclick=async()=>{
+   logout.disabled=true;
+   const {error}=await client.auth.signOut();
+
+   if(error){
+    alert("Sign out failed. Please try again.");
+    logout.disabled=false;
+    return;
+   }
+
+   window.location.replace("/auth.html");
+  };
+
+  document.body.appendChild(logout);
+
+ }catch(error){
+  console.error("Traderwin authentication error:",error);
+  document.body.style.visibility="visible";
+  document.body.innerHTML="<main><div class='card'><h2>Authentication unavailable</h2><p>Please check your internet connection and try again.</p><a href='/auth.html'>Return to login</a></div></main>";
+ }
+
+})();
 </script>
 
 </body>
