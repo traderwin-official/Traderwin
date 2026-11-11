@@ -1,7 +1,37 @@
 
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { encryptToken } from "../lib/encryption.js";
+
+// Encrypt Deriv access tokens using AES-256-GCM.
+function encryptToken(token) {
+  const key = process.env.TOKEN_ENCRYPTION_KEY;
+
+  if (!key || !/^[0-9a-fA-F]{64}$/.test(key)) {
+    throw new Error("Invalid token encryption key configuration.");
+  }
+
+  const encryptionKey = Buffer.from(key, "hex");
+  const iv = crypto.randomBytes(12);
+
+  const cipher = crypto.createCipheriv(
+    "aes-256-gcm",
+    encryptionKey,
+    iv
+  );
+
+  const encrypted = Buffer.concat([
+    cipher.update(token, "utf8"),
+    cipher.final()
+  ]);
+
+  const authTag = cipher.getAuthTag();
+
+  return [
+    iv.toString("hex"),
+    authTag.toString("hex"),
+    encrypted.toString("hex")
+  ].join(":");
+}
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -43,6 +73,7 @@ export default async function handler(req, res) {
       !SUPABASE_URL ||
       !SUPABASE_SERVICE_ROLE_KEY
     ) {
+      console.error("Deriv callback configuration incomplete.");
       return finish("error");
     }
 
@@ -82,6 +113,7 @@ export default async function handler(req, res) {
       !session.userId ||
       !session.state ||
       !session.verifier ||
+      !Number.isFinite(session.expires) ||
       session.expires < Date.now()
     ) {
       return finish("error");
@@ -121,6 +153,7 @@ export default async function handler(req, res) {
     const tokenData = await tokenResponse.json();
 
     if (!tokenResponse.ok || !tokenData.access_token) {
+      console.error("Deriv token exchange failed.");
       return finish("error");
     }
 
@@ -159,7 +192,11 @@ export default async function handler(req, res) {
     return finish("connected");
 
   } catch (error) {
-    console.error("Deriv callback processing failed.");
+    console.error(
+      "Deriv callback processing failed:",
+      error.message
+    );
+
     return finish("error");
   }
 }
