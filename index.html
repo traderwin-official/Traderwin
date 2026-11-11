@@ -1,15 +1,345 @@
 
-<script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRADERWIN | Trade Smarter</title>
+<meta name="description" content="Traderwin trading dashboard, market analysis, risk management and trading education.">
+<script src="https://s3.tradingview.com/tv.js"></script>
+<style>
+:root{--bg:#080d17;--panel:#111b2b;--gold:#f5bd45;--muted:#9eabc0;--green:#25c58a;--red:#f16c75}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#f4f6fa;font-family:Arial,sans-serif}
+header{background:#101a29;border-bottom:1px solid #26364b;padding:16px 5%;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:23px;font-weight:900;color:var(--gold);letter-spacing:1px}
+.logo span{color:white}
+nav{display:flex;gap:15px;flex-wrap:wrap}
+nav a{color:#dbe3ef;text-decoration:none;font-size:13px}
+nav a:hover{color:var(--gold)}
+.hero{padding:55px 6%;background:linear-gradient(120deg,#101b2d,#17243a)}
+.hero h1{font-size:clamp(30px,6vw,48px);margin:0 0 12px}
+.hero h1 span{color:var(--gold)}
+.hero p{color:var(--muted);max-width:650px;line-height:1.7}
+.tag{display:inline-block;background:#302716;color:var(--gold);padding:7px 12px;border-radius:20px;font-size:12px;margin-bottom:15px}
+button,select,input{font:inherit}
+button{background:var(--gold);border:0;border-radius:7px;padding:11px 16px;font-weight:bold;cursor:pointer;color:#151515}
+button.secondary{background:#26364b;color:white}
+button:disabled{opacity:.5;cursor:not-allowed}
+main{padding:25px 5%;max-width:1500px;margin:auto}
+section{margin:28px 0}
+.section-title{font-size:23px;margin-bottom:15px}
+.section-title span{color:var(--gold)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid #25364b;border-radius:12px;padding:18px}
+.card h3{margin:0 0 10px}
+.muted{color:var(--muted);font-size:13px;line-height:1.6}
+.price{font-size:23px;font-weight:bold;margin:10px 0}
+.green{color:var(--green)}.red{color:var(--red)}.gold{color:var(--gold)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.tabs button{background:#25364b;color:white}
+.tabs button.active{background:var(--gold);color:#111}
+.chart{height:510px;width:100%;border-radius:10px;overflow:hidden;background:#111b2b}
+.field{display:flex;flex-direction:column;gap:7px;margin:10px 0}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select{background:#0a1220;border:1px solid #34445a;color:white;padding:12px;border-radius:7px;width:100%}
+.result{font-size:24px;font-weight:bold;color:var(--gold);margin-top:12px}
+.notice{background:#2b2415;border:1px solid #725820;padding:14px;border-radius:9px;color:#f5d58b;font-size:13px;line-height:1.6}
+.status{font-size:12px;color:var(--green)}
+footer{text-align:center;padding:30px 15px;background:#101a29;color:var(--muted);font-size:13px}
+ul{padding-left:20px;color:#dce4ee;line-height:1.8}
+.hidden{display:none}
+@media(max-width:600px){header{padding:14px}nav{gap:10px}.hero{padding:38px 5%}main{padding:18px 4%}.chart{height:420px}}
+</style>
+</head>
+<body>
 
-const SUPABASE_URL = 'https://whcmrzdvaiqfmgvlfqxo.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_EsWQFeqMpYC6ZVexRkCV7Q_qC1tvKJI';
+<header>
+ <div class="logo">TRADER<span>WIN</span></div>
+ <nav>
+  <a href="#markets">Markets</a>
+  <a href="#analysis">Analysis</a>
+  <a href="#bots">Bots</a>
+  <a href="#risk">Risk</a>
+  <a href="#academy">Academy</a>
+ </nav>
+</header>
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+<div class="hero">
+ <div class="tag">YOUR TRADING JOURNEY STARTS HERE</div>
+ <h1>TRADE SMARTER.<br><span>WIN WITH STRATEGY.</span></h1>
+ <p>Explore financial markets, study price movements, manage risk and practise your trading strategies with Traderwin.</p>
+ <a href="#markets"><button>Explore Markets</button></a>
+ <a href="#analysis"><button class="secondary">Open Dashboard</button></a>
+</div>
 
-window.traderwinSupabase = supabase;
+<main>
 
-console.log('Traderwin Supabase client initialized');
+<section id="markets">
+ <h2 class="section-title">Market <span>Overview</span></h2>
+ <p class="muted">Choose a market category to explore. Displayed prices and charts may be indicative and are not executable broker quotes.</p>
+ <div class="tabs" id="marketTabs">
+  <button class="active" data-market="Forex">Forex</button>
+  <button data-market="Gold">Gold</button>
+  <button data-market="Crypto">Crypto</button>
+  <button data-market="Commodities">Commodities</button>
+  <button data-market="Indices">Indices</button>
+  <button data-market="Stocks">Stocks</button>
+  <button data-market="Binary Options">Binary Options</button>
+ </div>
+ <div class="grid" id="marketCards"></div>
+</section>
+
+<section id="analysis">
+ <h2 class="section-title">Live Market <span>Chart</span></h2>
+ <div class="card">
+  <div class="field">
+   <label>Select trading instrument</label>
+   <select id="symbol">
+    <option value="OANDA:XAUUSD">Gold / USD (XAUUSD)</option>
+    <option value="OANDA:EURUSD">EUR / USD</option>
+    <option value="OANDA:GBPUSD">GBP / USD</option>
+    <option value="OANDA:USDJPY">USD / JPY</option>
+    <option value="BITSTAMP:BTCUSD">Bitcoin / USD</option>
+    <option value="BINANCE:ETHUSDT">Ethereum / USDT</option>
+    <option value="NASDAQ:AAPL">Apple</option>
+    <option value="NASDAQ:TSLA">Tesla</option>
+    <option value="SP:SPX">S&P 500</option>
+   </select>
+  </div>
+  <div class="tabs" id="timeTabs">
+   <button data-time="15" class="active">M15</button>
+   <button data-time="60">H1</button>
+   <button data-time="240">H4</button>
+   <button data-time="D">Daily</button>
+   <button data-time="W">Weekly</button>
+  </div>
+  <div id="tradingview_chart" class="chart"></div>
+  <p class="muted">Chart supplied by TradingView. Confirm prices, spreads and execution on your own broker platform before trading.</p>
+ </div>
+</section>
+
+<section>
+ <h2 class="section-title">Gold Analysis <span>Centre</span></h2>
+ <div class="grid">
+  <div class="card"><h3>15-Minute (M15)</h3><p class="muted">Study entry setups, candle patterns and short-term momentum.</p></div>
+  <div class="card"><h3>1-Hour (H1)</h3><p class="muted">Study the intraday trend and important price levels.</p></div>
+  <div class="card"><h3>4-Hour (H4)</h3><p class="muted">Study the broader market direction and major support and resistance.</p></div>
+ </div>
+ <div class="card">
+  <h3>Support & Resistance Planner</h3>
+  <div class="grid">
+   <div class="field"><label>Support price</label><input id="support" type="number" step="any" placeholder="Enter support"></div>
+   <div class="field"><label>Resistance price</label><input id="resistance" type="number" step="any" placeholder="Enter resistance"></div>
+   <div class="field"><label>Current price</label><input id="current" type="number" step="any" placeholder="Enter current price"></div>
+  </div>
+  <button onclick="analyseLevels()">Analyse Levels</button>
+  <p id="levelResult" class="muted"></p>
+ </div>
+</section>
+
+<section id="bots">
+ <h2 class="section-title">Traderwin <span>Automation Centre</span></h2>
+ <div class="notice">DEMO MODE ONLY: These controls do not connect to Deriv or MT5 and do not place trades. Real broker automation requires secure backend integration, broker authorization, testing and risk controls.</div>
+ <div class="grid" style="margin-top:15px">
+  <div class="card">
+   <h3>Deriv Demo Bot</h3>
+   <p class="muted">Future integration for supported Deriv markets and demo accounts.</p>
+   <p class="status">Connection: Not connected</p>
+   <button class="secondary" disabled>Demo integration pending</button>
+  </div>
+  <div class="card">
+   <h3>MT5 Demo Bot</h3>
+   <p class="muted">Future integration for MetaTrader 5 through a secure trading service.</p>
+   <p class="status">Connection: Not connected</p>
+   <button class="secondary" disabled>Demo integration pending</button>
+  </div>
+ </div>
+ <div class="card" style="margin-top:15px">
+  <h3>Bot Safety Rules</h3>
+  <ul>
+   <li>Start with a demo account.</li>
+   <li>Set a maximum risk per trade.</li>
+   <li>Use stop-loss protection where supported.</li>
+   <li>Set daily loss limits before live deployment.</li>
+   <li>Never assume a bot guarantees profits.</li>
+  </ul>
+ </div>
+</section>
+
+<section id="risk">
+ <h2 class="section-title">Risk <span>Calculator</span></h2>
+ <div class="card">
+  <p class="muted">Estimate the amount you are willing to risk on one trade. This is an educational calculator, not broker lot-size advice.</p>
+  <div class="grid">
+   <div class="field"><label>Account balance ($)</label><input type="number" id="balance" value="100" min="0"></div>
+   <div class="field"><label>Risk percentage (%)</label><input type="number" id="riskPercent" value="1" min="0" max="100" step="0.1"></div>
+  </div>
+  <button onclick="calculateRisk()">Calculate Risk</button>
+  <div id="riskResult" class="result">$1.00</div>
+  <p class="muted">The amount shown is the planned maximum loss based on your inputs. Actual losses may differ due to slippage, gaps and execution conditions.</p>
+ </div>
+</section>
+
+<section id="signals">
+ <h2 class="section-title">Trading <span>Signals</span></h2>
+ <div class="card">
+  <h3>Signal Centre</h3>
+  <p class="muted">No verified live signals are currently connected. This section is ready for an authorized signal feed.</p>
+  <p class="status">Signal feed: Not connected</p>
+  <div class="notice">Do not treat sample signals, website demonstrations or educational examples as instructions to buy or sell.</div>
+ </div>
+</section>
+
+<section id="academy">
+ <h2 class="section-title">Traderwin <span>Academy</span></h2>
+ <div class="grid">
+  <div class="card"><h3>Forex Basics</h3><p class="muted">Learn currency pairs, pips, spreads, leverage and market sessions.</p></div>
+  <div class="card"><h3>Gold Trading</h3><p class="muted">Study XAUUSD, volatility, technical analysis and risk management.</p></div>
+  <div class="card"><h3>Technical Analysis</h3><p class="muted">Learn trends, support, resistance, candlesticks and indicators.</p></div>
+  <div class="card"><h3>Trading Psychology</h3><p class="muted">Build discipline, patience and a consistent trading journal.</p></div>
+ </div>
+</section>
+
+<section id="membership">
+ <h2 class="section-title">Traderwin <span>Membership</span></h2>
+ <div class="grid">
+  <div class="card"><h3>Free Member</h3><p class="muted">Explore the public dashboard and educational resources.</p></div>
+  <div class="card"><h3>Premium Member</h3><p class="muted">Premium education, advanced tools and other services can be introduced after secure membership and payment integration.</p></div>
+  <div class="card"><h3>Traderwin Course</h3><p class="muted">A planned learning programme for beginner traders. Course purchasing and delivery are not yet connected.</p></div>
+ </div>
+ <p class="muted">No payments are collected by this page at present. M-Pesa integration must be completed securely before accepting payments.</p>
+</section>
+
+<section id="about">
+ <h2 class="section-title">About <span>Traderwin</span></h2>
+ <div class="card">
+  <p>Traderwin is designed to bring market information, trading education, risk management and future trading integrations into one platform.</p>
+  <p class="muted">Trading involves risk. You may lose some or all of your invested capital. This website provides educational information and is not financial advice.</p>
+ </div>
+</section>
+
+</main>
+
+<footer>
+ <div class="logo">TRADER<span>WIN</span></div>
+ <p>Trade with knowledge. Manage risk. Stay disciplined.</p>
+ <p>© <span id="year"></span> Traderwin. All rights reserved.</p>
+ <p>Trading involves substantial risk. No profits are guaranteed.</p>
+</footer>
+
+<script>
+const marketData={
+ "Forex":[["EUR/USD","Euro / US Dollar"],["GBP/USD","British Pound / US Dollar"],["USD/JPY","US Dollar / Japanese Yen"],["AUD/USD","Australian Dollar / US Dollar"]],
+ "Gold":[["XAU/USD","Gold / US Dollar"],["XAG/USD","Silver / US Dollar"]],
+ "Crypto":[["BTC/USD","Bitcoin"],["ETH/USD","Ethereum"],["SOL/USD","Solana"]],
+ "Commodities":[["USOIL","Crude Oil"],["UKOIL","Brent Oil"],["NATGAS","Natural Gas"]],
+ "Indices":[["US500","S&P 500"],["NAS100","Nasdaq 100"],["US30","Dow Jones"]],
+ "Stocks":[["AAPL","Apple"],["TSLA","Tesla"],["MSFT","Microsoft"]],
+ "Binary Options":[["Rise/Fall","Directional contracts"],["Higher/Lower","Price direction contracts"],["Touch/No Touch","Price level contracts"]]
+};
+
+function showMarkets(category){
+ const container=document.getElementById("marketCards");
+ container.innerHTML="";
+ (marketData[category]||[]).forEach(item=>{
+  const card=document.createElement("div");
+  card.className="card";
+  const heading=document.createElement("h3");
+  heading.textContent=item[0];
+  const description=document.createElement("p");
+  description.className="muted";
+  description.textContent=item[1];
+  const note=document.createElement("p");
+  note.className="muted";
+  note.textContent="Select this instrument in the chart above to view available chart data.";
+  card.append(heading,description,note);
+  container.appendChild(card);
+ });
+}
+document.querySelectorAll("#marketTabs button").forEach(button=>{
+ button.addEventListener("click",()=>{
+  document.querySelectorAll("#marketTabs button").forEach(b=>b.classList.remove("active"));
+  button.classList.add("active");
+  showMarkets(button.dataset.market);
+ });
+});
+showMarkets("Forex");
+
+let selectedTime="15";
+function loadChart(){
+ const symbol=document.getElementById("symbol").value;
+ const target=document.getElementById("tradingview_chart");
+ target.innerHTML="";
+ if(typeof TradingView==="undefined"){
+  target.textContent="Chart service is currently unavailable. Please refresh the page.";
+  return;
+ }
+ new TradingView.widget({
+  autosize:true,
+  symbol:symbol,
+  interval:selectedTime,
+  timezone:"Africa/Nairobi",
+  theme:"dark",
+  style:"1",
+  locale:"en",
+  enable_publishing:false,
+  allow_symbol_change:true,
+  container_id:"tradingview_chart"
+ });
+}
+document.getElementById("symbol").addEventListener("change",loadChart);
+document.querySelectorAll("#timeTabs button").forEach(button=>{
+ button.addEventListener("click",()=>{
+  document.querySelectorAll("#timeTabs button").forEach(b=>b.classList.remove("active"));
+  button.classList.add("active");
+  selectedTime=button.dataset.time;
+  loadChart();
+ });
+});
+
+function calculateRisk(){
+ const balance=Number(document.getElementById("balance").value);
+ const percent=Number(document.getElementById("riskPercent").value);
+ const output=document.getElementById("riskResult");
+ if(!Number.isFinite(balance)||!Number.isFinite(percent)||balance<=0||percent<=0||percent>100){
+  output.textContent="Enter valid positive values. Risk must be 100% or less.";
+  return;
+ }
+ output.textContent="$"+(balance*percent/100).toFixed(2);
+}
+function analyseLevels(){
+ const support=Number(document.getElementById("support").value);
+ const resistance=Number(document.getElementById("resistance").value);
+ const current=Number(document.getElementById("current").value);
+ const result=document.getElementById("levelResult");
+ if(!support||!resistance||!current||resistance<=support){
+  result.textContent="Enter valid support, resistance and current prices.";
+  return;
+ }
+ if(current<=support) result.textContent="Price is at or below the support level. Watch for confirmation.";
+ else if(current>=resistance) result.textContent="Price is at or above the resistance level. Watch for confirmation.";
+ else result.textContent="Price is between support and resistance. Monitor price action.";
+}
+document.getElementById("year").textContent=new Date().getFullYear();
+calculateRisk();
+loadChart();
 </script>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = "https://whcmrzdvaiqfmgvlfqxo.supabase.co";
+const SUPABASE_KEY = "sb_publishable_EsWQFeqMpYC6ZVexRkCV7Q_qC1tvKJI";
+
+try {
+ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+ window.traderwinSupabase = supabase;
+ console.log("Traderwin database client initialized.");
+} catch (error) {
+ console.error("Database initialization failed:", error);
+}
+</script>
+
 </body>
 </html>
