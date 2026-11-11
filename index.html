@@ -143,7 +143,64 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 
 <section id="bots">
  <h2 class="section-title">Traderwin <span>Automation Centre</span></h2>
- <div class="notice">DEMO MODE ONLY: These controls do not connect to Deriv or MT5 and do not place trades. Real broker automation requires secure backend integration, broker authorization, testing and risk controls.</div>
+
+ <div class="notice">
+  DEMO MODE ONLY: Saving your preferences does not connect to a broker or place trades. Broker automation requires secure backend integration, broker authorization, testing and risk controls.
+ </div>
+
+ <!-- PERSONAL BOT SETUP -->
+ <div class="card" style="margin-top:15px">
+  <h3>⚙️ Personal Bot Setup</h3>
+  <p class="muted">Choose your preferred broker and trading instrument. These settings belong to your signed-in account.</p>
+
+  <form id="botSetupForm">
+
+   <div class="field">
+    <label for="botBroker">Choose or enter your broker</label>
+    <input id="botBroker" list="brokerOptions" placeholder="Choose or type a broker" required maxlength="80">
+    <datalist id="brokerOptions">
+     <option value="Deriv">
+     <option value="MetaTrader 5">
+     <option value="Exness">
+     <option value="FxPro">
+     <option value="JustMarkets">
+     <option value="Other">
+    </datalist>
+   </div>
+
+   <div class="field">
+    <label for="botInstrument">Choose or enter your instrument</label>
+    <input id="botInstrument" list="instrumentOptions" placeholder="Example: XAUUSD" required maxlength="80">
+    <datalist id="instrumentOptions">
+     <option value="XAUUSD">
+     <option value="EURUSD">
+     <option value="GBPUSD">
+     <option value="USDJPY">
+     <option value="BTCUSD">
+     <option value="ETHUSD">
+     <option value="Volatility 75 Index">
+     <option value="US30">
+     <option value="NAS100">
+     <option value="US500">
+    </datalist>
+   </div>
+
+   <div class="grid">
+    <div class="field">
+     <label>Account mode</label>
+     <input value="DEMO" readonly>
+    </div>
+    <div class="field">
+     <label>Automation status</label>
+     <input value="OFF" readonly>
+    </div>
+   </div>
+
+   <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
+   <p id="botSetupMessage" class="muted" role="status" aria-live="polite"></p>
+  </form>
+ </div>
+
  <div class="grid" style="margin-top:15px">
   <div class="card">
    <h3>Deriv Demo Bot</h3>
@@ -158,6 +215,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <button class="secondary" disabled>Demo integration pending</button>
   </div>
  </div>
+
  <div class="card" style="margin-top:15px">
   <h3>Bot Safety Rules</h3>
   <ul>
@@ -341,7 +399,7 @@ document.getElementById("year").textContent=new Date().getFullYear();
 calculateRisk();
 </script>
 
-<!-- SINGLE SUPABASE AUTHENTICATION CLIENT -->
+<!-- SUPABASE AUTHENTICATION AND BOT SETTINGS -->
 <script>
 (async function(){
 
@@ -349,6 +407,10 @@ calculateRisk();
  const SUPABASE_KEY="sb_publishable_EsWQFeqMpYC6ZVexRkCV7Q_qC1tvKJI";
 
  try{
+
+  if(!window.supabase){
+   throw new Error("Supabase library did not load.");
+  }
 
   const client=window.supabase.createClient(
    SUPABASE_URL,
@@ -364,19 +426,94 @@ calculateRisk();
    return;
   }
 
-  // Show dashboard only after session check succeeds.
+  const currentUser=data.session.user;
+
   document.body.style.visibility="visible";
 
-  // Load TradingView after the dashboard becomes visible.
   loadChart();
 
-  // Add sign-out button.
+  // PERSONAL BOT SETTINGS: SAVE FOR THE SIGNED-IN USER
+  const botForm=document.getElementById("botSetupForm");
+  const saveButton=document.getElementById("saveBotSettings");
+  const botMessage=document.getElementById("botSetupMessage");
+
+  botForm.addEventListener("submit",async function(event){
+
+   event.preventDefault();
+
+   const broker=document.getElementById("botBroker").value.trim();
+   const instrument=document.getElementById("botInstrument").value.trim();
+
+   if(!broker||!instrument){
+    botMessage.textContent="Please enter both your broker and instrument.";
+    return;
+   }
+
+   if(broker.length>80||instrument.length>80){
+    botMessage.textContent="Please keep each entry within 80 characters.";
+    return;
+   }
+
+   saveButton.disabled=true;
+   saveButton.textContent="Saving...";
+   botMessage.textContent="Saving your personal settings...";
+
+   try{
+
+    const {data:authData,error:authError}=await client.auth.getUser();
+
+    if(authError||!authData.user){
+     throw new Error("Your login session could not be verified. Please sign in again.");
+    }
+
+    const user=authData.user;
+
+    const {error:saveError}=await client
+     .from("bot_settings")
+     .insert({
+      user_id:user.id,
+      broker:broker,
+      instrument:instrument,
+      account_mode:"DEMO",
+      enabled:false
+     });
+
+    if(saveError){
+
+     if(saveError.code==="23505"){
+      botMessage.textContent="You already have bot settings saved. Editing existing settings will be enabled after the update policy is verified.";
+     }else if(saveError.code==="42501"){
+      botMessage.textContent="Supabase denied this save under its security policies. Your settings were not changed. We need to check the INSERT policy.";
+     }else{
+      console.error("Bot settings save error:",saveError);
+      botMessage.textContent="Could not save settings: "+saveError.message;
+     }
+
+     return;
+    }
+
+    botMessage.textContent="Success! Your bot preferences have been saved. Account mode: DEMO. Automation: OFF.";
+
+    botForm.reset();
+
+   }catch(error){
+    console.error("Bot setup error:",error);
+    botMessage.textContent=error.message||"Something went wrong. Please try again.";
+   }finally{
+    saveButton.disabled=false;
+    saveButton.textContent="Save My Bot Settings";
+   }
+
+  });
+
+  // SIGN OUT BUTTON
   const logout=document.createElement("button");
   logout.textContent="Sign Out";
   logout.style.cssText="position:fixed;top:12px;right:12px;z-index:99999;padding:10px 16px;background:#d7a83c;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer";
 
   logout.onclick=async()=>{
    logout.disabled=true;
+
    const {error}=await client.auth.signOut();
 
    if(error){
