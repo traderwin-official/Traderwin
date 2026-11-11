@@ -5,6 +5,7 @@ import { encryptToken } from "../lib/encryption.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
     return res.status(405).send("Method not allowed");
   }
 
@@ -27,6 +28,12 @@ export default async function handler(req, res) {
     );
   };
 
+  const finish = (status) => {
+    clearCookie();
+    res.setHeader("Cache-Control", "no-store");
+    return res.redirect(303, "/?deriv=" + status);
+  };
+
   try {
     if (
       !DERIV_CLIENT_ID ||
@@ -36,44 +43,54 @@ export default async function handler(req, res) {
       !SUPABASE_URL ||
       !SUPABASE_SERVICE_ROLE_KEY
     ) {
-      return res.status(503).send("Server configuration incomplete.");
+      return finish("error");
     }
 
     if (!match) {
-      return res.status(400).send("OAuth session missing. Try again.");
+      return finish("error");
     }
 
-    const [payload, signature] = decodeURIComponent(match[1]).split(".");
+    const cookieValue = decodeURIComponent(match[1]);
+    const separator = cookieValue.lastIndexOf(".");
+
+    if (separator === -1) {
+      return finish("error");
+    }
+
+    const payload = cookieValue.slice(0, separator);
+    const signature = cookieValue.slice(separator + 1);
 
     const expected = crypto
       .createHmac("sha256", DERIV_OAUTH_SECRET)
       .update(payload)
       .digest();
 
-    const received = Buffer.from(signature || "", "base64url");
+    const received = Buffer.from(signature, "base64url");
 
     if (
       received.length !== expected.length ||
       !crypto.timingSafeEqual(received, expected)
     ) {
-      clearCookie();
-      return res.status(400).send("Invalid OAuth session.");
+      return finish("error");
     }
 
     const session = JSON.parse(
-      Buffer.from(payload, "base64url").toString()
+      Buffer.from(payload, "base64url").toString("utf8")
     );
 
-    if (!session.userId || session.expires < Date.now()) {
-      clearCookie();
-      return res.status(400).send("OAuth session expired.");
+    if (
+      !session.userId ||
+      !session.state ||
+      !session.verifier ||
+      session.expires < Date.now()
+    ) {
+      return finish("error");
     }
 
     const { code, state, error } = req.query;
 
     if (error) {
-      clearCookie();
-      return res.status(400).send("Deriv authorization cancelled.");
+      return finish("cancelled");
     }
 
     if (
@@ -81,8 +98,7 @@ export default async function handler(req, res) {
       typeof state !== "string" ||
       state !== session.state
     ) {
-      clearCookie();
-      return res.status(400).send("Invalid OAuth state.");
+      return finish("error");
     }
 
     const tokenResponse = await fetch(
@@ -105,43 +121,45 @@ export default async function handler(req, res) {
     const tokenData = await tokenResponse.json();
 
     if (!tokenResponse.ok || !tokenData.access_token) {
-      clearCookie();
-      return res.status(400).send("Deriv token exchange failed.");
+      return finish("error");
     }
 
     const encryptedToken = encryptToken(tokenData.access_token);
 
     const supabase = createClient(
       SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY
+      SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        }
+      }
     );
 
     const { error: saveError } = await supabase
       .from("deriv_connections")
-      .upsert({
-        user_id: session.userId,
-        deriv_account_id: tokenData.account_id
-          ? String(tokenData.account_id)
-          : null,
-        encrypted_access_token: encryptedToken,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: "user_id"
-      });
+      .upsert(
+        {
+          user_id: session.userId,
+          deriv_account_id: null,
+          encrypted_access_token: encryptedToken,
+          updated_at: new Date().toISOString()
+        },
+        {
+          onConflict: "user_id"
+        }
+      );
 
     if (saveError) {
-      throw saveError;
+      console.error("Deriv connection save failed.");
+      return finish("error");
     }
 
-    clearCookie();
-    res.setHeader("Cache-Control", "no-store");
+    return finish("connected");
 
-    return res.status(200).send(
-      "Deriv account connected and securely saved to TRADERWIN."
-    );
-
-  } catch (err) {
-    clearCookie();
-    return res.status(500).send("Could not save Deriv connection.");
+  } catch (error) {
+    console.error("Deriv callback processing failed.");
+    return finish("error");
   }
 }
