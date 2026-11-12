@@ -688,6 +688,14 @@ calculateRisk();
     startPayment.disabled=true;
     return;
    }
+   const usd=Number(service.price_usd);
+   if(Number.isFinite(usd)&&usd>0){
+    const renewal=Number(service.renewal_price_usd);
+    paymentAmount.textContent="USD "+usd.toFixed(2)+" first purchase · USD "+(Number.isFinite(renewal)?renewal.toFixed(2):usd.toFixed(2))+" renewal. KES amount confirmed at checkout.";
+    startPayment.disabled=false;
+    if(!activePaymentOrderId) paymentMessage.textContent="Traderwin calculates the live KES equivalent on the server immediately before requesting your M-Pesa prompt.";
+    return;
+   }
    const price=Number(service.price_kes);
    paymentAmount.textContent=Number.isFinite(price)?"KES "+price.toLocaleString("en-KE"):"Price unavailable";
    startPayment.disabled=!Number.isSafeInteger(price)||price<1;
@@ -697,7 +705,7 @@ calculateRisk();
   }
   try{
    const {data:services,error:catalogError}=await client.from("service_catalog")
-    .select("service_code,service_name,description,price_kes,billing_period")
+    .select("service_code,service_name,description,price_kes,price_usd,renewal_price_usd,billing_period")
     .eq("active",true).order("service_name");
    if(catalogError) throw catalogError;
    paymentServices=services||[];
@@ -736,7 +744,8 @@ calculateRisk();
     if(!response.ok) throw new Error(result.error||"M-Pesa checkout could not start.");
     activePaymentOrderId=result.orderId;
     checkPayment.disabled=false;
-    paymentMessage.textContent=result.customerMessage||"Check your phone and enter your M-Pesa PIN.";
+    if(result.amountKes) paymentAmount.textContent="Checkout amount: KES "+Number(result.amountKes).toLocaleString("en-KE")+(result.amountUsd?" (USD "+Number(result.amountUsd).toFixed(2)+")":"");
+    paymentMessage.textContent=(result.customerMessage||"Check your phone and enter your M-Pesa PIN.")+" The M-Pesa prompt shows the exact KES amount to approve.";
    }catch(error){
     paymentMessage.textContent=error.message||"Payment request failed.";
    }finally{
