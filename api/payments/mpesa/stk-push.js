@@ -1,24 +1,25 @@
 import { createClient } from "@supabase/supabase-js";
+import { normalizeKenyanPhone, darajaBaseUrl, createNairobiTimestamp, buildStkPassword } from "../../../lib/mpesa.js";
 
-function mpesaBase() {
+function darajaBaseUrl() {
   return process.env.MPESA_ENV === "production"
     ? "https://api.safaricom.co.ke"
     : "https://sandbox.safaricom.co.ke";
 }
-function normalizePhone(value) {
+function normalizeKenyanPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   if (/^0[17]\d{8}$/.test(digits)) return "254" + digits.slice(1);
   if (/^254[17]\d{8}$/.test(digits)) return digits;
   return null;
 }
-function nairobiTimestamp() {
+function createNairobiTimestamp() {
   return new Date(Date.now() + 3 * 60 * 60 * 1000)
     .toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
 }
 async function getAccessToken() {
   const { MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET } = process.env;
   if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET) throw new Error("M-Pesa credentials are not configured.");
-  const response = await fetch(mpesaBase() + "/oauth/v1/generate?grant_type=client_credentials", {
+  const response = await fetch(darajaBaseUrl() + "/oauth/v1/generate?grant_type=client_credentials", {
     headers: { Authorization: "Basic " + Buffer.from(MPESA_CONSUMER_KEY + ":" + MPESA_CONSUMER_SECRET).toString("base64") },
     signal: AbortSignal.timeout(12000)
   });
@@ -39,7 +40,7 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const serviceCode = String(body.serviceCode || "").trim().toUpperCase();
-    const phone = normalizePhone(body.phoneNumber);
+    const phone = normalizeKenyanPhone(body.phoneNumber);
     if (!/^[A-Z0-9_]{2,40}$/.test(serviceCode) || !phone) return res.status(400).json({ error: "Choose a valid service and Kenyan M-Pesa phone number." });
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: auth, error: authError } = await admin.auth.getUser(authHeader.slice(7).trim());
@@ -57,10 +58,10 @@ export default async function handler(req, res) {
       console.error("M-Pesa order creation failed:", orderError?.message);
       return res.status(503).json({ error: "Could not create the payment order." });
     }
-    const timestamp = nairobiTimestamp();
-    const password = Buffer.from(MPESA_SHORTCODE + MPESA_PASSKEY + timestamp).toString("base64");
+    const timestamp = createNairobiTimestamp();
+    const password = buildStkPassword(MPESA_SHORTCODE, MPESA_PASSKEY, timestamp);
     const token = await getAccessToken();
-    const stkResponse = await fetch(mpesaBase() + "/mpesa/stkpush/v1/processrequest", {
+    const stkResponse = await fetch(darajaBaseUrl() + "/mpesa/stkpush/v1/processrequest", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
       body: JSON.stringify({
