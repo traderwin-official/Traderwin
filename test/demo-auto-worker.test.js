@@ -9,7 +9,9 @@ test("DEMO worker is cron-secret protected and uses a database lease", async () 
   assert.ok(source.includes("CRON_SECRET"));
   assert.match(source, /claim_traderwin_demo_worker/);
   assert.match(source, /release_traderwin_demo_worker/);
-  assert.match(source, /p_lease_seconds: 120/);\n  assert.match(source, /maxDuration: 25/);\n  assert.match(source, /CRON_SECRET.length < 32/);
+  assert.match(source, /p_lease_seconds: 120/);
+  assert.match(source, /maxDuration: 25/);
+  assert.match(source, /CRON_SECRET.length < 32/);
   assert.match(source, /MANUAL_POSITION_NOT_MANAGED/);
   assert.match(source, /realOrdersSent: 0/);
 });
