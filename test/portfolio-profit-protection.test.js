@@ -25,9 +25,10 @@ test("bot and explicitly managed manual positions share the USD 20 threshold", (
 });
 
 test("portfolio peak is persistent input and a 20 percent giveback triggers close", () => {
+  const positions = base.map(position => ({ ...position, profitUsd: position.source === "MANUAL" ? 30 : 35 }));
   const result = aggregatePortfolioProfitProtection({
-    positions: base.map(position => ({ ...position, profitUsd: position.source === "MANUAL" ? 30 : 35 })),
-    previousPeakProfitUsd: 100,
+    positions, previousPeakProfitUsd: 100,
+    previousIncludedPositionIds: ["bot-1", "bot-2", "manual-1"],
     manageManualTrades: true
   });
   assert.equal(result.currentProfitUsd, 100);
@@ -35,12 +36,55 @@ test("portfolio peak is persistent input and a 20 percent giveback triggers clos
   assert.equal(result.protectedFloorUsd, 80);
   assert.equal(result.shouldClose, false);
   const retraced = aggregatePortfolioProfitProtection({
-    positions: base.map(position => ({ ...position, profitUsd: position.source === "MANUAL" ? 20 : 20 })),
+    positions: positions.map(position => ({ ...position, profitUsd: 20 })),
     previousPeakProfitUsd: 100,
+    previousIncludedPositionIds: ["bot-1", "bot-2", "manual-1"],
     manageManualTrades: true
   });
   assert.equal(retraced.currentProfitUsd, 60);
   assert.equal(retraced.shouldClose, true);
+});
+
+test("revoking manual management resets the peak for the new managed set", () => {
+  const result = aggregatePortfolioProfitProtection({
+    positions: base.map(position => ({ ...position, profitUsd: 20 })),
+    previousPeakProfitUsd: 100,
+    previousIncludedPositionIds: ["bot-1", "bot-2", "manual-1"],
+    manageManualTrades: false
+  });
+  assert.equal(result.currentProfitUsd, 40);
+  assert.equal(result.peakProfitUsd, 40);
+  assert.equal(result.protectedFloorUsd, 32);
+  assert.equal(result.membershipChanged, true);
+  assert.equal(result.shouldClose, false);
+  assert.deepEqual(result.includedPositionIds, ["bot-1", "bot-2"]);
+});
+
+test("adding manual management resets the peak instead of inheriting an unrelated old peak", () => {
+  const result = aggregatePortfolioProfitProtection({
+    positions: base,
+    previousPeakProfitUsd: 100,
+    previousIncludedPositionIds: ["bot-1", "bot-2"],
+    manageManualTrades: true
+  });
+  assert.equal(result.currentProfitUsd, 21);
+  assert.equal(result.peakProfitUsd, 21);
+  assert.equal(result.membershipChanged, true);
+  assert.equal(result.shouldClose, false);
+});
+
+test("unchanged membership retains the previous portfolio peak", () => {
+  const result = aggregatePortfolioProfitProtection({
+    positions: base.map(position => ({ ...position, profitUsd: 20 })),
+    previousPeakProfitUsd: 100,
+    previousIncludedPositionIds: ["bot-1", "bot-2"],
+    manageManualTrades: false
+  });
+  assert.equal(result.currentProfitUsd, 40);
+  assert.equal(result.peakProfitUsd, 100);
+  assert.equal(result.protectedFloorUsd, 80);
+  assert.equal(result.shouldClose, true);
+  assert.equal(result.membershipChanged, false);
 });
 
 test("DEMO and REAL or different broker accounts cannot be mixed", () => {
@@ -61,5 +105,11 @@ test("closed positions do not affect the combined open-profit calculation", () =
 test("invalid or non-USD-normalized P&L is rejected", () => {
   assert.throws(() => aggregatePortfolioProfitProtection({
     positions: [{ ...base[0], profitUsd: "8" }]
+  }), RangeError);
+});
+
+test("invalid previous membership IDs are rejected", () => {
+  assert.throws(() => aggregatePortfolioProfitProtection({
+    positions: base, previousIncludedPositionIds: "bot-1"
   }), RangeError);
 });
