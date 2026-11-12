@@ -41,6 +41,8 @@ a{color:#e6b84c}
 <div id="account">
 <h2>Account active</h2>
 <p id="userEmail"></p>
+<p id="accountMode" class="small"></p>
+<button id="chooseMode" class="secondary" type="button" onclick="location.href='/onboarding.html'">Choose / Change Account Mode</button>
 <button id="logout" class="secondary">Sign Out</button>
 </div>
 
@@ -84,10 +86,28 @@ async function updateAccount() {
   }
 
   if (data.user) {
+    const { data: profile, error: profileError } = await client
+      .from("trader_profiles")
+      .select("account_mode")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      showMessage("Account-mode setup is not ready. The Traderwin administrator must apply the core upgrade SQL migration in Supabase. " + profileError.message);
+      return;
+    }
+
+    if (!profile) {
+      window.location.replace("/onboarding.html");
+      return;
+    }
+
     authBox.style.display = "none";
     accountBox.style.display = "block";
     document.getElementById("userEmail").textContent =
       "Signed in as " + data.user.email;
+    document.getElementById("accountMode").textContent =
+      "Account mode: " + profile.account_mode + (profile.account_mode === "REAL" ? " — live trading remains locked" : " — practice mode");
   } else {
     authBox.style.display = "block";
     accountBox.style.display = "none";

@@ -144,8 +144,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 <section id="bots">
  <h2 class="section-title">Traderwin <span>Automation Centre</span></h2>
 
- <div class="notice">
-  DEMO MODE ONLY: Saving your preferences does not connect to a broker or place trades. Broker automation requires secure backend integration, broker authorization, testing and risk controls.
+ <div class="notice" id="botModeSafetyNotice">
+  Your selected account mode is being checked. Saving bot preferences does not connect to a broker or place trades. Automation remains OFF until a separate, tested broker integration is authorized.
  </div>
 
  <div class="card" style="margin-top:15px">
@@ -186,7 +186,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="grid">
     <div class="field">
      <label>Account mode</label>
-     <input value="DEMO" readonly>
+     <input id="botAccountMode" value="DEMO" readonly>
     </div>
     <div class="field">
      <label>Automation status</label>
@@ -420,6 +420,7 @@ calculateRisk();
   );
 
   window.traderwinAuth=client;
+  let selectedAccountMode = "DEMO";
 
   const {data,error}=await client.auth.getSession();
 
@@ -427,6 +428,27 @@ calculateRisk();
    window.location.replace("/auth.html");
    return;
   }
+
+  const {data:profile,error:profileError}=await client
+   .from("trader_profiles")
+   .select("account_mode,real_trading_enabled,max_risk_per_trade_pct,max_daily_loss_pct")
+   .eq("user_id",data.session.user.id)
+   .maybeSingle();
+
+  if(profileError){
+   throw new Error("Traderwin account settings are not ready. Apply the core upgrade SQL migration in Supabase. "+profileError.message);
+  }
+  if(!profile){
+   window.location.replace("/onboarding.html");
+   return;
+  }
+
+  selectedAccountMode=profile.account_mode;
+  document.getElementById("botAccountMode").value=selectedAccountMode;
+  document.getElementById("botModeSafetyNotice").textContent=
+   selectedAccountMode==="REAL"
+    ? "REAL MODE SELECTED. Live trading remains LOCKED; no broker orders can be placed from this setting. Broker verification, explicit live authorization and risk controls are still required."
+    : "DEMO MODE SELECTED. Use demo funds for testing. Automation remains OFF until a separate, tested broker integration is authorized.";
 
   document.body.style.visibility="visible";
 
@@ -539,7 +561,7 @@ calculateRisk();
      return;
     }
 
-    botMessage.textContent="Success! Your bot preferences have been saved. Account mode: DEMO. Automation: OFF.";
+    botMessage.textContent="Success! Your bot preferences have been saved. Your selected account preference is "+selectedAccountMode+". Bot configuration remains DEMO and automation stays OFF until broker verification and a separate live-trading safety workflow are completed.";
     botForm.reset();
 
    }catch(error){
@@ -576,7 +598,9 @@ calculateRisk();
  }catch(error){
   console.error("Traderwin authentication error:",error);
   document.body.style.visibility="visible";
-  document.body.innerHTML="<main><div class='card'><h2>Authentication unavailable</h2><p>Please check your internet connection and try again.</p><a href='/auth.html'>Return to login</a></div></main>";
+  document.body.innerHTML="<main><div class='card'><h2>Traderwin setup needs attention</h2><p id='setupError'></p><a href='/auth.html'>Return to login</a></div></main>";
+  const setupError=document.getElementById("setupError");
+  if(setupError) setupError.textContent=error.message||"Please check your connection and try again.";
  }
 
 })();
