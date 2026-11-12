@@ -23,7 +23,7 @@ export default async function handler(req,res){
   if(symbol!==String(cfg.instrument).toUpperCase())return res.status(400).json({error:"Symbol must match your saved bot instrument."});
   const {data:modeProfile}=await db.from("bot_mode_profiles").select("profit_giveback_pct,max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("account_mode","DEMO").maybeSingle();
   const givebackPct=Math.min(50,Math.max(1,Number(modeProfile?.profit_giveback_pct||20)));
-  const riskPct=Math.min(Number(p.max_risk_per_trade_pct),Number(s.max_risk_per_trade_pct),Number(cfg.max_risk_per_trade_pct));
+  const riskPct=Math.min(Number(p.max_risk_per_trade_pct),Number(s.max_risk_per_trade_pct),Number(cfg.max_risk_per_trade_pct),Number(modeProfile?.max_risk_per_trade_pct||p.max_risk_per_trade_pct));
   let sizing;try{sizing=calculatePaperPosition({balance:Number(s.current_balance),riskPct,entry,stop});}catch{return res.status(400).json({error:"Could not calculate safe paper position size."});}
   if(!Number.isFinite(sizing.units)||sizing.units<=0||sizing.units>1e12)return res.status(400).json({error:"Paper position size outside safe limits."});
   const {data:openTrades,error:openError}=await db.from("demo_bot_trades").select("id").eq("user_id",uid).eq("status","OPEN").limit(1);
