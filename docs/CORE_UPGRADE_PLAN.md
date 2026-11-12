@@ -21,7 +21,7 @@ This branch is isolated from the live main branch. PR #3 remains draft and unmer
 - REAL broker order execution remains locked. Payment or selecting REAL never authorizes trading.
 - Automatic renewal is not enabled. The current M-Pesa STK Push requires customer confirmation for each payment; manual renewal is the default.
 - Daraja production credentials and callback URL are not confirmed.
-- Supabase migrations 002-015 are not confirmed applied to the live project; only migration 001 was previously confirmed by the owner.
+- Supabase migrations 002-016 are not confirmed applied to the live project; only migration 001 was previously confirmed by the owner.
 - Vercel deployment is currently blocked by the account deployment API rate limit. Wait for the provider's stated retry window; do not bypass it.
 
 ## Supabase migration order
