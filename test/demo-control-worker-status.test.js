@@ -7,6 +7,9 @@ test("DEMO control requires the validated strategy and supported timeframe befor
   assert.match(source, /s\.strategy!=="MULTI_CONFIRMATION_V1"/);
   assert.match(source, /\["M5","M15","H1","H4"\]/);
   assert.match(source, /unattended DEMO auto worker currently supports Deriv only/);
+  assert.match(source, /active\?\.status==="PAUSED"/);
+  assert.match(source, /openPosition\?\.trade_source==="BOT"\?"PAUSED":"STOPPED"/);
+  assert.match(source, /Close your existing open DEMO position before starting a new session/);
 });
 
 test("DEMO status returns the authenticated user's worker heartbeat", async () => {
