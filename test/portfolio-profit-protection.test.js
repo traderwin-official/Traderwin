@@ -108,6 +108,16 @@ test("invalid or non-USD-normalized P&L is rejected", () => {
   }), RangeError);
 });
 
+test("missing membership snapshot fails safe by resetting the previous peak", () => {
+  const result = aggregatePortfolioProfitProtection({
+    positions: base, previousPeakProfitUsd: 100, manageManualTrades: true
+  });
+  assert.equal(result.currentProfitUsd, 21);
+  assert.equal(result.peakProfitUsd, 21);
+  assert.equal(result.membershipChanged, true);
+  assert.equal(result.shouldClose, false);
+});
+
 test("invalid previous membership IDs are rejected", () => {
   assert.throws(() => aggregatePortfolioProfitProtection({
     positions: base, previousIncludedPositionIds: "bot-1"
