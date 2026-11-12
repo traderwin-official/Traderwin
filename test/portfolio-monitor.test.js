@@ -54,7 +54,7 @@ test("optimistic persistence conflict requests retry and never closes", async ()
 test("manual close permission is required before any close operation", async () => {
   const a = adapters({
     loadSnapshot: async () => ({ positions: positions.map(p => ({ ...p, profitUsd: 30 })), source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
-    loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4 }),
+    loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     loadPermissions: async () => ({ manageManualTrades: false, manageBotTrades: true, closeManagedPositions: false })
   });
   const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
@@ -68,7 +68,7 @@ test("REAL positions require separate real-execution authorization", async () =>
   const realPositions = positions.map(p => ({ ...p, accountMode: "REAL", profitUsd: 30 }));
   const a = adapters({
     loadSnapshot: async () => ({ positions: realPositions, source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
-    loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4 }),
+    loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     isRealExecutionAuthorized: async () => false
   });
   const result = await monitorPortfolio(realScope, a, { now: 1_005_000 });
@@ -80,7 +80,7 @@ test("REAL positions require separate real-execution authorization", async () =>
 test("partial broker close failures are reported per position", async () => {
   const a = adapters({
     loadSnapshot: async () => ({ positions: positions.map(p => ({ ...p, profitUsd: 30 })), source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
-    loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4 }),
+    loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     closePosition: async p => ({ closed: p.id === "p1" })
   });
   const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
@@ -93,7 +93,7 @@ test("REAL execution gate is checked only after a valid trailing trigger", async
   const realPositions = positions.map(p => ({ ...p, accountMode: "REAL", profitUsd: 30 }));
   const a = adapters({
     loadSnapshot: async () => ({ positions: realPositions, source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
-    loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4 }),
+    loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     isRealExecutionAuthorized: async () => true
   });
   const result = await monitorPortfolio(realScope, a, { now: 1_005_000 });
