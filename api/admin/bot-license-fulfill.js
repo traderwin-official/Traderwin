@@ -5,18 +5,23 @@ const noStore=res=>{res.setHeader("Cache-Control","no-store");res.setHeader("Pra
 const makeKey=()=>{const part=()=>crypto.randomBytes(3).toString("hex").toUpperCase();return "TW-"+part()+"-"+part()+"-"+part()+"-"+part();};
 export default async function handler(req,res){
  noStore(res);
- if(req.method!=="POST"){res.setHeader("Allow","POST");return res.status(405).json({error:"Method not allowed."});}
+ if(!["GET","POST"].includes(req.method)){res.setHeader("Allow","GET, POST");return res.status(405).json({error:"Method not allowed."});}
  const {SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TRADERWIN_LICENSE_ADMIN_TOKEN}=process.env;
  if(!SUPABASE_URL||!SUPABASE_SERVICE_ROLE_KEY||!TRADERWIN_LICENSE_ADMIN_TOKEN)return res.status(503).json({error:"Private license fulfillment is not configured."});
  const supplied=String(req.headers["x-traderwin-admin-token"]||"");
  const a=Buffer.from(supplied),b=Buffer.from(TRADERWIN_LICENSE_ADMIN_TOKEN);
  if(a.length!==b.length||!crypto.timingSafeEqual(a,b))return res.status(401).json({error:"Admin authorization failed."});
  try{
+  const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+  if(req.method==="GET"){
+   const {data,error}=await db.from("bot_license_orders").select("id,product_code,customer_name,customer_email,customer_phone,mt5_login,mt5_server,amount_kes,status,payment_reference,created_at").in("status",["PENDING_PAYMENT","PAYMENT_REVIEW","PAID","FULFILLED"]).order("created_at",{ascending:false}).limit(100);
+   if(error)throw error;
+   return res.status(200).json({orders:data||[]});
+  }
   const body=typeof req.body==="string"?JSON.parse(req.body):(req.body||{});
   const orderId=String(body.orderId||"").trim();
   const paymentReference=String(body.paymentReference||"").trim().slice(0,80);
   if(!/^[0-9a-f-]{36}$/i.test(orderId)||paymentReference.length<4)return res.status(400).json({error:"A valid order ID and confirmed M-Pesa transaction reference are required."});
-  const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:order,error:orderError}=await db.from("bot_license_orders").select("id,product_code,status,amount_kes,customer_email").eq("id",orderId).maybeSingle();
   if(orderError)throw orderError;
   if(!order)return res.status(404).json({error:"Order not found."});
