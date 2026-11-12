@@ -5,6 +5,11 @@
 -- an account as connected. Existing rows are preserved.
 
 revoke insert, update, delete on table public.broker_connections from anon, authenticated;
+-- Column-level grants survive a table-level REVOKE in PostgreSQL.
+revoke insert (user_id, provider, external_account_id, account_label, account_mode)
+  on table public.broker_connections from anon, authenticated;
+revoke update (account_label, account_mode)
+  on table public.broker_connections from anon, authenticated;
 grant select on table public.broker_connections to authenticated;
 
 -- Risk acknowledgement timestamps are audit evidence, not a client-editable flag.
