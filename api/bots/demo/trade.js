@@ -24,7 +24,12 @@ export default async function handler(req,res){
   const riskPct=Math.min(Number(p.max_risk_per_trade_pct),Number(s.max_risk_per_trade_pct),Number(cfg.max_risk_per_trade_pct));
   let sizing;try{sizing=calculatePaperPosition({balance:Number(s.current_balance),riskPct,entry,stop});}catch{return res.status(400).json({error:"Could not calculate safe paper position size."});}
   if(!Number.isFinite(sizing.units)||sizing.units<=0||sizing.units>1e12)return res.status(400).json({error:"Paper position size outside safe limits."});
-  const dayStart=new Date();dayStart.setUTCHours(0,0,0,0);
+  const {data:openTrades,error:openError}=await db.from("demo_bot_trades").select("id").eq("user_id",uid).eq("status","OPEN").limit(1);
+  if(openError)return res.status(503).json({error:"Could not check open paper trades."});
+  if(openTrades?.length)return res.status(409).json({error:"Close your existing open paper trade before recording another. This demo version allows one open position at a time."});
+  const nairobiNow=new Date(Date.now()+3*60*60*1000);
+  nairobiNow.setUTCHours(0,0,0,0);
+  const dayStart=new Date(nairobiNow.getTime()-3*60*60*1000);
   const {data:closed,error:de}=await db.from("demo_bot_trades").select("realized_pnl").eq("user_id",uid).eq("status","CLOSED").gte("closed_at",dayStart.toISOString());
   if(de)return res.status(503).json({error:"Could not verify daily loss limit."});
   const losses=(closed||[]).reduce((sum,t)=>sum+Math.min(0,Number(t.realized_pnl||0)),0);
