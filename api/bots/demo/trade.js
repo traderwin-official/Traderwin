@@ -18,7 +18,7 @@ export default async function handler(req,res){
   if(pe||!p)return res.status(409).json({error:"Complete your account setup first."});if(p.account_mode!=="DEMO")return res.status(403).json({error:"Paper trades are DEMO-only."});
   const {data:s,error:se}=await db.from("demo_bot_sessions").select("id,current_balance,max_risk_per_trade_pct,max_daily_loss_pct,status").eq("user_id",uid).eq("status","RUNNING").maybeSingle();
   if(se||!s)return res.status(409).json({error:"Start your DEMO paper session first."});
-  const {data:cfg,error:ce}=await db.from("bot_settings").select("instrument,account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
+  const {data:cfg,error:ce}=await db.from("bot_settings").select("broker,instrument,account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
   if(ce||!cfg||cfg.account_mode!=="DEMO")return res.status(403).json({error:"Saved bot settings are not in DEMO mode."});
   const emergencyBroker=String(cfg.broker||"").toUpperCase()==="DERIV"?"DERIV":String(cfg.broker||"").toUpperCase()==="MT5"?"MT5":null;
   if(!emergencyBroker)return res.status(403).json({error:"Unsupported broker for emergency control."});
