@@ -1,10 +1,4 @@
 
--- Allow authenticated owners to save the worker's selected timeframe and validated strategy.
-grant insert(user_id,broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe)
-  on public.bot_settings to authenticated;
-grant update(broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe)
-  on public.bot_settings to authenticated;
-
 -- The worker supports only validated candle intervals and explicitly marks bot-originated trades.
 alter table public.bot_settings
   add column if not exists timeframe text not null default 'M15';
@@ -19,7 +13,13 @@ begin
       add constraint bot_settings_timeframe_check
       check (timeframe in ('M5','M15','H1','H4'));
   end if;
-end $$;
+end $;
+
+-- Allow authenticated owners to save the worker's selected timeframe and validated strategy.
+grant insert(user_id,broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe)
+  on public.bot_settings to authenticated;
+grant update(broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe)
+  on public.bot_settings to authenticated;
 
 alter table public.demo_bot_trades
   add column if not exists trade_source text not null default 'MANUAL';
