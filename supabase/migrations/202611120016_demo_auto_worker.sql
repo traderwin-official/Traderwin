@@ -176,6 +176,9 @@ begin
        and broker = 'DERIV' and broker_account_ref = 'DEMO:' || p_user_id::text
        and kill_switch_active = true
   ) then
+    insert into public.bot_activity(user_id,bot_setting_id,event_type,account_mode,details)
+    values (p_user_id,v_session.bot_setting_id,'RISK_BLOCK','DEMO',
+      jsonb_build_object('reason','KILL_SWITCH_ACTIVE','action','AUTO_ENTRY_BLOCKED'));
     return null;
   end if;
   v_day_start := date_trunc('day', now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
@@ -222,6 +225,14 @@ begin
   update public.demo_bot_sessions
      set worker_last_candle_as_of = p_candle_as_of, updated_at = now()
    where id = p_session_id;
+  insert into public.bot_activity(user_id,bot_setting_id,event_type,account_mode,details)
+  values (p_user_id,v_session.bot_setting_id,'DEMO_ORDER','DEMO',
+    jsonb_build_object('trade_id',v_trade_id,'action','AUTO_OPEN',
+      'symbol',p_symbol,'direction',p_direction,'entry_price',p_entry_price,
+      'stop_loss',p_stop_loss,'take_profit',p_take_profit,
+      'risk_amount',p_risk_amount,'risk_pct',p_risk_pct,
+      'quote_source',p_quote_source,'quote_as_of',p_quote_as_of,
+      'candle_as_of',p_candle_as_of));
   return v_trade_id;
 end;
 $$;
