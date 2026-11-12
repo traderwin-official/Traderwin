@@ -668,7 +668,7 @@ calculateRisk();
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||"Status unavailable");
     if(result.connected){
-     derivStatus.textContent="Deriv is connected to your Traderwin account. Token storage is encrypted server-side.";
+     derivStatus.textContent="Deriv connected · DEMO account "+String(result.demoAccountId||"").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". REAL account "+(result.realAccountId?"found but still locked":"not detected")+". Token storage is encrypted server-side.";
      connectButton.disabled=true;
      connectButton.textContent="Deriv Connected";
      disconnectButton.style.display="inline-block";
