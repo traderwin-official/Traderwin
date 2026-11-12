@@ -846,7 +846,7 @@ calculateRisk();
    });
 
    if(selectedAccountMode==="DEMO"){
-    callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(r=>{
+    callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
      if(r.session){
       activeDemoSession=r.session;
       demoStatus.textContent="Session: RUNNING";
