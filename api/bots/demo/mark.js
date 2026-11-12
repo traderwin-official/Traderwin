@@ -15,10 +15,17 @@ export default async function handler(req,res){
   if(p.shouldClose){
    const {data:closed,error}=await db.from("demo_bot_trades").update({exit_price:price,realized_pnl:p.currentProfit,status:"CLOSED",closed_at:now,peak_unrealized_profit:p.peakProfit,last_mark_price:price,last_mark_at:now,protected_stop_price:p.protectedStopPrice}).eq("id",id).eq("user_id",a.user.id).eq("status","OPEN").select("id,exit_price,realized_pnl,status,closed_at").maybeSingle();
    if(error||!closed)return res.status(409).json({error:"Trade changed during update; refresh and retry."});
-   const {data:s}=await db.from("demo_bot_sessions").select("current_balance").eq("id",t.session_id).maybeSingle();
-   if(s)await db.from("demo_bot_sessions").update({current_balance:Math.max(0,Number(s.current_balance)+p.currentProfit),updated_at:now}).eq("id",t.session_id);
+   const {data:s}=await db.from("demo_bot_sessions").select("current_balance,max_daily_loss_pct").eq("id",t.session_id).maybeSingle();
+   if(s){
+    await db.from("demo_bot_sessions").update({current_balance:Math.max(0,Number(s.current_balance)+p.currentProfit),updated_at:now}).eq("id",t.session_id);
+    const nairobi=new Date(Date.now()+3*60*60*1000);nairobi.setUTCHours(0,0,0,0);
+    const dayStart=new Date(nairobi.getTime()-3*60*60*1000);
+    const {data:today}=await db.from("demo_bot_trades").select("realized_pnl").eq("user_id",a.user.id).eq("status","CLOSED").gte("closed_at",dayStart.toISOString());
+    const losses=(today||[]).reduce((sum,row)=>sum+Math.min(0,Number(row.realized_pnl||0)),0),limit=Number(s.current_balance)*Number(s.max_daily_loss_pct)/100;
+    if(Math.abs(losses)>=limit)await db.from("demo_bot_sessions").update({status:"RISK_LOCKED",stopped_at:now}).eq("id",t.session_id).eq("status","RUNNING");
+   }
    await db.from("bot_activity").insert({user_id:a.user.id,event_type:"DEMO_ORDER",account_mode:"DEMO",details:{trade_id:id,action:"PROFIT_GIVEBACK_CLOSE",peak_profit:p.peakProfit,giveback_pct:p.givebackPct,realized_pnl:p.currentProfit}});
-   return res.status(200).json({ok:true,closed:true,trade:closed,protection:p,message:"The 20% peak-profit giveback rule closed this demo paper trade."});
+   return res.status(200).json({ok:true,closed:true,trade:closed,protection:p,message:"The peak-profit giveback rule closed this demo paper trade."});
   }
   const {error}=await db.from("demo_bot_trades").update({peak_unrealized_profit:p.peakProfit,protected_stop_price:p.protectedStopPrice,last_mark_price:price,last_mark_at:now}).eq("id",id).eq("user_id",a.user.id).eq("status","OPEN");
   if(error)return res.status(503).json({error:"Could not update profit protection."});
