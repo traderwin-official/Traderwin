@@ -12,9 +12,6 @@ export default async function handler(req,res){
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
   const uid=a.user.id;
   if(action==="STATUS"){
-   const {data:profile,error:profileError}=await db.from("trader_profiles").select("account_mode").eq("user_id",uid).maybeSingle();
-   if(profileError)return res.status(503).json({error:"Could not check account mode."});
-   if(profile?.account_mode!=="DEMO")return res.status(200).json({ok:true,session:null,message:"Demo simulator is locked outside DEMO mode."});
    const {data:active,error:activeError}=await db.from("demo_bot_sessions").select("id,status,current_balance,virtual_currency,started_at,bot_setting_id").eq("user_id",uid).order("created_at",{ascending:false}).limit(1).maybeSingle();
    if(activeError)return res.status(503).json({error:"Could not load demo session status."});
    if(!active)return res.status(200).json({ok:true,session:null,openTrade:null,message:"No demo session exists yet."});
