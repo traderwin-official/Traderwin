@@ -205,7 +205,7 @@ export default async function handler(req, res) {
         const { error: touchError } = await db.from("demo_bot_sessions")
           .update({ updated_at: tickAt })
           .eq("id", session.id)
-          .eq("status", "RUNNING");
+          .in("status", ["RUNNING", "PAUSED"]);
         if (touchError) console.error("DEMO session scheduler timestamp failed:", touchError.message);
       }));
     } finally {
