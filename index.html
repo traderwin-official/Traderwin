@@ -254,7 +254,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <h3>DEMO Paper-Trading Simulator</h3>
   <p class="muted">Virtual practice only. The Smart Auto worker analyses supported Deriv DEMO instruments on scheduled runs, opens virtual positions on confirmed new candles, and manages bot-originated positions at their stop-loss or take-profit. Manual paper positions are not managed by the auto worker. This requires migration 016, the Vercel CRON_SECRET and a deployment plan that supports the configured one-minute cron. MT5 automation is not connected. Virtual units and P/L are simplified learning estimates, not broker lot sizes or executable quotes.</p>
   <p class="status" id="demoSessionStatus">Session: Not started</p>
-  <p class="muted" id="demoWorkerHealth">Worker status: waiting for a scheduled check.</p>
+  <p class="muted" id="demoWorkerHealth">Worker status: waiting for a scheduled check.</p>\n  <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh worker status</button>
   <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
   <button type="button" id="startDemoSession">Start DEMO Session</button>
   <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
@@ -1003,7 +1003,7 @@ calculateRisk();
    const demoMessage=document.getElementById("demoSessionMessage");
    const demoWorkerHealth=document.getElementById("demoWorkerHealth");
    function showDemoWorkerHealth(heartbeat){
-    if(!heartbeat){demoWorkerHealth.textContent="Worker status: waiting for its first scheduled run. Check CRON_SECRET and Vercel cron support.";return;}
+    if(!heartbeat){demoWorkerHealth.textContent="Worker status: waiting for its first scheduled run. Check CRON_SECRET and Supabase Cron/Vault setup.";return;}
     const when=heartbeat.last_tick_at?new Date(heartbeat.last_tick_at).toLocaleString():"unknown";
     demoWorkerHealth.textContent="Worker last checked: "+when+" · "+heartbeat.last_action+(heartbeat.last_reason?" · "+heartbeat.last_reason:"")+(heartbeat.last_error?" · "+heartbeat.last_error:"");
    }
@@ -1020,6 +1020,16 @@ calculateRisk();
     if(!response.ok)throw new Error(result.error||"Demo request failed.");
     return result;
    }
+   document.getElementById("refreshDemoWorkerStatus").addEventListener("click",async()=>{
+    const refresh=document.getElementById("refreshDemoWorkerStatus");
+    refresh.disabled=true;
+    try{
+     const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
+     showDemoWorkerHealth(status.workerHeartbeat);
+     if(status.session)demoStatus.textContent="Session: "+status.session.status;
+    }catch(error){demoWorkerHealth.textContent="Worker status unavailable: "+error.message;}
+    finally{refresh.disabled=false;}
+   });
    if(selectedAccountMode!=="DEMO"){
     [startDemo,stopDemo,recordPaper,closePaper].forEach(x=>x.disabled=true);
     demoMessage.textContent="Paper simulator is locked in REAL mode. Switch to DEMO to practise.";
