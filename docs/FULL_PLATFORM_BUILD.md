@@ -4,7 +4,7 @@
 1. **Markets:** Forex, binary, crypto, commodities, indices and stocks. Seeded symbols are a directory, not live quotes.
 2. **Broker connections:** Deriv and MT5. Only non-secret metadata is stored in Supabase; OAuth tokens stay encrypted server-side.
 3. **Account modes:** DEMO/REAL preference and risk limits. REAL selection never authorizes an order.
-4. **Bots:** Per-user bot preferences, audit trail and a scheduled Deriv-only DEMO auto worker with atomic paper-trade lifecycle and kill-switch checks. It is not yet operational until migration 016, `CRON_SECRET`, supported Vercel cron scheduling and a live worker heartbeat are verified.
+4. **Bots:** Per-user bot preferences, audit trail and a scheduled Deriv-only DEMO auto worker with atomic paper-trade lifecycle and kill-switch checks. It is not yet operational until migration 016, `CRON_SECRET`, Supabase Cron/Vault scheduling and a live worker heartbeat are verified.
 5. **AI analyst and signals:** Structured ideas with entry, SL, multiple targets, confidence, evidence timestamps and freshness fields. Human review is required before publication.
 6. **Business operations:** M-Pesa payment ledger, separate service catalogue, subscriptions, courses, enrolments and admin-role foundation. M-Pesa checkout scaffolding stays unavailable until Daraja credentials and merchant settings are configured.
 
