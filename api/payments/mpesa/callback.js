@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     if (!checkoutId) return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback received" });
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: order, error: orderError } = await admin.from("payment_orders")
-      .select("id,amount_kes,phone_number,status").eq("checkout_request_id", checkoutId).maybeSingle();
+      .select("id,user_id,service_code,amount_kes,phone_number,status").eq("checkout_request_id", checkoutId).maybeSingle();
     if (orderError || !order || order.status !== "PENDING") return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged" });
     // The public callback is not trusted by itself. Verify the checkout with Daraja.
     const timestamp = nairobiTimestamp();
@@ -58,10 +58,38 @@ export default async function handler(req, res) {
       console.error("M-Pesa callback metadata did not match the pending order.");
       return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged for manual review" });
     }
-    const { error: updateError } = await admin.from("payment_orders").update({
+    const { data: paidOrder, error: updateError } = await admin.from("payment_orders").update({
       status: "PAID", provider_reference: receipt, confirmed_at: new Date().toISOString()
-    }).eq("id", order.id).eq("status", "PENDING");
-    if (updateError) console.error("Verified M-Pesa payment could not be recorded:", updateError.message);
+    }).eq("id", order.id).eq("status", "PENDING")
+      .select("id,user_id,service_code").maybeSingle();
+    if (updateError) {
+      console.error("Verified M-Pesa payment could not be recorded:", updateError.message);
+      return res.status(200).json({ ResultCode: 0, ResultDesc: "Verified payment received; recording pending" });
+    }
+    if (paidOrder) {
+      const { data: service, error: serviceError } = await admin.from("service_catalog")
+        .select("billing_period").eq("service_code", paidOrder.service_code).maybeSingle();
+      if (serviceError || !service) {
+        console.error("Paid service entitlement could not be resolved:", serviceError?.message || "Service missing");
+      } else {
+        const startsAt = new Date();
+        const endsAt = new Date(startsAt);
+        if (service.billing_period === "MONTHLY") endsAt.setMonth(endsAt.getMonth() + 1);
+        else if (service.billing_period === "YEARLY") endsAt.setFullYear(endsAt.getFullYear() + 1);
+        else endsAt.setTime(0);
+        const { error: entitlementError } = await admin.from("user_subscriptions").upsert({
+          user_id: paidOrder.user_id,
+          service_code: paidOrder.service_code,
+          status: "ACTIVE",
+          starts_at: startsAt.toISOString(),
+          ends_at: service.billing_period === "ONE_TIME" ? null : endsAt.toISOString(),
+          payment_order_id: paidOrder.id
+        }, { onConflict: "user_id,service_code" });
+        if (entitlementError) {
+          console.error("Paid service entitlement activation failed:", entitlementError.message);
+        }
+      }
+    }
     return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment verification completed" });
   } catch (error) {
     console.error("M-Pesa callback processing failed:", error.message);
