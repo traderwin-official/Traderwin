@@ -91,3 +91,19 @@ test("fails closed for REAL sessions, unsupported strategy and stale quotes", ()
   stale.quote.quoteAsOf = new Date(now - 60000).toISOString();
   assert.equal(decideDemoAutoAction({ ...stale, now }).reason, "QUOTE_NOT_FRESH");
 });
+
+test("paused session continues to manage an existing bot position but never opens a new one", () => {
+  const paused = structuredClone(base);
+  paused.session.status = "PAUSED";
+  paused.market = null;
+  paused.openTrade = {
+    id: "paused-trade", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, stop_loss: 118, take_profit: 124, virtual_units: 2, status: "OPEN"
+  };
+  paused.quote.quote = 119;
+  assert.equal(decideDemoAutoAction({ ...paused, now }).action, "MARK");
+
+  const noPosition = structuredClone(base);
+  noPosition.session.status = "PAUSED";
+  assert.equal(decideDemoAutoAction({ ...noPosition, now }).reason, "SESSION_PAUSED_NO_OPEN_POSITION");
+});
