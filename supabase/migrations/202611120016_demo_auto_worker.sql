@@ -13,7 +13,7 @@ begin
       add constraint bot_settings_timeframe_check
       check (timeframe in ('M5','M15','H1','H4'));
   end if;
-end $;
+end $$;
 
 -- Allow authenticated owners to save the worker's selected timeframe and validated strategy.
 grant insert(user_id,broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe)
