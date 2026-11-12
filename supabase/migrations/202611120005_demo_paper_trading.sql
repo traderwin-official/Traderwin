@@ -28,7 +28,8 @@ create table if not exists public.demo_bot_trades (
  risk_pct numeric(5,2) not null check(risk_pct>0 and risk_pct<=2),
  exit_price numeric(20,8),realized_pnl numeric(14,2),
  status text not null default 'OPEN' check(status in('OPEN','CLOSED','CANCELLED')),
- quote_source text not null default 'USER_SUPPLIED_DEMO_PRICE',
+ quote_source text not null check(quote_source in('DERIV','MT5','VERIFIED_DATA_PROVIDER')),
+ quote_as_of timestamptz not null,
  opened_at timestamptz not null default now(),closed_at timestamptz,created_at timestamptz not null default now(),
  check((direction='BUY' and stop_loss<entry_price and take_profit>entry_price) or
        (direction='SELL' and stop_loss>entry_price and take_profit<entry_price))
@@ -46,4 +47,4 @@ revoke all on public.demo_bot_trades from anon,authenticated;
 grant select on public.demo_bot_sessions to authenticated;
 grant select on public.demo_bot_trades to authenticated;
 comment on table public.demo_bot_sessions is 'Virtual DEMO-only sessions. No broker connection or live orders.';
-comment on table public.demo_bot_trades is 'Paper trades with user-supplied prices; educational approximations until licensed quotes and contract specs are connected.';
+comment on table public.demo_bot_trades is 'Paper trades must use trusted, timestamped market data. Browser-supplied prices are not accepted.';
