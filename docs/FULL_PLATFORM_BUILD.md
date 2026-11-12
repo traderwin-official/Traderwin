@@ -53,3 +53,10 @@ The platform keeps a REAL profile available alongside DEMO, but real execution r
 ## Live DEMO market chart foundation
 
 The dashboard now opens Deriv's public WebSocket market-data endpoint (wss://api.derivws.com/trading/v1/options/ws/public) to load active symbols and stream ticks for the selected Deriv instrument. Deriv documents active_symbols and ticks as public, no-auth market-data operations. The live chart is a market-data display only: it does not place orders, establish the user's broker execution connection, or make a TradingView quote equivalent to a Deriv/MT5 execution quote. Instruments not listed by Deriv are not offered by this feed. Before automatic DEMO P/L marking or REAL risk management is enabled, add verified instrument contract specifications, quote-currency conversion, spread/commission treatment, and a persistent server-side worker that continues monitoring when the member closes the browser.
+
+
+## Server-side portfolio monitoring coordinator
+
+The branch now includes `lib/portfolio-monitor.js`, a broker-agnostic coordinator designed for a persistent server worker. It requires injected adapters for a fresh account-scoped snapshot, USD-normalized P&L, persisted protection state, explicit permissions, compare-and-swap state persistence, and broker close requests. Stale or malformed quotes, mixed account positions, missing permissions, invalid valuation, and concurrent state-version conflicts stop processing without a close. REAL close requests additionally require a separate server-side real-execution authorization check. Close requests are processed per position with idempotency keys and partial failures returned for retry; this is not an atomic multi-position broker operation.
+
+This coordinator is an integration boundary, not a running worker: no Deriv/MT5 position adapter, trusted valuation service, scheduled worker, or real-order endpoint is wired to it yet. It must not be described as active account protection until those components are implemented and verified. A worker should persist broker-confirmed close outcomes and reconcile positions after every request.
