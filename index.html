@@ -253,7 +253,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <div class="card" id="demoSimulator" style="margin-top:15px">
   <h3>DEMO Paper-Trading Simulator</h3>
   <p class="muted">Virtual practice only. The Smart Auto worker analyses supported Deriv DEMO instruments on scheduled runs, opens virtual positions on confirmed new candles, and manages bot-originated positions at their stop-loss or take-profit. Manual paper positions are not managed by the auto worker. This requires migration 016, the Vercel CRON_SECRET and a deployment plan that supports the configured one-minute cron. MT5 automation is not connected. Virtual units and P/L are simplified learning estimates, not broker lot sizes or executable quotes.</p>
-  <p class="status" id="demoSessionStatus">Session: Not started</p>\n  <p class="muted" id="demoWorkerHealth">Worker status: waiting for a scheduled check.</p>
+  <p class="status" id="demoSessionStatus">Session: Not started</p>
+  <p class="muted" id="demoWorkerHealth">Worker status: waiting for a scheduled check.</p>
   <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
   <button type="button" id="startDemoSession">Start DEMO Session</button>
   <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
@@ -354,7 +355,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <div class="card"><h3>REAL Trading Subscription</h3><p class="muted">USD 75 for the first month, then USD 175 per month. Payment is only one eligibility step; broker verification, risk checks and explicit REAL-trading authorization are still required. Payment never starts live trading automatically.</p></div>
   <div class="card"><h3>Traderwin Course</h3><p class="muted">Education is a separate service with its own price and delivery. Course pricing will be published before checkout is enabled.</p></div>
  </div>
- <p class="muted">Renewal is manual by default. Automatic renewal will only be enabled after explicit consent and a supported recurring-payment arrangement are configured. M-Pesa checkout also requires verified merchant credentials.</p>\n <p class="status" id="realSubscriptionStatus">Checking your REAL subscription status...</p>
+ <p class="muted">Renewal is manual by default. Automatic renewal will only be enabled after explicit consent and a supported recurring-payment arrangement are configured. M-Pesa checkout also requires verified merchant credentials.</p>
+ <p class="status" id="realSubscriptionStatus">Checking your REAL subscription status...</p>
 </section>
 
 <section id="payments">
@@ -1026,7 +1028,8 @@ calculateRisk();
     startDemo.disabled=true;demoMessage.textContent="Starting virtual demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"START"});
-     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";\n     showDemoWorkerHealth(null);
+     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
      stopDemo.disabled=false;recordPaper.disabled=false;demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
@@ -1076,7 +1079,8 @@ calculateRisk();
    {
     callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
      if(r.session){
-      activeDemoSession=r.session.status==="RUNNING"?r.session:null;\n      showDemoWorkerHealth(r.workerHeartbeat);
+      activeDemoSession=r.session.status==="RUNNING"?r.session:null;
+      showDemoWorkerHealth(r.workerHeartbeat);
       demoStatus.textContent="Session: "+r.session.status;
       demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
@@ -1085,7 +1089,8 @@ calculateRisk();
       stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
       demoMessage.textContent="Your existing DEMO session has been restored. The scheduled Smart Auto worker manages bot-originated trades only; manual paper positions remain under your control.";
      }else{
-      demoStatus.textContent="Session: Not started";\n      showDemoWorkerHealth(null);
+      demoStatus.textContent="Session: Not started";
+      showDemoWorkerHealth(null);
       const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
       if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
       startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
