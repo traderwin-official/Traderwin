@@ -11,7 +11,7 @@ function adapters(overrides = {}) {
   const calls = { saved: [], closed: [] };
   return {
     calls,
-    loadSnapshot: async () => ({ positions: positions.map((p, i) => ({ ...p, profitUsd: i === 0 ? 60 : 21 })), source: "verified-test-feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10_000 }),
+    loadSnapshot: async () => ({ positions: positions.map((p, i) => ({ ...p, profitUsd: i === 0 ? 60 : 21 })), source: "verified-test-feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10_000, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10_000 } }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     loadPermissions: async () => ({ manageManualTrades: false, manageBotTrades: true, closeManagedPositions: true }),
     saveState: async (_scope, state, expected) => { calls.saved.push({ state, expected }); return { saved: true }; },
@@ -33,7 +33,7 @@ test("fresh DEMO snapshot calculates and persists portfolio state without closin
 });
 
 test("stale data fails closed before persistence or close", async () => {
-  const a = adapters({ loadSnapshot: async () => ({ positions, source: "feed", asOf: new Date(1).toISOString(), maxAgeMs: 100 }) });
+  const a = adapters({ loadSnapshot: async () => ({ positions, source: "feed", asOf: new Date(1).toISOString(), maxAgeMs: 100, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10_000 } }) });
   const result = await monitorPortfolio(scope, a, { now: 1_000_000 });
   assert.equal(result.status, "BLOCKED");
   assert.equal(result.reason, "STALE_MARKET_DATA");
@@ -41,7 +41,7 @@ test("stale data fails closed before persistence or close", async () => {
 });
 
 test("position scope mismatch blocks portfolio processing", async () => {
-  const a = adapters({ loadSnapshot: async () => ({ positions: [...positions, { ...positions[0], id: "other", accountRef: "d2" }], source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }) });
+  const a = adapters({ loadSnapshot: async () => ({ positions: [...positions, { ...positions[0], id: "other", accountRef: "d2" }], source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10000 } }) });
   const result = await monitorPortfolio(scope, a, { now: 1_000_001 });
   assert.equal(result.reason, "POSITION_SCOPE_MISMATCH");
 });
@@ -55,7 +55,7 @@ test("optimistic persistence conflict requests retry and never closes", async ()
 
 test("manual close permission is required before any close operation", async () => {
   const a = adapters({
-    loadSnapshot: async () => ({ positions: positions.map(p => ({ ...p, profitUsd: 30 })), source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
+    loadSnapshot: async () => ({ positions: positions.map(p => ({ ...p, profitUsd: 30 })), source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10000 } }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     loadPermissions: async () => ({ manageManualTrades: false, manageBotTrades: true, closeManagedPositions: false })
   });
@@ -69,7 +69,7 @@ test("REAL positions require separate real-execution authorization", async () =>
   const realScope = { ...scope, accountMode: "REAL" };
   const realPositions = positions.map(p => ({ ...p, accountMode: "REAL", profitUsd: 30 }));
   const a = adapters({
-    loadSnapshot: async () => ({ positions: realPositions, source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
+    loadSnapshot: async () => ({ positions: realPositions, source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10000 } }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     isRealExecutionAuthorized: async () => false
   });
@@ -81,7 +81,7 @@ test("REAL positions require separate real-execution authorization", async () =>
 
 test("partial broker close failures are reported per position", async () => {
   const a = adapters({
-    loadSnapshot: async () => ({ positions: positions.map(p => ({ ...p, profitUsd: 30 })), source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
+    loadSnapshot: async () => ({ positions: positions.map(p => ({ ...p, profitUsd: 30 })), source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10000 } }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     closePosition: async p => ({ closed: p.id === "p1" })
   });
@@ -94,7 +94,7 @@ test("REAL execution gate is checked only after a valid trailing trigger", async
   const realScope = { ...scope, accountMode: "REAL" };
   const realPositions = positions.map(p => ({ ...p, accountMode: "REAL", profitUsd: 30 }));
   const a = adapters({
-    loadSnapshot: async () => ({ positions: realPositions, source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
+    loadSnapshot: async () => ({ positions: realPositions, source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10000 } }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4, stateVersion: 7 }),
     isRealExecutionAuthorized: async () => true
   });
