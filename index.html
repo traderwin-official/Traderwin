@@ -64,6 +64,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <nav>
   <a href="#markets">Markets</a>
   <a href="#analysis">Analysis</a>
+  <a href="#smart-analyst">Smart Analyst</a>
   <a href="#bots">Bots</a>
   <a href="#payments">Payments</a>
   <a href="#risk">Risk</a>
@@ -151,6 +152,20 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <button onclick="analyseLevels()">Analyse Levels</button>
   <p id="levelResult" class="muted"></p>
+ </div>
+</section>
+
+<section id="smart-analyst">
+ <h2 class="section-title">Smart Strategy <span>Analyst</span></h2>
+ <div class="card">
+  <p class="muted">Analyses completed Deriv OHLC candles using EMA, RSI, ATR, momentum and breakout confirmation. This is a rule-based research tool, not an AI guarantee and not an order-execution bot.</p>
+  <div class="grid">
+   <div class="field"><label for="smartInstrument">Instrument</label><input id="smartInstrument" value="XAUUSD" maxlength="24"></div>
+   <div class="field"><label for="smartTimeframe">Timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
+  </div>
+  <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
+  <p id="smartAnalysisStatus" class="muted" role="status" aria-live="polite">Ready to analyse fresh Deriv market data.</p>
+  <div id="smartAnalysisResult" class="notice" hidden></div>
  </div>
 </section>
 
@@ -445,6 +460,32 @@ document.querySelectorAll("#timeTabs button").forEach(button=>{
   button.classList.add("active");
   selectedTime=button.dataset.time;
   loadChart();
+  const smartButton=document.getElementById("runSmartAnalysis");
+  smartButton.addEventListener("click",async()=>{
+   smartButton.disabled=true;
+   const status=document.getElementById("smartAnalysisStatus");
+   const output=document.getElementById("smartAnalysisResult");
+   output.hidden=true;
+   status.textContent="Fetching completed candles from Deriv and analysing...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/analysis/market",{
+     method:"POST",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+     body:JSON.stringify({instrument:document.getElementById("smartInstrument").value.trim(),timeframe:document.getElementById("smartTimeframe").value}),
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Market analysis failed.");
+    const r=result.result;
+    output.hidden=false;
+    output.textContent=r.direction+" · Confidence score "+r.confidence+"/95 · Strategy "+r.strategy+". "+r.explanation+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". No trade was executed.";
+    status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
+   }catch(error){status.textContent=error.message||"Could not analyse the market.";}
+   finally{smartButton.disabled=false;}
+  });
+
  });
 });
 
