@@ -15,6 +15,7 @@ Run in Supabase SQL Editor, in this order:
 3. `supabase/migrations/202611120003_deriv_connection_security.sql`
 4. `supabase/migrations/202611120004_service_catalog_security.sql`
 5. `supabase/migrations/202611120005_demo_paper_trading.sql`
+6. `supabase/migrations/202611120006_dual_modes_profit_protection.sql`
 
 Check each SQL result and verify the new tables in Table Editor before deployment.
 
@@ -33,3 +34,15 @@ REAL mode is only a preference; bots default OFF; no live-order endpoint is enab
 ## Demo paper simulator
 
 The DEMO simulator uses a virtual USD 10,000 balance and a server-controlled paper-trade ledger. It requires the signed-in profile and saved bot settings to both be in DEMO mode. Prices are manually supplied by the user until a verified market-data feed and instrument contract specifications are integrated. Virtual units and P/L are simplified educational estimates, not broker lot sizes, executable quotes or automated strategy signals. No endpoint in this layer sends a broker order.
+
+## Both account modes and profit protection
+
+Traderwin now has a separate preference profile for each user in both DEMO and REAL mode. The active account mode remains an explicit dashboard/onboarding choice; saving a REAL profile does not authorize execution. The real-execution authorization table is inaccessible to browser roles and defaults to LOCKED. No live-order endpoint is included.
+
+The shared strategy analysis uses EMA(9/21), RSI(14), ATR(14), a 20-candle breakout check and price-versus-EMA confirmation. It returns BUY, SELL or WAIT with indicators and an evidence explanation. It analyses supplied completed OHLC candles only; it is not yet connected to a licensed live feed and cannot execute orders.
+
+Profit protection defaults to a 20% giveback from the maximum unrealised profit. Example: a trade reaches USD 100 unrealised profit; the protection floor is USD 80. A later mark at or below USD 80 triggers a paper exit. The protective stop is only tightened, never loosened. Broker-side stop modification, spreads, commissions, gaps and slippage must be handled by the specific Deriv/MT5 adapter before the same policy can protect a live position. The current DEMO mark endpoint requires a supplied price, so it is a manual paper-test control until a verified streaming feed and worker are connected.
+
+## REAL execution gate
+
+The platform keeps a REAL profile available alongside DEMO, but real execution remains LOCKED. Before any live-order implementation can be enabled, the system must verify the broker account and its DEMO/REAL environment, require a fresh risk acknowledgement, apply server-side risk checks, use broker-native protective stops where supported, enforce an emergency kill switch and pass broker sandbox/DEMO testing. Users must separately opt in; a REAL profile or connected OAuth account alone never places an order.
