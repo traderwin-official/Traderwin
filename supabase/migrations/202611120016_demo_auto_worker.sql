@@ -1,3 +1,52 @@
+-- The worker supports only validated candle intervals and explicitly marks bot-originated trades.
+alter table public.bot_settings
+  add column if not exists timeframe text not null default 'M15';
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.bot_settings'::regclass
+       and conname = 'bot_settings_timeframe_check'
+  ) then
+    alter table public.bot_settings
+      add constraint bot_settings_timeframe_check
+      check (timeframe in ('M5','M15','H1','H4'));
+  end if;
+end $$;
+
+alter table public.demo_bot_trades
+  add column if not exists trade_source text not null default 'MANUAL';
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.demo_bot_trades'::regclass
+       and conname = 'demo_bot_trades_trade_source_check'
+  ) then
+    alter table public.demo_bot_trades
+      add constraint demo_bot_trades_trade_source_check
+      check (trade_source in ('BOT','MANUAL'));
+  end if;
+end $$;
+
+create table if not exists public.demo_bot_worker_heartbeats (
+  session_id uuid primary key references public.demo_bot_sessions(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  last_tick_at timestamptz not null,
+  last_action text not null,
+  last_reason text,
+  last_error text,
+  updated_at timestamptz not null default now()
+);
+alter table public.demo_bot_worker_heartbeats enable row level security;
+drop policy if exists "Users read own demo worker heartbeat" on public.demo_bot_worker_heartbeats;
+create policy "Users read own demo worker heartbeat" on public.demo_bot_worker_heartbeats
+  for select to authenticated using (auth.uid() = user_id);
+revoke all on public.demo_bot_worker_heartbeats from public, anon, authenticated;
+grant select on public.demo_bot_worker_heartbeats to authenticated;
+revoke all on public.demo_bot_worker_heartbeats from service_role;
+grant all on public.demo_bot_worker_heartbeats to service_role;
+
 -- Server-side DEMO worker coordination and atomic paper-trade lifecycle.
 alter table public.demo_bot_sessions
   add column if not exists worker_last_candle_as_of timestamptz;
@@ -119,10 +168,10 @@ begin
 
   insert into public.demo_bot_trades(
     session_id,user_id,symbol,direction,entry_price,stop_loss,take_profit,
-    virtual_units,risk_amount,risk_pct,quote_source,quote_as_of
+    virtual_units,risk_amount,risk_pct,quote_source,quote_as_of,trade_source
   ) values (
     p_session_id,p_user_id,p_symbol,p_direction,p_entry_price,p_stop_loss,p_take_profit,
-    p_virtual_units,p_risk_amount,p_risk_pct,p_quote_source,p_quote_as_of
+    p_virtual_units,p_risk_amount,p_risk_pct,p_quote_source,p_quote_as_of,'BOT'
   ) returning id into v_trade_id;
 
   update public.demo_bot_sessions
@@ -167,6 +216,9 @@ begin
    where id = p_trade_id and user_id = p_user_id and status = 'OPEN'
    for update;
   if not found then return jsonb_build_object('closed', false, 'reason', 'TRADE_NOT_OPEN'); end if;
+  if v_trade.trade_source <> 'BOT' then
+    return jsonb_build_object('closed', false, 'reason', 'MANUAL_TRADE_NOT_MANAGED');
+  end if;
 
   select * into v_session
     from public.demo_bot_sessions
