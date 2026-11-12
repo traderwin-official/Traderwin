@@ -148,7 +148,7 @@ export default async function handler(req, res) {
   try {
     const { data: claimed, error: claimError } = await db.rpc("claim_traderwin_demo_worker", {
       p_lease_token: leaseToken,
-      p_lease_seconds: 50
+      p_lease_seconds: 120
     });
     if (claimError) {
       console.error("DEMO worker lease failed:", claimError.message);
