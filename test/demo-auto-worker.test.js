@@ -8,6 +8,8 @@ test("DEMO worker is cron-secret protected and uses a database lease", async () 
   assert.match(source, /authorization !== `Bearer ${CRON_SECRET}`/);
   assert.match(source, /claim_traderwin_demo_worker/);
   assert.match(source, /release_traderwin_demo_worker/);
+  assert.match(source, /p_lease_seconds: 120/);
+  assert.match(source, /MANUAL_POSITION_NOT_MANAGED/);
   assert.match(source, /realOrdersSent: 0/);
 });
 
@@ -25,6 +27,9 @@ test("worker migration adds atomic lease, open and close functions", async () =>
   assert.match(sql, /open_demo_auto_trade/);
   assert.match(sql, /close_demo_auto_trade/);
   assert.match(sql, /worker_last_candle_as_of/);
+  assert.match(sql, /kill_switch_active = true/);
+  assert.match(sql, /MANUAL_TRADE_NOT_MANAGED/);
+  assert.match(sql, /trade_source/);
   assert.match(sql, /Africa\/Nairobi/);
   assert.match(sql, /to service_role/);
 });
