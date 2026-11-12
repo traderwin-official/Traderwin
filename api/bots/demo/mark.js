@@ -42,7 +42,11 @@ export default async function handler(req, res) {
     if (tradeError || !trade) {
       return res.status(404).json({ error: "Open paper trade not found." });
     }
-    let quote;\n    try { quote = await getDerivPublicQuote(trade.symbol); }\n    catch (error) { return res.status(503).json({ error: error.message || "Could not obtain a fresh Deriv quote." }); }\n    const currentPrice = quote.quote;\n
+    let quote;
+    try { quote = await getDerivPublicQuote(trade.symbol); }
+    catch (error) { return res.status(503).json({ error: error.message || "Could not obtain a fresh Deriv quote." }); }
+    const currentPrice = quote.quote;
+
     const unrealizedPnl = calculatePaperPnl({
       direction: trade.direction,
       entry: Number(trade.entry_price),
