@@ -14,21 +14,28 @@ export default async function handler(req,res){
   if(action==="STATUS"){
    const {data:active,error:activeError}=await db.from("demo_bot_sessions").select("id,status,current_balance,virtual_currency,started_at,bot_setting_id").eq("user_id",uid).order("created_at",{ascending:false}).limit(1).maybeSingle();
    if(activeError)return res.status(503).json({error:"Could not load demo session status."});
-   if(!active)return res.status(200).json({ok:true,session:null,openTrade:null,message:"No demo session exists yet."});
+   if(!active)return res.status(200).json({ok:true,session:null,openTrade:null,workerHeartbeat:null,message:"No demo session exists yet."});
+   const {data:workerHeartbeat,error:heartbeatError}=await db.from("demo_bot_worker_heartbeats")
+    .select("last_tick_at,last_action,last_reason,last_error")
+    .eq("session_id",active.id).eq("user_id",uid).maybeSingle();
+   if(heartbeatError)return res.status(503).json({error:"Could not load DEMO worker health status."});
    const {data:settings}=await db.from("bot_settings").select("instrument").eq("id",active.bot_setting_id).maybeSingle();
    const {data:openTrade,error:tradeError}=await db.from("demo_bot_trades").select("id,symbol,direction,entry_price,stop_loss,take_profit,status").eq("user_id",uid).eq("status","OPEN").order("opened_at",{ascending:false}).limit(1).maybeSingle();
    if(tradeError)return res.status(503).json({error:"Could not load your open paper trade."});
-   return res.status(200).json({ok:true,session:{...active,instrument:settings?.instrument||null},openTrade:openTrade||null,message:"Demo session and open paper trade status loaded."});
+   return res.status(200).json({ok:true,session:{...active,instrument:settings?.instrument||null},openTrade:openTrade||null,workerHeartbeat:workerHeartbeat||null,message:"Demo session and worker status loaded."});
   }
   if(action==="START"){
    const {data:p,error:pe}=await db.from("trader_profiles").select("account_mode,max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).maybeSingle();
    if(pe||!p)return res.status(409).json({error:"Complete your account setup first."});
    if(p.account_mode!=="DEMO")return res.status(403).json({error:"Paper simulator only runs in DEMO mode. REAL mode is blocked."});
-   const {data:s,error:se}=await db.from("bot_settings").select("id,broker,instrument,account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
+   const {data:s,error:se}=await db.from("bot_settings").select("id,broker,instrument,account_mode,timeframe,strategy,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
    if(se||!s)return res.status(409).json({error:"Save your bot preferences first."});
    if(s.account_mode!=="DEMO")return res.status(403).json({error:"Your saved bot settings are not DEMO."});
    const emergencyBroker=String(s.broker||"").toUpperCase()==="DERIV"?"DERIV":String(s.broker||"").toUpperCase()==="MT5"?"MT5":null;
    if(!emergencyBroker)return res.status(403).json({error:"Unsupported broker for emergency control."});
+   if(emergencyBroker!=="DERIV")return res.status(403).json({error:"The unattended DEMO auto worker currently supports Deriv only. MT5 setup can be saved, but cannot be started yet."});
+   if(s.strategy!=="MULTI_CONFIRMATION_V1")return res.status(409).json({error:"Select the validated Multi-Confirmation strategy before starting Smart Auto DEMO."});
+   if(!["M5","M15","H1","H4"].includes(String(s.timeframe||"M15").toUpperCase()))return res.status(409).json({error:"Choose M5, M15, H1 or H4 for the Smart Auto DEMO worker."});
    const {data:emergencyControl,error:emergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker",emergencyBroker).eq("broker_account_ref",`DEMO:${uid}`).maybeSingle();
    if(emergencyError)return res.status(503).json({error:"Emergency control status is unavailable. Apply the emergency-controls migration before starting the bot."});
    if(emergencyControl?.kill_switch_active)return res.status(403).json({error:"Emergency stop is active. Clear it only after checking your account and risk controls."});
@@ -50,7 +57,7 @@ export default async function handler(req,res){
    }).select("id,status,current_balance,virtual_currency,started_at").single();
    if(error||!session){console.error("Demo start failed:",error?.message);return res.status(409).json({error:"Could not start demo session. Check for an existing session."});}
    await db.from("bot_activity").insert({user_id:uid,bot_setting_id:s.id,event_type:"START_REQUESTED",account_mode:"DEMO",details:{session_id:session.id,instrument:s.instrument,simulator:"PAPER_ONLY"}});
-   return res.status(200).json({ok:true,session:{...session,instrument:s.instrument},message:"Virtual demo session started. No broker orders are sent."});
+   return res.status(200).json({ok:true,session:{...session,instrument:s.instrument},message:"Smart Auto DEMO session started. The scheduled worker will analyse Deriv data and manage virtual positions; no broker orders are sent."});
   }
   const {data:s,error:se}=await db.from("demo_bot_sessions").select("id,bot_setting_id").eq("user_id",uid).eq("status","RUNNING").maybeSingle();
   if(se)return res.status(503).json({error:"Could not load active demo session."});
