@@ -20,7 +20,7 @@ set search_path = public, pg_temp
 as $$
 declare v_claimed boolean := false;
 begin
-  if p_lease_token is null or p_lease_seconds < 10 or p_lease_seconds > 120 then
+  if p_lease_token is null or p_lease_seconds is null or p_lease_seconds < 10 or p_lease_seconds > 120 then
     raise exception 'Invalid worker lease request';
   end if;
   insert into public.traderwin_worker_leases(worker_key, lease_token, lease_until)
@@ -77,14 +77,14 @@ declare
 begin
   if p_user_id is null or p_session_id is null
      or nullif(trim(p_symbol), '') is null
-     or p_direction not in ('BUY','SELL')
+     or p_direction is null or p_direction not in ('BUY','SELL')
      or p_entry_price is null or p_entry_price <= 0
      or p_stop_loss is null or p_stop_loss <= 0
      or p_take_profit is null or p_take_profit <= 0
      or p_virtual_units is null or p_virtual_units <= 0
      or p_risk_amount is null or p_risk_amount <= 0
      or p_risk_pct is null or p_risk_pct <= 0 or p_risk_pct > 2
-     or p_quote_source <> 'DERIV'
+     or p_quote_source is null or p_quote_source <> 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now() or p_quote_as_of < now() - interval '30 seconds'
      or p_candle_as_of is null or p_candle_as_of > now() then
     raise exception 'Invalid or stale DEMO auto-trade request';
@@ -158,7 +158,7 @@ begin
      or p_exit_price is null or p_exit_price <= 0
      or p_quote_source <> 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now() or p_quote_as_of < now() - interval '30 seconds'
-     or p_close_reason not in ('STOP_LOSS','TAKE_PROFIT','MANUAL_STOP') then
+     or p_close_reason is null or p_close_reason not in ('STOP_LOSS','TAKE_PROFIT','MANUAL_STOP') then
     raise exception 'Invalid or stale DEMO close request';
   end if;
 
