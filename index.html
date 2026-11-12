@@ -845,6 +845,22 @@ calculateRisk();
     }catch(e){msg.textContent=e.message;closePaper.disabled=false;}
    });
 
+   if(selectedAccountMode==="DEMO"){
+    callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(r=>{
+     if(r.session){
+      activeDemoSession=r.session;
+      demoStatus.textContent="Session: RUNNING";
+      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+      if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
+      stopDemo.disabled=false;recordPaper.disabled=false;
+      demoMessage.textContent="Your existing DEMO paper session has been restored.";
+     }else{
+      demoStatus.textContent="Session: Not started";
+      startDemo.disabled=false;stopDemo.disabled=true;recordPaper.disabled=true;
+     }
+    }).catch(e=>{demoMessage.textContent=e.message;});
+   }
+
    // SIGN OUT BUTTON
   const logout=document.createElement("button");
   logout.textContent="Sign Out";
