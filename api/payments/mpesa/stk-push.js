@@ -1,21 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { normalizeKenyanPhone, darajaBaseUrl, createNairobiTimestamp, buildStkPassword } from "../../../lib/mpesa.js";
 
-function darajaBaseUrl() {
-  return process.env.MPESA_ENV === "production"
-    ? "https://api.safaricom.co.ke"
-    : "https://sandbox.safaricom.co.ke";
-}
-function normalizeKenyanPhone(value) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (/^0[17]\d{8}$/.test(digits)) return "254" + digits.slice(1);
-  if (/^254[17]\d{8}$/.test(digits)) return digits;
-  return null;
-}
-function createNairobiTimestamp() {
-  return new Date(Date.now() + 3 * 60 * 60 * 1000)
-    .toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-}
 async function getAccessToken() {
   const { MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET } = process.env;
   if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET) throw new Error("M-Pesa credentials are not configured.");
