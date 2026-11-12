@@ -1,2 +1,2 @@
-# Tigerwin
-Tigerwin Forex Trading Platform
+# Traderwin
+Traderwin Forex Trading Platform
