@@ -172,18 +172,19 @@ export default async function handler(req, res) {
           sessionId: session.id, action: "ERROR", reason: "UNHANDLED_SESSION_ERROR", detail: safeError(error)
         }))
       ));
+      const tickAt = new Date().toISOString();
       const heartbeatRows = (sessions || []).map(session => {
         const result = results.find(item => item.sessionId === session.id);
         return {
           session_id: session.id,
           user_id: session.user_id,
-          last_tick_at: new Date().toISOString(),
+          last_tick_at: tickAt,
           last_action: result?.action || "UNKNOWN",
           last_reason: result?.reason || null,
           last_error: result?.action === "ERROR" || result?.action === "BLOCK"
             ? (result.detail || result.reason || "Worker safety gate blocked this tick.")
             : null,
-          updated_at: new Date().toISOString()
+          updated_at: tickAt
         };
       });
       if (heartbeatRows.length) {
@@ -191,6 +192,15 @@ export default async function handler(req, res) {
           .upsert(heartbeatRows, { onConflict: "session_id" });
         if (heartbeatError) console.error("DEMO worker heartbeat save failed:", heartbeatError.message);
       }
+      // Move processed sessions to the back of the queue so a few older sessions
+      // with open positions cannot starve other DEMO members.
+      await Promise.all((sessions || []).map(async session => {
+        const { error: touchError } = await db.from("demo_bot_sessions")
+          .update({ updated_at: tickAt })
+          .eq("id", session.id)
+          .eq("status", "RUNNING");
+        if (touchError) console.error("DEMO session scheduler timestamp failed:", touchError.message);
+      }));
     } finally {
       const { error: releaseError } = await db.rpc("release_traderwin_demo_worker", {
         p_lease_token: leaseToken
