@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { validatePaperSetup,calculatePaperPosition } from "../../../lib/demo-risk.js";
+import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN;};
 export default async function handler(req,res){
  res.setHeader("Cache-Control","no-store");
@@ -8,13 +9,12 @@ export default async function handler(req,res){
  const h=req.headers.authorization||"";if(!h.startsWith("Bearer "))return res.status(401).json({error:"Sign in is required."});
  try{
   const b=typeof req.body==="string"?JSON.parse(req.body):(req.body||{}),symbol=String(b.symbol||"").trim().toUpperCase(),direction=String(b.direction||"").toUpperCase();
-  const entry=num(b.entryPrice),stop=num(b.stopLoss),target=num(b.takeProfit);
+  const stop=num(b.stopLoss),target=num(b.takeProfit);
   if(!/^[A-Z0-9._-]{2,24}$/.test(symbol))return res.status(400).json({error:"Enter a valid instrument symbol."});
-  const setupError=validatePaperSetup({direction,entry,stop,target});if(setupError)return res.status(400).json({error:setupError});
+  if(!Number.isFinite(stop)||!Number.isFinite(target)||stop<=0||target<=0)return res.status(400).json({error:"Enter valid stop-loss and take-profit levels."});
   const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
   const uid=a.user.id;
-  return res.status(503).json({error:"Verified live market-data feed is not connected. DEMO order entry is temporarily disabled until a trusted quote adapter is ready."});
   const {data:p,error:pe}=await db.from("trader_profiles").select("account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
   if(pe||!p)return res.status(409).json({error:"Complete your account setup first."});if(p.account_mode!=="DEMO")return res.status(403).json({error:"Paper trades are DEMO-only."});
   const {data:s,error:se}=await db.from("demo_bot_sessions").select("id,current_balance,max_risk_per_trade_pct,max_daily_loss_pct,status").eq("user_id",uid).eq("status","RUNNING").maybeSingle();
@@ -27,6 +27,10 @@ export default async function handler(req,res){
   if(emergencyError)return res.status(503).json({error:"Emergency control status is unavailable. Apply the emergency-controls migration before recording new paper trades."});
   if(emergencyControl?.kill_switch_active)return res.status(403).json({error:"Emergency stop is active. New paper trades are blocked."});
   if(symbol!==String(cfg.instrument).toUpperCase())return res.status(400).json({error:"Symbol must match your saved bot instrument."});
+  if(emergencyBroker!=="DERIV")return res.status(503).json({error:"The verified MT5 quote adapter is not connected yet. No paper order was recorded."});
+  let quote;try{quote=await getDerivPublicQuote(symbol);}catch(e){return res.status(503).json({error:e.message||"Could not obtain a fresh Deriv quote."});}
+  const entry=quote.quote;
+  const setupError=validatePaperSetup({direction,entry,stop,target});if(setupError)return res.status(400).json({error:setupError});
   const {data:modeProfile}=await db.from("bot_mode_profiles").select("profit_giveback_pct,max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("account_mode","DEMO").maybeSingle();
   const givebackPct=Math.min(50,Math.max(1,Number(modeProfile?.profit_giveback_pct||20)));
   const riskPct=Math.min(Number(p.max_risk_per_trade_pct),Number(s.max_risk_per_trade_pct),Number(cfg.max_risk_per_trade_pct),Number(modeProfile?.max_risk_per_trade_pct||p.max_risk_per_trade_pct));
@@ -43,9 +47,9 @@ export default async function handler(req,res){
   const losses=(closed||[]).reduce((sum,t)=>sum+Math.min(0,Number(t.realized_pnl||0)),0);
   const dailyLimit=Number(s.current_balance)*Number(s.max_daily_loss_pct)/100;
   if(Math.abs(losses)>=dailyLimit){await db.from("demo_bot_sessions").update({status:"RISK_LOCKED",stopped_at:new Date().toISOString()}).eq("id",s.id);await db.from("bot_activity").insert({user_id:uid,event_type:"RISK_BLOCK",account_mode:"DEMO",details:{reason:"DAILY_LOSS_LIMIT",daily_loss:Math.abs(losses),limit:dailyLimit}});return res.status(403).json({error:"Daily demo loss limit reached. Session locked."});}
-  const {data:t,error:te}=await db.from("demo_bot_trades").insert({session_id:s.id,user_id:uid,symbol,direction,entry_price:entry,stop_loss:stop,take_profit:target,virtual_units:sizing.units,risk_amount:sizing.riskAmount,risk_pct:riskPct,profit_giveback_pct:givebackPct,quote_source:"UNVERIFIED"}).select("id,symbol,direction,entry_price,stop_loss,take_profit,virtual_units,risk_amount,risk_pct,profit_giveback_pct,status,opened_at").single();
+  const {data:t,error:te}=await db.from("demo_bot_trades").insert({session_id:s.id,user_id:uid,symbol,direction,entry_price:entry,stop_loss:stop,take_profit:target,virtual_units:sizing.units,risk_amount:sizing.riskAmount,risk_pct:riskPct,profit_giveback_pct:givebackPct,quote_source:quote.source,quote_as_of:quote.quoteAsOf}).select("id,symbol,direction,entry_price,stop_loss,take_profit,virtual_units,risk_amount,risk_pct,profit_giveback_pct,status,opened_at").single();
   if(te||!t){console.error("Paper trade insert:",te?.message);return res.status(503).json({error:"Could not save paper trade."});}
-  await db.from("bot_activity").insert({user_id:uid,event_type:"DEMO_ORDER",account_mode:"DEMO",details:{trade_id:t.id,symbol,direction,risk_amount:sizing.riskAmount,quote_source:"UNVERIFIED"}});
+  await db.from("bot_activity").insert({user_id:uid,event_type:"DEMO_ORDER",account_mode:"DEMO",details:{trade_id:t.id,symbol,direction,risk_amount:sizing.riskAmount,quote_source:quote.source}});
   return res.status(201).json({ok:true,trade:t,message:"Paper trade recorded. No broker order or real money is involved."});
  }catch(e){console.error("Paper trade:",e.message);return res.status(500).json({error:"Paper trade could not be processed."});}
 }
