@@ -33,6 +33,8 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Your login session is invalid." });
     }
 
+    return res.status(503).json({ error: "Verified live market-data feed is not connected. DEMO price marking is temporarily disabled until a trusted quote adapter is ready." });
+
     const { data: trade, error: tradeError } = await db.from("demo_bot_trades")
       .select("id,direction,entry_price,virtual_units,status")
       .eq("id", tradeId)
