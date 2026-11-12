@@ -66,3 +66,12 @@ test("does not silently support an unknown market symbol", async () => {
     /not yet supported/
   );
 });
+
+test("resolves additional six-letter currency pairs only when Deriv lists them as active", async () => {
+  const now = 1_800_000_000_000;
+  const result = await getDerivPublicQuote("USDNOK", {
+    WebSocketImpl: mockSocket({ symbols: ["frxUSDNOK"] }),
+    now: () => now
+  });
+  assert.equal(result.providerSymbol, "frxUSDNOK");
+});
