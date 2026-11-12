@@ -1038,7 +1038,7 @@ calculateRisk();
     stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
-     activeDemoSession=null;demoStatus.textContent="Session: STOPPED";recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";demoMessage.textContent=r.message;
+     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
    });
    recordPaper.addEventListener("click",async()=>{
