@@ -35,7 +35,7 @@ test("worker migration adds atomic lease, open and close functions", async () =>
   assert.match(sql, /p_quote_source is null/);
   assert.match(sql, /MANUAL_TRADE_NOT_MANAGED/);
   assert.match(sql, /trade_source/);
-  assert.match(sql, /demo_bot_one_open_trade_per_session/);
+  assert.match(sql, /demo_bot_one_open_trade_per_user/);
   assert.match(sql, /Africa\/Nairobi/);
   assert.match(sql, /to service_role/);
 });
