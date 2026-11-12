@@ -47,6 +47,7 @@ Do not skip, reorder, or assume migrations have run because GitHub tests pass. T
 
 ## Required Vercel environment variables
 - Supabase: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only; never in browser code).
+- Worker: `CRON_SECRET` (long random server-side secret; Vercel Cron uses it to authorize the scheduled DEMO worker).
 - Deriv: `DERIV_CLIENT_ID`, `DERIV_REDIRECT_URI`, `DERIV_OAUTH_SECRET`, `TOKEN_ENCRYPTION_KEY` (exactly 64 hex characters / 32 bytes). The Deriv OAuth application must allow the `trade` scope and the exact HTTPS callback URL.
 - M-Pesa: `MPESA_ENV`, `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, and optional `MPESA_TRANSACTION_TYPE`. Daraja merchant approval and a publicly reachable HTTPS callback are required.
 
