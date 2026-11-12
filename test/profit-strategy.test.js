@@ -2,7 +2,7 @@ import test from "node:test";import assert from "node:assert/strict";
 import {calculateProfitProtection} from "../lib/profit-protection.js";
 import {analyseCandles,ema,rsi,atr} from "../lib/strategy-engine.js";
 test("BUY protection locks 80% of peak profit",()=>{const x=calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:108.1,units:10,peakProfit:100,givebackPct:20});assert.equal(x.protectedProfit,80);assert.equal(x.protectedStopPrice,108);assert.equal(x.shouldClose,false);});
-test("20% peak-profit giveback closes",()=>{const x=calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:107.9,units:10,peakProfit:100,givebackPct:20});assert.equal(x.shouldClose,true);assert.equal(x.currentProfit,79);});
+test("20% peak-profit giveback closes",()=>{const x=calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:107.9,units:10,peakProfit:100,givebackPct:20});assert.equal(x.shouldClose,true);assert.ok(Math.abs(x.currentProfit-79)<1e-9);});
 test("SELL protective stop never loosens",()=>{const x=calculateProfitProtection({direction:"SELL",entryPrice:100,currentPrice:90,units:10,peakProfit:100,givebackPct:20,existingStopLoss:92});assert.equal(x.protectedStopPrice,92);});
 test("protection inactive before profit",()=>{const x=calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:99,units:1});assert.equal(x.protectionActive,false);});
 test("reject invalid giveback percentage",()=>assert.throws(()=>calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:110,units:1,givebackPct:100}),RangeError));
