@@ -200,6 +200,25 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </form>
  </div>
 
+ <div class="card" id="dualModeProfiles" style="margin-top:15px">
+  <h3>DEMO + REAL Bot Profiles</h3>
+  <p class="muted">Keep separate preferences for both account modes. REAL settings are saved as preferences only; live execution remains locked until broker verification, server authorization and full safety testing are complete.</p>
+  <div class="grid">
+   <div class="field"><label for="profileMode">Profile to edit</label><select id="profileMode"><option value="DEMO">DEMO profile</option><option value="REAL">REAL profile (locked)</option></select></div>
+   <div class="field"><label for="profileBroker">Broker</label><select id="profileBroker"><option>Deriv</option><option>MetaTrader 5</option><option>FxPro</option><option>Exness</option><option>Other</option></select></div>
+   <div class="field"><label for="profileInstrument">Instrument</label><input id="profileInstrument" value="XAUUSD" maxlength="80"></div>
+  </div>
+  <div class="grid">
+   <div class="field"><label for="profileRisk">Risk per trade (%)</label><input id="profileRisk" type="number" min="0.1" max="2" step="0.1" value="0.5"></div>
+   <div class="field"><label for="profileDailyLoss">Daily loss limit (%)</label><input id="profileDailyLoss" type="number" min="0.5" max="10" step="0.5" value="2"></div>
+   <div class="field"><label for="profileGiveback">Profit giveback limit (%)</label><input id="profileGiveback" type="number" min="1" max="50" step="1" value="20"></div>
+  </div>
+  <p class="muted">Profit protection default: once a trade has been profitable, the protective level follows its peak profit. A 20% giveback means the bot aims to retain 80% of the highest unrealised profit, subject to spread, slippage, gaps and broker stop rules.</p>
+  <button type="button" id="saveModeProfile">Save This Mode's Settings</button>
+  <p id="modeProfileMessage" class="muted" role="status" aria-live="polite"></p>
+  <p class="notice">REAL EXECUTION: LOCKED. This screen cannot enable live orders. A verified broker connection and a separate server-side approval are required.</p>
+ </div>
+
  <div class="card" id="demoSimulator" style="margin-top:15px">
   <h3>DEMO Paper-Trading Simulator</h3>
   <p class="muted">Virtual practice only. This is not an automated market-feed bot and it never sends orders to Deriv, MT5 or any broker. Until a verified price feed is connected, enter demo prices yourself. Virtual units and P/L are simplified learning estimates, not broker lot sizes.</p>
@@ -225,6 +244,11 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <button type="button" class="secondary" id="closePaperTrade" disabled>Close Paper Trade</button>
   <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <div class="field"><label for="paperMarkPrice">Latest demo price for profit protection</label><input id="paperMarkPrice" type="number" step="any" min="0" inputmode="decimal"></div>
+  </div>
+  <button type="button" class="secondary" id="markPaperTrade" disabled>Update Price & Protect Profit</button>
+  <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
  </div>
 
  <div class="grid" style="margin-top:15px">
@@ -781,6 +805,38 @@ calculateRisk();
 
   });
 
+  // Save and load independent DEMO and REAL configuration profiles.
+  const profileMode=document.getElementById("profileMode");
+  const profileBroker=document.getElementById("profileBroker");
+  const profileInstrument=document.getElementById("profileInstrument");
+  const profileRisk=document.getElementById("profileRisk");
+  const profileDaily=document.getElementById("profileDailyLoss");
+  const profileGiveback=document.getElementById("profileGiveback");
+  const profileMessage=document.getElementById("modeProfileMessage");
+  async function loadModeProfile(){
+   profileMessage.textContent="Loading "+profileMode.value+" profile...";
+   try{
+    const {data:p,error}=await client.from("bot_mode_profiles").select("broker,instrument,max_risk_per_trade_pct,max_daily_loss_pct,profit_giveback_pct").eq("account_mode",profileMode.value).maybeSingle();
+    if(error)throw error;
+    if(p){profileBroker.value=p.broker;profileInstrument.value=p.instrument;profileRisk.value=p.max_risk_per_trade_pct;profileDaily.value=p.max_daily_loss_pct;profileGiveback.value=p.profit_giveback_pct;}
+    profileMessage.textContent=profileMode.value+" preferences loaded. Real execution remains locked.";
+   }catch(e){profileMessage.textContent="Mode profiles will be available after the dual-mode database migration is applied. "+e.message;}
+  }
+  profileMode.addEventListener("change",loadModeProfile);
+  document.getElementById("saveModeProfile").addEventListener("click",async()=>{
+   const risk=Number(profileRisk.value),daily=Number(profileDaily.value),giveback=Number(profileGiveback.value),instrument=profileInstrument.value.trim();
+   if(!instrument||!Number.isFinite(risk)||risk<.1||risk>2||!Number.isFinite(daily)||daily<.5||daily>10||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk (0.1–2%), daily loss (0.5–10%) and giveback (1–50%).";return;}
+   const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user){profileMessage.textContent="Please sign in again.";return;}
+   const button=document.getElementById("saveModeProfile");button.disabled=true;
+   try{
+    const {error}=await client.from("bot_mode_profiles").upsert({user_id:auth.user.id,account_mode:profileMode.value,broker:profileBroker.value,instrument,strategy:"MULTI_CONFIRMATION_V1",max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,profit_giveback_pct:giveback},{onConflict:"user_id,account_mode"});
+    if(error)throw error;
+    profileMessage.textContent=profileMode.value+" profile saved. "+(profileMode.value==="REAL"?"Live execution is still locked.":"Use DEMO to test the strategy and profit protection.");
+   }catch(e){profileMessage.textContent="Could not save profile: "+e.message;}
+   finally{button.disabled=false;}
+  });
+  loadModeProfile();
+
   // DEMO-ONLY PAPER SIMULATOR CONTROLS
    const demoStatus=document.getElementById("demoSessionStatus");
    const demoBalance=document.getElementById("demoVirtualBalance");
@@ -828,12 +884,22 @@ calculateRisk();
       stopLoss:document.getElementById("paperStop").value,
       takeProfit:document.getElementById("paperTarget").value
      });
-     document.getElementById("paperTradeId").value=r.trade.id;closePaper.disabled=false;
+     document.getElementById("paperTradeId").value=r.trade.id;closePaper.disabled=false;markPaper.disabled=false;
      msg.textContent=r.message+" Virtual risk: USD "+Number(r.trade.risk_amount).toFixed(2)+".";
     }catch(e){msg.textContent=e.message;}
     finally{recordPaper.disabled=!activeDemoSession;}
    });
-   closePaper.addEventListener("click",async()=>{
+   const markPaper=document.getElementById("markPaperTrade");
+   markPaper.addEventListener("click",async()=>{
+    markPaper.disabled=true;const msg=document.getElementById("paperProtectionMessage");msg.textContent="Updating profit protection...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/mark",{tradeId:document.getElementById("paperTradeId").value.trim(),currentPrice:document.getElementById("paperMarkPrice").value});
+     if(r.closed){msg.textContent=r.message+" Simulated exit P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);document.getElementById("paperTradeId").value="";closePaper.disabled=true;}
+     else{msg.textContent=r.message+" Peak profit: USD "+Number(r.protection.peakProfit).toFixed(2)+". Protected floor: USD "+Number(r.protection.protectedProfit).toFixed(2)+". Protective stop: "+Number(r.protection.protectedStopPrice).toFixed(5);}
+    }catch(e){msg.textContent=e.message;}
+    finally{markPaper.disabled=!activeDemoSession||!document.getElementById("paperTradeId").value.trim();}
+   });
+      closePaper.addEventListener("click",async()=>{
     closePaper.disabled=true;const msg=document.getElementById("paperCloseMessage");msg.textContent="Closing paper trade...";
     try{
      const r=await callDemoApi("/api/bots/demo/close",{
@@ -841,7 +907,7 @@ calculateRisk();
       exitPrice:document.getElementById("paperExit").value
      });
      msg.textContent=r.message+" Simulated P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);
-     document.getElementById("paperTradeId").value="";
+     document.getElementById("paperTradeId").value="";markPaper.disabled=true;
     }catch(e){msg.textContent=e.message;closePaper.disabled=false;}
    });
 
