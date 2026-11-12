@@ -59,7 +59,7 @@ Never paste secrets into chat, GitHub source, or browser-visible environment var
 3. Wait for Vercel's deployment rate limit to clear, then create a preview deployment.
 4. Test signup/login, onboarding, public market data, server-side DEMO quote entry/mark/close, strategy analysis, payment prompt, provider-confirmed payment and subscription expiry.
 5. Keep the PR draft until the preview and database runtime tests pass.
-6. Verify the scheduled DEMO worker heartbeat and test virtual open/mark/stop/target close, daily loss lock and kill-switch behaviour in the deployed preview.
+6. Enable Supabase `pg_cron`, `pg_net` and Vault, store the worker URL/secret in Vault, schedule the one-minute job, then verify the DEMO worker heartbeat and test virtual open/mark/stop/target close, daily loss lock and kill-switch behaviour in the deployed preview.
 7. Do not merge or enable REAL execution until MT5/Deriv execution adapters, subscription enforcement, account-level risk controls, broker-native protective stops, portfolio giveback worker and independent end-to-end tests are complete.
 
 ## Product safety
