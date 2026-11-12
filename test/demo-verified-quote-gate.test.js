@@ -2,20 +2,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("DEMO trade entry is blocked until a trusted quote adapter is connected", async () => {
+test("DEMO entry obtains its entry price from the server-side Deriv quote adapter", async () => {
   const source = await readFile(new URL("../api/bots/demo/trade.js", import.meta.url), "utf8");
-  const gate = source.indexOf("Verified live market-data feed is not connected");
-  const insert = source.indexOf('.from("demo_bot_trades").insert(');
-  assert.notEqual(gate, -1);
-  assert.ok(insert === -1 || gate < insert);
-  assert.doesNotMatch(source, /quote_source:"USER_SUPPLIED_DEMO_PRICE"/);
+  assert.match(source, /getDerivPublicQuote\(symbol\)/);
+  assert.match(source, /const entry=quote\.quote/);
+  assert.match(source, /quote_source:quote\.source,quote_as_of:quote\.quoteAsOf/);
+  assert.doesNotMatch(source, /num\(b\.entryPrice\)/);
+  assert.doesNotMatch(source, /USER_SUPPLIED_DEMO_PRICE|UNVERIFIED/);
 });
 
-test("DEMO mark and close do not accept browser-supplied prices while feed is unavailable", async () => {
+test("DEMO mark and close use fresh server-side quotes rather than browser prices", async () => {
   const mark = await readFile(new URL("../api/bots/demo/mark.js", import.meta.url), "utf8");
   const close = await readFile(new URL("../api/bots/demo/close.js", import.meta.url), "utf8");
-  assert.match(mark, /Verified live market-data feed is not connected/);
-  assert.match(close, /Verified live market-data feed is not connected/);
+  assert.match(mark, /getDerivPublicQuote\(trade\.symbol\)/);
+  assert.match(mark, /const currentPrice = quote\.quote/);
+  assert.doesNotMatch(mark, /Number\(body\.currentPrice\)/);
+  assert.match(close, /getDerivPublicQuote\(t\.symbol\)/);
+  assert.match(close, /const exit=quote\.quote/);
+  assert.doesNotMatch(close, /Number\(b\.exitPrice\)/);
 });
 
 test("DEMO ledger requires an approved source label and quote timestamp", async () => {
