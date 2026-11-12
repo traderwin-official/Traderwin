@@ -28,7 +28,6 @@ async function processSession(db, session) {
     .eq("broker_account_ref", `DEMO:${session.user_id}`)
     .maybeSingle();
   if (emergencyError) return { sessionId: session.id, action: "BLOCK", reason: "EMERGENCY_STATUS_UNAVAILABLE" };
-  if (emergency?.kill_switch_active) return { sessionId: session.id, action: "BLOCK", reason: "KILL_SWITCH_ACTIVE" };
 
   const { data: openTrade, error: openError } = await db.from("demo_bot_trades")
     .select("id,symbol,direction,entry_price,stop_loss,take_profit,virtual_units,status,trade_source")
@@ -39,6 +38,14 @@ async function processSession(db, session) {
   if (openError) return { sessionId: session.id, action: "ERROR", reason: "OPEN_TRADE_LOOKUP_FAILED" };
   if (openTrade && openTrade.trade_source !== "BOT") {
     return { sessionId: session.id, action: "SKIP", reason: "MANUAL_POSITION_NOT_MANAGED" };
+  }
+  if (session.status === "PAUSED" && !openTrade) {
+    return { sessionId: session.id, action: "SKIP", reason: "SESSION_PAUSED_NO_OPEN_POSITION" };
+  }
+  // A kill switch blocks new entries, but an existing BOT position must still
+  // receive risk-reducing stop/target management.
+  if (emergency?.kill_switch_active && !openTrade) {
+    return { sessionId: session.id, action: "BLOCK", reason: "KILL_SWITCH_ACTIVE" };
   }
 
   let quote;
@@ -162,7 +169,7 @@ export default async function handler(req, res) {
     try {
       const { data: sessions, error } = await db.from("demo_bot_sessions")
         .select("id,user_id,bot_setting_id,status,account_mode,current_balance,starting_balance,max_risk_per_trade_pct,max_daily_loss_pct,worker_last_candle_as_of")
-        .eq("status", "RUNNING")
+        .in("status", ["RUNNING", "PAUSED"])
         .eq("account_mode", "DEMO")
         .order("updated_at", { ascending: true })
         .limit(MAX_SESSIONS_PER_TICK);
