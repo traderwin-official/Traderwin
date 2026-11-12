@@ -23,8 +23,8 @@ grant update(broker,instrument,account_mode,strategy,max_risk_per_trade_pct,time
 
 alter table public.demo_bot_trades
   add column if not exists trade_source text not null default 'MANUAL';
-create unique index if not exists demo_bot_one_open_trade_per_session
-  on public.demo_bot_trades(session_id) where status = 'OPEN';
+create unique index if not exists demo_bot_one_open_trade_per_user
+  on public.demo_bot_trades(user_id) where status = 'OPEN';
 do $$
 begin
   if not exists (
@@ -177,7 +177,7 @@ begin
   if abs(v_daily_loss) >= v_daily_limit then
     update public.demo_bot_sessions
        set status = 'RISK_LOCKED', stopped_at = now(), updated_at = now()
-     where id = v_session.id and status = 'RUNNING';
+     where id = v_session.id and status in ('RUNNING','PAUSED');
     insert into public.bot_activity(user_id,bot_setting_id,event_type,account_mode,details)
     values (p_user_id,v_session.bot_setting_id,'RISK_BLOCK','DEMO',
       jsonb_build_object('reason','DAILY_LOSS_LIMIT','daily_loss',abs(v_daily_loss),'limit',v_daily_limit));
@@ -197,7 +197,7 @@ begin
      and v_session.worker_last_candle_as_of >= p_candle_as_of then
     return null;
   end if;
-  if exists (select 1 from public.demo_bot_trades where session_id = p_session_id and status = 'OPEN') then
+  if exists (select 1 from public.demo_bot_trades where user_id = p_user_id and status = 'OPEN') then
     return null;
   end if;
 
