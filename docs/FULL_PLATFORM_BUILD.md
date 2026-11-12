@@ -17,6 +17,8 @@ Run in Supabase SQL Editor, in this order:
 5. `supabase/migrations/202611120005_demo_paper_trading.sql`
 6. `supabase/migrations/202611120006_dual_modes_profit_protection.sql`
 7. `supabase/migrations/202611120007_shared_profit_protection.sql`
+8. `supabase/migrations/202611120008_portfolio_profit_protection.sql`
+8. `supabase/migrations/202611120008_portfolio_profit_protection.sql`
 
 Check each SQL result and verify the new tables in Table Editor before deployment.
 
@@ -42,7 +44,7 @@ Traderwin now has a separate preference profile for each user in both DEMO and R
 
 The shared strategy analysis uses EMA(9/21), RSI(14), ATR(14), a 20-candle breakout check and price-versus-EMA confirmation. It returns BUY, SELL or WAIT with indicators and an evidence explanation. It analyses supplied completed OHLC candles only; it is not yet connected to a licensed live feed and cannot execute orders.
 
-Profit protection activates only after the maximum unrealised profit reaches USD 20 (configurable in the shared calculation); below that threshold the 20% trail remains inactive. Once active, it closes at a 20% giveback from the maximum unrealised profit. Example: a trade reaches USD 100 unrealised profit; the protection floor is USD 80. A later mark at or below USD 80 triggers a paper exit. The protective stop is only tightened, never loosened. Broker-side stop modification, spreads, commissions, gaps and slippage must be handled by the specific Deriv/MT5 adapter before the same policy can protect a live position. The current DEMO mark endpoint requires a supplied price, so it is a manual paper-test control until a verified streaming feed and worker are connected.
+Portfolio-level profit protection aggregates unrealised P&L across open positions in one user/broker-account/account-mode scope, normalized to USD by a verified server-side valuation adapter. The USD 20 activation threshold applies to the combined portfolio, not each position. Automatic bot positions are included; manually opened positions are excluded unless the owner explicitly enables Monitor and Manage Manual Trades for that exact account. Monitoring-only permission never authorizes closing. DEMO and REAL have separate peak records. The pure aggregation helper validates that positions cannot be mixed across users, broker accounts or account modes. The current branch adds the calculation and permission/state schema foundation, but a persistent broker worker and close adapter are still required before this can manage real positions. Once active, it closes at a 20% giveback from the maximum unrealised profit. Example: a trade reaches USD 100 unrealised profit; the protection floor is USD 80. A later mark at or below USD 80 triggers a paper exit. The protective stop is only tightened, never loosened. Broker-side stop modification, spreads, commissions, gaps and slippage must be handled by the specific Deriv/MT5 adapter before the same policy can protect a live position. The current DEMO mark endpoint requires a supplied price, so it is a manual paper-test control until a verified streaming feed and worker are connected.
 
 ## REAL execution gate
 
