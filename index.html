@@ -916,7 +916,7 @@ calculateRisk();
     }catch(e){msg.textContent=e.message;closePaper.disabled=false;}
    });
 
-   if(selectedAccountMode==="DEMO"){
+   {
     callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
      if(r.session){
       activeDemoSession=r.session.status==="RUNNING"?r.session:null;
@@ -924,14 +924,14 @@ calculateRisk();
       demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
       const running=r.session.status==="RUNNING";
-      startDemo.disabled=running||r.session.status==="RISK_LOCKED";
-      stopDemo.disabled=!running;recordPaper.disabled=!running;
-      demoMessage.textContent="Your existing DEMO session has been restored.";
+      startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
+      stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
+      demoMessage.textContent="Your existing DEMO session has been restored. You can still manage open paper positions while viewing REAL mode.";
      }else{
       demoStatus.textContent="Session: Not started";
       const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
       if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
-      startDemo.disabled=false;stopDemo.disabled=true;recordPaper.disabled=true;
+      startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
      }
      if(r.openTrade){
       document.getElementById("paperTradeId").value=r.openTrade.id;
