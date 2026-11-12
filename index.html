@@ -856,6 +856,8 @@ calculateRisk();
       demoMessage.textContent="Your existing DEMO paper session has been restored.";
      }else{
       demoStatus.textContent="Session: Not started";
+      const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
+      if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
       startDemo.disabled=false;stopDemo.disabled=true;recordPaper.disabled=true;
      }
     }).catch(e=>{demoMessage.textContent=e.message;});
