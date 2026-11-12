@@ -458,6 +458,66 @@ calculateRisk();
   const connectButton=document.getElementById("connectDerivButton");
   const derivStatus=document.getElementById("derivConnectionStatus");
 
+  const disconnectButton=document.createElement("button");
+  disconnectButton.type="button";
+  disconnectButton.textContent="Disconnect Deriv";
+  disconnectButton.style.cssText="display:none;margin:8px 0;padding:10px 16px;background:#5b2630;color:#fff;border:1px solid #b85c69;border-radius:8px;font-weight:bold;cursor:pointer";
+  connectButton.insertAdjacentElement("afterend",disconnectButton);
+
+  async function refreshDerivStatus(){
+   try{
+    const {data:session,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!session.session) return;
+    const response=await fetch("/api/deriv/status",{
+     method:"GET",
+     headers:{"Authorization":"Bearer "+session.session.access_token},
+     credentials:"same-origin",
+     cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Status unavailable");
+    if(result.connected){
+     derivStatus.textContent="Deriv is connected to your Traderwin account. Token storage is encrypted server-side.";
+     connectButton.disabled=true;
+     connectButton.textContent="Deriv Connected";
+     disconnectButton.style.display="inline-block";
+    }else{
+     derivStatus.textContent="Deriv is not connected yet.";
+     connectButton.disabled=false;
+     connectButton.textContent="Connect Deriv";
+     disconnectButton.style.display="none";
+    }
+   }catch(error){
+    console.warn("Deriv status could not be loaded:",error.message);
+    derivStatus.textContent="Could not verify Deriv connection status. You can retry later.";
+   }
+  }
+
+  disconnectButton.addEventListener("click",async function(){
+   disconnectButton.disabled=true;
+   derivStatus.textContent="Disconnecting Deriv...";
+   try{
+    const {data:session,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!session.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/deriv/disconnect",{
+     method:"POST",
+     headers:{"Authorization":"Bearer "+session.session.access_token},
+     credentials:"same-origin",
+     cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Disconnect failed.");
+    derivStatus.textContent="Deriv has been disconnected from Traderwin.";
+    await refreshDerivStatus();
+   }catch(error){
+    derivStatus.textContent=error.message||"Could not disconnect Deriv.";
+   }finally{
+    disconnectButton.disabled=false;
+   }
+  });
+
+  refreshDerivStatus();
+
   connectButton.addEventListener("click",async function(){
 
    connectButton.disabled=true;
