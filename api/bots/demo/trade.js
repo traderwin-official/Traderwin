@@ -45,7 +45,7 @@ export default async function handler(req,res){
   if(Math.abs(losses)>=dailyLimit){await db.from("demo_bot_sessions").update({status:"RISK_LOCKED",stopped_at:new Date().toISOString()}).eq("id",s.id);await db.from("bot_activity").insert({user_id:uid,event_type:"RISK_BLOCK",account_mode:"DEMO",details:{reason:"DAILY_LOSS_LIMIT",daily_loss:Math.abs(losses),limit:dailyLimit}});return res.status(403).json({error:"Daily demo loss limit reached. Session locked."});}
   const {data:t,error:te}=await db.from("demo_bot_trades").insert({session_id:s.id,user_id:uid,symbol,direction,entry_price:entry,stop_loss:stop,take_profit:target,virtual_units:sizing.units,risk_amount:sizing.riskAmount,risk_pct:riskPct,profit_giveback_pct:givebackPct,quote_source:"UNVERIFIED"}).select("id,symbol,direction,entry_price,stop_loss,take_profit,virtual_units,risk_amount,risk_pct,profit_giveback_pct,status,opened_at").single();
   if(te||!t){console.error("Paper trade insert:",te?.message);return res.status(503).json({error:"Could not save paper trade."});}
-  await db.from("bot_activity").insert({user_id:uid,event_type:"DEMO_ORDER",account_mode:"DEMO",details:{trade_id:t.id,symbol,direction,risk_amount:sizing.riskAmount,quote_source:"USER_SUPPLIED_DEMO_PRICE"}});
+  await db.from("bot_activity").insert({user_id:uid,event_type:"DEMO_ORDER",account_mode:"DEMO",details:{trade_id:t.id,symbol,direction,risk_amount:sizing.riskAmount,quote_source:"UNVERIFIED"}});
   return res.status(201).json({ok:true,trade:t,message:"Paper trade recorded. No broker order or real money is involved."});
  }catch(e){console.error("Paper trade:",e.message);return res.status(500).json({error:"Paper trade could not be processed."});}
 }
