@@ -22,7 +22,7 @@ create table if not exists public.bot_license_delivery_outbox (
   order_id uuid not null unique references public.bot_license_orders(id) on delete cascade,
   recipient_email text not null,
   encrypted_license_key text not null,
-  status text not null default 'PENDING' check (status in ('PENDING','SENT','FAILED')),
+  status text not null default 'PENDING' check (status in ('PENDING','SENDING','SENT','FAILED')),
   attempts integer not null default 0,
   next_attempt_at timestamptz not null default now(),
   last_error text,
