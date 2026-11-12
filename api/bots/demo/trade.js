@@ -20,6 +20,11 @@ export default async function handler(req,res){
   if(se||!s)return res.status(409).json({error:"Start your DEMO paper session first."});
   const {data:cfg,error:ce}=await db.from("bot_settings").select("instrument,account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
   if(ce||!cfg||cfg.account_mode!=="DEMO")return res.status(403).json({error:"Saved bot settings are not in DEMO mode."});
+  const emergencyBroker=String(cfg.broker||"").toUpperCase()==="DERIV"?"DERIV":String(cfg.broker||"").toUpperCase()==="MT5"?"MT5":null;
+  if(!emergencyBroker)return res.status(403).json({error:"Unsupported broker for emergency control."});
+  const {data:emergencyControl,error:emergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker",emergencyBroker).eq("broker_account_ref",`DEMO:${uid}`).maybeSingle();
+  if(emergencyError)return res.status(503).json({error:"Emergency control status is unavailable. Apply the emergency-controls migration before recording new paper trades."});
+  if(emergencyControl?.kill_switch_active)return res.status(403).json({error:"Emergency stop is active. New paper trades are blocked."});
   if(symbol!==String(cfg.instrument).toUpperCase())return res.status(400).json({error:"Symbol must match your saved bot instrument."});
   const {data:modeProfile}=await db.from("bot_mode_profiles").select("profit_giveback_pct,max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("account_mode","DEMO").maybeSingle();
   const givebackPct=Math.min(50,Math.max(1,Number(modeProfile?.profit_giveback_pct||20)));
