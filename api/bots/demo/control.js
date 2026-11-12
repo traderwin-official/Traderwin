@@ -28,6 +28,12 @@ export default async function handler(req,res){
    const {data:s,error:se}=await db.from("bot_settings").select("id,broker,instrument,account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
    if(se||!s)return res.status(409).json({error:"Save your bot preferences first."});
    if(s.account_mode!=="DEMO")return res.status(403).json({error:"Your saved bot settings are not DEMO."});
+   const nairobiToday=new Date(Date.now()+3*60*60*1000);nairobiToday.setUTCHours(0,0,0,0);
+   const utcNairobiDayStart=new Date(nairobiToday.getTime()-3*60*60*1000);
+   const {data:lastSession,error:lastError}=await db.from("demo_bot_sessions").select("id,status,created_at").eq("user_id",uid).order("created_at",{ascending:false}).limit(1).maybeSingle();
+   if(lastError)return res.status(503).json({error:"Could not verify your previous demo session."});
+   if(lastSession?.status==="RISK_LOCKED"&&new Date(lastSession.created_at)>=utcNairobiDayStart)
+    return res.status(403).json({error:"Your demo session hit its daily loss limit. The safety lock remains active until the next Nairobi trading day."});
    const {data:active,error:ae2}=await db.from("demo_bot_sessions").select("id,status,current_balance,virtual_currency,started_at").eq("user_id",uid).eq("status","RUNNING").maybeSingle();
    if(ae2)return res.status(503).json({error:"Could not check existing demo session."});
    if(active)return res.status(200).json({ok:true,session:active,message:"Demo paper session is already running."});
