@@ -104,6 +104,7 @@ alter table public.trading_signals add column if not exists created_by uuid refe
 alter table public.trading_signals enable row level security;
 drop policy if exists "Anyone reads active unexpired signals" on public.trading_signals;
 create policy "Anyone reads active unexpired signals" on public.trading_signals for select using(status='ACTIVE' and (expires_at is null or expires_at>now()));
+revoke all on public.trading_signals from anon,authenticated;
 grant select on public.trading_signals to anon,authenticated;
 
 create table if not exists public.ai_trade_ideas(
