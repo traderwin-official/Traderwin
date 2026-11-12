@@ -97,7 +97,7 @@ create or replace function public.traderwin_sync_signal_pair_symbol()
 returns trigger
 language plpgsql
 set search_path = public
-as $
+as $$
 declare
   payload jsonb;
   previous_payload jsonb;
@@ -125,7 +125,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists traderwin_sync_signal_pair_symbol on public.trading_signals;
 create trigger traderwin_sync_signal_pair_symbol
