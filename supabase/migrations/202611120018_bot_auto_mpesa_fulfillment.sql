@@ -62,7 +62,7 @@ begin
   select * into o from public.bot_license_orders where id=p_order_id for update;
   if not found then raise exception 'ORDER_NOT_FOUND'; end if;
   if o.status='FULFILLED' then return jsonb_build_object('status','ALREADY_FULFILLED'); end if;
-  if o.status not in ('PAYMENT_PROCESSING','PENDING_PAYMENT') then raise exception 'ORDER_NOT_PAYABLE'; end if;
+  if o.status not in ('PAYMENT_PROCESSING','PENDING_PAYMENT','PAYMENT_REVIEW') then raise exception 'ORDER_NOT_PAYABLE'; end if;
   if round(o.amount_kes,2) <> round(p_amount,2) then raise exception 'AMOUNT_MISMATCH'; end if;
   if o.payment_phone is not null and o.payment_phone <> p_phone then raise exception 'PHONE_MISMATCH'; end if;
   if exists(select 1 from public.bot_license_orders where mpesa_receipt_number=p_receipt and id<>p_order_id) then
