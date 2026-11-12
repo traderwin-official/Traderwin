@@ -97,14 +97,22 @@ create or replace function public.traderwin_sync_signal_pair_symbol()
 returns trigger
 language plpgsql
 set search_path = public
-as $$
+as $
 declare
   payload jsonb;
+  previous_payload jsonb;
 begin
   payload := to_jsonb(new);
+  previous_payload := case when tg_op = 'UPDATE' then to_jsonb(old) else '{}'::jsonb end;
 
   if payload ? 'pair' and payload ? 'symbol' then
-    if nullif(payload->>'symbol', '') is null
+    if tg_op = 'UPDATE'
+       and (payload->>'symbol') is distinct from (previous_payload->>'symbol') then
+      payload := jsonb_set(payload, '{pair}', to_jsonb(payload->>'symbol'), true);
+    elsif tg_op = 'UPDATE'
+       and (payload->>'pair') is distinct from (previous_payload->>'pair') then
+      payload := jsonb_set(payload, '{symbol}', to_jsonb(payload->>'pair'), true);
+    elsif nullif(payload->>'symbol', '') is null
        and nullif(payload->>'pair', '') is not null then
       payload := jsonb_set(payload, '{symbol}', to_jsonb(payload->>'pair'), true);
     elsif nullif(payload->>'pair', '') is null
@@ -117,7 +125,7 @@ begin
 
   return new;
 end;
-$$;
+$;
 
 drop trigger if exists traderwin_sync_signal_pair_symbol on public.trading_signals;
 create trigger traderwin_sync_signal_pair_symbol
