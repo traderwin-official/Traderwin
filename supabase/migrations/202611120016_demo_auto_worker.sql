@@ -155,6 +155,14 @@ begin
    where id = p_session_id and user_id = p_user_id and account_mode = 'DEMO'
    for update;
   if not found or v_session.status <> 'RUNNING' then return null; end if;
+  if exists (
+    select 1 from public.bot_emergency_controls
+     where user_id = p_user_id and account_mode = 'DEMO'
+       and broker = 'DERIV' and broker_account_ref = 'DEMO:' || p_user_id::text
+       and kill_switch_active = true
+  ) then
+    return null;
+  end if;
   if p_risk_pct > v_session.max_risk_per_trade_pct
      or p_risk_amount > v_session.current_balance * v_session.max_risk_per_trade_pct / 100 then
     raise exception 'DEMO risk limit exceeded';
