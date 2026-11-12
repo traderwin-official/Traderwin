@@ -64,7 +64,7 @@ This coordinator is an integration boundary, not a running worker: no Deriv/MT5 
 
 ## Atomic portfolio state and account permissions
 
-Migration `202611120010_atomic_portfolio_state.sql` adds quote provenance fields, explicit per-account `bot_trade_management` and `close_managed_positions` permissions, and a service-role-only compare-and-swap RPC. The RPC creates a new state row only from expected version zero and updates an existing row only when its stored membership version matches the caller's expected version. This prevents concurrent valuation workers from silently overwriting a newer peak/membership snapshot.
+Migration `202611120010_atomic_portfolio_state.sql` adds quote provenance fields, explicit per-account `bot_trade_management` and `close_managed_positions` permissions, and a service-role-only compare-and-swap RPC. The RPC creates a new state row only from expected state version zero and updates an existing row only when its stored state version matches the caller's expected version. A separate monotonic state_version increments on every successful save, while membership_version changes only when the included-position set changes. This prevents concurrent valuation workers from silently overwriting a newer peak/membership snapshot.
 
 `lib/supabase-portfolio-adapters.js` maps the coordinator to server-side Supabase state and permission records. Missing permission rows default to no bot management, no manual management and no closing authority. REAL authorization is checked separately against the server-only authorization record. Broker snapshot and close adapters remain injected; they are not implemented by this helper.
 
