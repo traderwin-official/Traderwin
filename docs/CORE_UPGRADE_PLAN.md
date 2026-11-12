@@ -14,7 +14,7 @@ This branch is isolated from the live main branch. PR #3 remains draft and unmer
 - GitHub Actions passes unit tests, serverless syntax checks and inline-script checks on Node 22.
 
 ## Not yet operational
-- A scheduled DEMO-only auto worker is implemented on this branch. It requires migration 016, `CRON_SECRET` in Vercel, Supabase `pg_cron` + `pg_net` + Vault setup using `docs/DEMO_WORKER_SCHEDULING.md`, and a verified dashboard heartbeat before it can be called operational. It currently supports Deriv only, one bot-originated virtual position per session, and the validated multi-confirmation strategy. It does not manage manual positions or REAL trades.
+- A scheduled DEMO-only auto worker is implemented on this branch. It requires migration 016, `CRON_SECRET` in Vercel, Supabase `pg_cron` + `pg_net` + Vault setup using `docs/DEMO_WORKER_SCHEDULING.md`, and a verified dashboard heartbeat before it can be called operational. It currently supports Deriv only, one open virtual position per user, and the validated multi-confirmation strategy. It does not manage manual positions or REAL trades.
 - The live-market analyst is not an AI agent with broad global news/sentiment access; it is a rule-based technical analyst using Deriv candles. It does not place trades.
 - The 20% combined portfolio profit-protection monitor is not wired to a persistent worker or live broker adapters. Do not rely on it to close positions.
 - MT5 bridge/quotes/execution are not connected.
