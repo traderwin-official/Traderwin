@@ -72,13 +72,6 @@ alter table public.broker_connections
  add column if not exists verified_at timestamptz,
  add column if not exists created_at timestamptz not null default now(),
  add column if not exists updated_at timestamptz not null default now();
-do $
-begin
- if exists (select 1 from information_schema.columns where table_schema='public' and table_name='broker_connections' and column_name='broker') then
-  execute 'update public.broker_connections set provider = coalesce(provider, upper(broker))';
- end if;
-end;
-$;
 alter table public.broker_connections enable row level security;
 drop policy if exists "Users read own broker connection metadata" on public.broker_connections;
 create policy "Users read own broker connection metadata" on public.broker_connections for select to authenticated using(auth.uid()=user_id);
