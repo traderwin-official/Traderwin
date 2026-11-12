@@ -55,8 +55,9 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
-declare o public.bot_license_orders%rowtype;
-declare p public.bot_products%rowtype;
+declare
+  o public.bot_license_orders%rowtype;
+  p public.bot_products%rowtype;
 begin
   select * into o from public.bot_license_orders where id=p_order_id for update;
   if not found then raise exception 'ORDER_NOT_FOUND'; end if;
