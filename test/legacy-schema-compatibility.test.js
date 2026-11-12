@@ -26,6 +26,14 @@ test("platform foundation adds legacy broker columns before issuing column grant
   assert.match(sql, /alter table public\.bot_settings alter column id set default gen_random_uuid\(\)/i);
 });
 
+test("compatibility trigger uses a valid PostgreSQL dollar-quoted function body", async () => {
+  const sql = await readFile(new URL("../supabase/migrations/202611120012_legacy_schema_compatibility.sql", import.meta.url), "utf8");
+  const dollar = String.fromCharCode(36);
+  assert.ok(sql.includes("as " + dollar.repeat(2) + "\ndeclare"));
+  assert.ok(sql.includes("end;\n" + dollar.repeat(2) + ";"));
+  assert.ok(!sql.includes("as " + dollar + "\ndeclare"));
+});
+
 test("legacy masked broker account IDs are never promoted to executable account IDs", async () => {
   const sql = await readFile(new URL("../supabase/migrations/202611120012_legacy_schema_compatibility.sql", import.meta.url), "utf8");
   assert.doesNotMatch(sql, /set\s+external_account_id\s*=\s*account_identifier_masked/i);
