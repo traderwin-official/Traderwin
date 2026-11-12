@@ -14,6 +14,7 @@ export default async function handler(req,res){
   const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
   const uid=a.user.id;
+  return res.status(503).json({error:"Verified live market-data feed is not connected. DEMO order entry is temporarily disabled until a trusted quote adapter is ready."});
   const {data:p,error:pe}=await db.from("trader_profiles").select("account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
   if(pe||!p)return res.status(409).json({error:"Complete your account setup first."});if(p.account_mode!=="DEMO")return res.status(403).json({error:"Paper trades are DEMO-only."});
   const {data:s,error:se}=await db.from("demo_bot_sessions").select("id,current_balance,max_risk_per_trade_pct,max_daily_loss_pct,status").eq("user_id",uid).eq("status","RUNNING").maybeSingle();
