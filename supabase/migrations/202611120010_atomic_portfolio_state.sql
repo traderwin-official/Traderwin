@@ -34,8 +34,8 @@ declare
  v_saved boolean := false;
 begin
  if p_user_id is null
-    or p_account_mode not in ('DEMO','REAL')
-    or p_broker not in ('DERIV','MT5')
+    or p_account_mode is null or p_account_mode not in ('DEMO','REAL')
+    or p_broker is null or p_broker not in ('DERIV','MT5')
     or nullif(trim(p_broker_account_ref),'') is null
     or p_peak_profit_usd is null or p_peak_profit_usd < 0
     or p_current_profit_usd is null
@@ -97,7 +97,7 @@ revoke all on function public.save_portfolio_profit_protection_state(
  uuid,text,text,text,numeric,numeric,numeric,boolean,text[],bigint,bigint,bigint,timestamptz,text,timestamptz
 ) from public, anon, authenticated;
 grant execute on function public.save_portfolio_profit_protection_state(
- uuid,text,text,text,numeric,numeric,numeric,boolean,text[],bigint,bigint,timestamptz,text,timestamptz
+ uuid,text,text,text,numeric,numeric,numeric,boolean,text[],bigint,bigint,bigint,timestamptz,text,timestamptz
 ) to service_role;
 
 comment on column public.portfolio_trade_permissions.bot_trade_management is 'Explicit per-account permission for Traderwin to manage positions opened by its bot.';
