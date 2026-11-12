@@ -37,6 +37,8 @@ test("worker migration adds atomic lease, open and close functions", async () =>
   assert.match(sql, /v_daily_limit := v_session.starting_balance/);
   assert.match(sql, /p_quote_source is null/);
   assert.match(sql, /MANUAL_TRADE_NOT_MANAGED/);
+  assert.match(sql, /AUTO_OPEN/);
+  assert.match(sql, /AUTO_ENTRY_BLOCKED/);
   assert.match(sql, /trade_source/);
   assert.match(sql, /demo_bot_one_open_trade_per_user/);
   assert.match(sql, /set status =/);
