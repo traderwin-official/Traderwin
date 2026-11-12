@@ -21,8 +21,9 @@ Run in Supabase SQL Editor, in this order:
 9. `supabase/migrations/202611120009_portfolio_membership_tracking.sql`
 10. `supabase/migrations/202611120010_atomic_portfolio_state.sql`
 11. `supabase/migrations/202611120011_bot_emergency_controls.sql`
+12. `supabase/migrations/202611120012_legacy_schema_compatibility.sql`
 
-Check each SQL result and verify the new tables in Table Editor before deployment.
+Migration 002 now adds the broker metadata aliases and UUID defaults needed by older Traderwin schemas before its column-level grants. Migration 012 remains a final idempotent compatibility pass. Check each SQL result and verify the new tables in Table Editor before deployment. Do not skip or reorder migrations.
 
 ## Credentials and external services still needed
 - Deriv application credentials and approved redirect URI. The new status/disconnect endpoints depend on the private `deriv_connections` table from migration 003.
