@@ -14,3 +14,10 @@ test("risk acknowledgement timestamp cannot be self-asserted by browser clients"
   assert.match(sql, /revoke insert \(real_risk_acknowledged_at\)[\s\S]*?from authenticated/i);
   assert.match(sql, /revoke update \(real_risk_acknowledged_at\)[\s\S]*?from authenticated/i);
 });
+
+
+test("broker column-level grants from the foundation migration are explicitly revoked", async () => {
+  const sql = await readFile(new URL("../supabase/migrations/202611120013_broker_metadata_write_lock.sql", import.meta.url), "utf8");
+  assert.match(sql, /revoke insert \\(user_id, provider, external_account_id, account_label, account_mode\\)[\\s\\S]*?from anon, authenticated/i);
+  assert.match(sql, /revoke update \\(account_label, account_mode\\)[\\s\\S]*?from anon, authenticated/i);
+});
