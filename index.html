@@ -52,6 +52,8 @@ section{margin:28px 0}
 footer{text-align:center;padding:30px 15px;background:#101a29;color:var(--muted);font-size:13px}
 ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 @media(max-width:600px){header{padding:14px}nav{gap:10px}.hero{padding:38px 5%}main{padding:18px 4%}.chart{height:420px}}
+
+.live-feed{margin-top:18px;padding:16px;border:1px solid #26364b;border-radius:12px;background:#0c1727}.live-feed-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.live-feed-status{font-size:12px;color:#9fb0c6}.live-feed-price{font-size:25px;font-weight:800;color:#e5bd59;margin:10px 0}.live-feed canvas{display:block;width:100%;height:220px;background:#08111e;border-radius:8px}.live-feed select{width:100%;padding:10px;background:#101e30;color:#fff;border:1px solid #33465e;border-radius:8px;margin-top:8px}
 </style>
 </head>
 
@@ -120,6 +122,16 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <div id="tradingview_chart" class="chart"></div>
   <p class="muted">Chart supplied by TradingView. Confirm prices, spreads and execution on your broker platform before trading.</p>
+  <div class="live-feed" id="derivLiveFeed">
+   <div class="live-feed-head"><h3>Traderwin Live Market Feed</h3><span class="live-feed-status" id="derivFeedStatus">Connecting to Deriv public market data…</span></div>
+   <label for="derivLiveSymbol">Choose a market available on Deriv</label>
+   <select id="derivLiveSymbol"><option value="">Loading available markets…</option></select>
+   <div class="live-feed-price" id="derivLivePrice">Waiting for live price</div>
+   <canvas id="derivLiveCanvas" width="1000" height="300" aria-label="Live market price chart"></canvas>
+   <p class="muted" id="derivFeedTimestamp">No quote received yet.</p>
+   <p class="muted">Source: Deriv public market-data stream. Availability depends on the selected instrument and market session. This chart is for market analysis; it is not an executable quote for another broker. DEMO balances and trades remain virtual.</p>
+  </div>
+
  </div>
 </section>
 
@@ -435,6 +447,73 @@ document.querySelectorAll("#timeTabs button").forEach(button=>{
   loadChart();
  });
 });
+
+
+// DERIV PUBLIC LIVE MARKET FEED: real quotes for charting; no account token or order permission required.
+(function initDerivLiveMarketFeed(){
+ const select=document.getElementById("derivLiveSymbol");
+ const status=document.getElementById("derivFeedStatus");
+ const priceLabel=document.getElementById("derivLivePrice");
+ const timeLabel=document.getElementById("derivFeedTimestamp");
+ const canvas=document.getElementById("derivLiveCanvas");
+ if(!select||!status||!priceLabel||!timeLabel||!canvas||!window.WebSocket)return;
+ const endpoint="wss://api.derivws.com/trading/v1/options/ws/public";
+ let socket=null,selectedSymbol="",subscriptionId=null,prices=[],epochs=[],reconnectDelay=3000;
+ const ctx=canvas.getContext("2d");
+ function send(payload){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload));}
+ function draw(){
+  const ratio=Math.min(window.devicePixelRatio||1,2),width=Math.max(320,canvas.clientWidth||600),height=220;
+  canvas.width=width*ratio;canvas.height=height*ratio;ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);
+  if(prices.length<2)return;
+  const min=Math.min(...prices),max=Math.max(...prices),range=max-min||Math.max(Math.abs(max)*.0001,.00000001),pad=12;
+  ctx.beginPath();prices.forEach((v,i)=>{const x=pad+(width-2*pad)*i/(prices.length-1),y=height-pad-(v-min)/(range)*(height-2*pad);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.strokeStyle="#e5bd59";ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle="#9fb0c6";ctx.font="11px sans-serif";ctx.fillText(max.toPrecision(7),pad,14);ctx.fillText(min.toPrecision(7),pad,height-4);
+ }
+ function setStatus(message){status.textContent=message;}
+ function subscribeSelected(){
+  const symbol=select.value;if(!symbol||!socket||socket.readyState!==WebSocket.OPEN)return;
+  if(subscriptionId)send({forget:subscriptionId});subscriptionId=null;selectedSymbol=symbol;prices=[];epochs=[];draw();priceLabel.textContent="Loading "+symbol+"…";timeLabel.textContent="Requesting recent tick history…";
+  send({ticks_history:symbol,count:120,end:"latest",style:"ticks"});
+  send({ticks:symbol,subscribe:1});
+ }
+ function populateSymbols(list){
+  const valid=(list||[]).filter(x=>x&&typeof x.symbol==="string"&&typeof x.display_name==="string");
+  if(!valid.length){setStatus("Deriv did not return available symbols.");return;}
+  const previous=select.value;select.replaceChildren();
+  valid.sort((a,b)=>(a.market_display_name||a.market||"").localeCompare(b.market_display_name||b.market||"")||a.display_name.localeCompare(b.display_name));
+  valid.forEach(item=>{const groupName=item.market_display_name||item.market||"Other";let group=Array.from(select.children).find(x=>x.tagName==="OPTGROUP"&&x.label===groupName);if(!group){group=document.createElement("optgroup");group.label=groupName;select.appendChild(group);}group.appendChild(new Option(item.display_name+" ("+item.symbol+")",item.symbol));});
+  const gold=valid.find(x=>/gold/i.test(x.display_name)||/XAU/i.test(x.symbol));
+  if(previous&&valid.some(x=>x.symbol===previous))select.value=previous;else if(gold)select.value=gold.symbol;else select.selectedIndex=0;
+  setStatus(valid.length+" Deriv markets available. Selecting a symbol streams its public ticks.");subscribeSelected();
+ }
+ function connect(){
+  try{socket=new WebSocket(endpoint);}catch(e){setStatus("Could not open Deriv market feed.");return;}
+  setStatus("Connecting to Deriv public feed…");
+  socket.onopen=()=>{reconnectDelay=3000;setStatus("Connected. Loading available markets…");send({active_symbols:"full"});};
+  socket.onmessage=event=>{
+   let data;try{data=JSON.parse(event.data);}catch{return;}
+   if(data.error){setStatus("Feed notice: "+(data.error.message||"Market data unavailable."));return;}
+   if(data.msg_type==="active_symbols"){populateSymbols(data.active_symbols);return;}
+   if(data.msg_type==="history"&&data.history&&data.history.prices){prices=data.history.prices.map(Number).filter(Number.isFinite).slice(-180);epochs=(data.history.times||[]).slice(-180);draw();return;}
+   if(data.msg_type==="tick"&&data.tick){
+    const q=Number(data.tick.quote);if(!Number.isFinite(q))return;
+    if(data.tick.symbol&&selectedSymbol&&data.tick.symbol!==selectedSymbol)return;
+    prices.push(q);epochs.push(data.tick.epoch);if(prices.length>180){prices.shift();epochs.shift();}draw();
+    priceLabel.textContent=q.toLocaleString(undefined,{maximumFractionDigits:8});
+    timeLabel.textContent="Last Deriv tick: "+new Date(Number(data.tick.epoch)*1000).toLocaleString()+" · "+(data.tick.symbol||selectedSymbol);
+    if(data.subscription&&data.subscription.id)subscriptionId=data.subscription.id;
+    setStatus("LIVE · Deriv public tick stream");
+   }
+  };
+  socket.onerror=()=>setStatus("Deriv feed connection error. Retrying…");
+  socket.onclose=()=>{setStatus("Market feed disconnected. Reconnecting…");setTimeout(()=>{if(!socket||socket.readyState===WebSocket.CLOSED)connect();},reconnectDelay);reconnectDelay=Math.min(reconnectDelay*2,30000);};
+ }
+ select.addEventListener("change",subscribeSelected);
+ window.addEventListener("resize",draw);
+ setInterval(()=>send({ping:1}),30000);
+ connect();
+})();
 
 function calculateRisk(){
  const balance=Number(document.getElementById("balance").value);
