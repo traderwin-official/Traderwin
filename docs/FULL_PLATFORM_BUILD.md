@@ -18,7 +18,6 @@ Run in Supabase SQL Editor, in this order:
 6. `supabase/migrations/202611120006_dual_modes_profit_protection.sql`
 7. `supabase/migrations/202611120007_shared_profit_protection.sql`
 8. `supabase/migrations/202611120008_portfolio_profit_protection.sql`
-8. `supabase/migrations/202611120008_portfolio_profit_protection.sql`
 
 Check each SQL result and verify the new tables in Table Editor before deployment.
 
