@@ -16,10 +16,6 @@ async function processSession(db, session) {
     .eq("user_id", session.user_id)
     .maybeSingle();
   if (settingsError || !settings) return { sessionId: session.id, action: "SKIP", reason: "BOT_SETTINGS_UNAVAILABLE" };
-  if (String(settings.broker).toUpperCase() !== "DERIV" || settings.account_mode !== "DEMO") {
-    return { sessionId: session.id, action: "SKIP", reason: "UNSUPPORTED_BROKER_OR_MODE" };
-  }
-
   const { data: emergency, error: emergencyError } = await db.from("bot_emergency_controls")
     .select("kill_switch_active")
     .eq("user_id", session.user_id)
@@ -48,9 +44,14 @@ async function processSession(db, session) {
     return { sessionId: session.id, action: "BLOCK", reason: "KILL_SWITCH_ACTIVE" };
   }
 
+  if (!openTrade && (String(settings.broker).toUpperCase() !== "DERIV" || settings.account_mode !== "DEMO")) {
+    return { sessionId: session.id, action: "SKIP", reason: "UNSUPPORTED_BROKER_OR_MODE" };
+  }
+
+  const managedInstrument = openTrade ? openTrade.symbol : settings.instrument;
   let quote;
   try {
-    quote = await getDerivPublicQuote(settings.instrument);
+    quote = await getDerivPublicQuote(managedInstrument);
   } catch (error) {
     return { sessionId: session.id, action: "BLOCK", reason: "QUOTE_UNAVAILABLE", detail: safeError(error) };
   }
