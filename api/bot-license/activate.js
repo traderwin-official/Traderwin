@@ -15,7 +15,7 @@ export default async function handler(req,res) {
     const mt5Login=String(body.mt5Login||"").trim();
     const mt5Server=String(body.mt5Server||"").trim().slice(0,100);
     const action=String(body.action||"ACTIVATE").toUpperCase();
-    if(!/^TW-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(key)||!validLogin(mt5Login)||mt5Server.length<2||!["ACTIVATE","VERIFY"].includes(action)){
+    if(!/^TW-(?:[A-Z0-9]{4}-){5}[A-Z0-9]{4}$/.test(key)||!validLogin(mt5Login)||mt5Server.length<2||!["ACTIVATE","VERIFY"].includes(action)){
       return res.status(400).json({valid:false,error:"Provide a valid Traderwin license key, MT5 account number, broker server and action."});
     }
     const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
