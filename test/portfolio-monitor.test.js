@@ -102,3 +102,48 @@ test("REAL execution gate is checked only after a valid trailing trigger", async
   assert.equal(result.status, "CLOSE_REQUESTED");
   assert.equal(a.calls.closed.length, 2);
 });
+
+test("broker disconnect blocks portfolio close requests before state persistence", async () => {
+  const a = adapters({
+    loadSnapshot: async () => ({
+      positions: positions.map(p => ({ ...p, profitUsd: 30 })),
+      source: "verified-test-feed",
+      asOf: new Date(1_000_000).toISOString(),
+      maxAgeMs: 10_000,
+      emergency: {
+        marketDataConnected: true,
+        brokerConnected: false,
+        killSwitchActive: false,
+        brokerHeartbeatAsOf: new Date(1_000_000).toISOString(),
+        maxBrokerHeartbeatAgeMs: 10_000
+      }
+    })
+  });
+  const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
+  assert.equal(result.status, "BLOCKED");
+  assert.equal(result.reason, "BROKER_DISCONNECTED");
+  assert.equal(a.calls.saved.length, 0);
+  assert.equal(a.calls.closed.length, 0);
+});
+
+test("active emergency kill switch does not suppress authorized risk-reducing portfolio close", async () => {
+  const a = adapters({
+    loadSnapshot: async () => ({
+      positions: positions.map(p => ({ ...p, profitUsd: 30 })),
+      source: "verified-test-feed",
+      asOf: new Date(1_000_000).toISOString(),
+      maxAgeMs: 10_000,
+      emergency: {
+        marketDataConnected: true,
+        brokerConnected: true,
+        killSwitchActive: true,
+        brokerHeartbeatAsOf: new Date(1_000_000).toISOString(),
+        maxBrokerHeartbeatAgeMs: 10_000
+      }
+    })
+  });
+  const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
+  assert.equal(result.status, "CLOSE_REQUESTED");
+  assert.equal(result.emergency.allowNewEntries, false);
+  assert.equal(result.emergency.allowRiskReducingActions, true);
+});
