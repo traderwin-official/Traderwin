@@ -19,6 +19,7 @@ Run in Supabase SQL Editor, in this order:
 7. `supabase/migrations/202611120007_shared_profit_protection.sql`
 8. `supabase/migrations/202611120008_portfolio_profit_protection.sql`
 9. `supabase/migrations/202611120009_portfolio_membership_tracking.sql`
+10. `supabase/migrations/202611120010_atomic_portfolio_state.sql`
 
 Check each SQL result and verify the new tables in Table Editor before deployment.
 
