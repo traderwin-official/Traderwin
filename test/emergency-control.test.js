@@ -18,3 +18,13 @@ test("emergency control schema is service-role only and scoped to user/account/m
   assert.match(sql, /revoke all on public\.bot_emergency_controls from public, anon, authenticated/i);
   assert.match(sql, /enable row level security/i);
 });
+
+test("DEMO bot start and paper-entry endpoints both enforce the persisted emergency latch", async () => {
+  const startRoute = await readFile(new URL("../api/bots/demo/control.js", import.meta.url), "utf8");
+  const entryRoute = await readFile(new URL("../api/bots/demo/trade.js", import.meta.url), "utf8");
+  for (const source of [startRoute, entryRoute]) {
+    assert.match(source, /from\("bot_emergency_controls"\)/);
+    assert.match(source, /kill_switch_active/);
+    assert.match(source, /DEMO:\\$\{uid\}/);
+  }
+});
