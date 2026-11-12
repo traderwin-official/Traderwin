@@ -14,6 +14,7 @@ Run in Supabase SQL Editor, in this order:
 2. `supabase/migrations/202611120002_platform_foundation.sql`
 3. `supabase/migrations/202611120003_deriv_connection_security.sql`
 4. `supabase/migrations/202611120004_service_catalog_security.sql`
+5. `supabase/migrations/202611120005_demo_paper_trading.sql`
 
 Check each SQL result and verify the new tables in Table Editor before deployment.
 
@@ -27,3 +28,8 @@ Check each SQL result and verify the new tables in Table Editor before deploymen
 
 ## Safety rules
 REAL mode is only a preference; bots default OFF; no live-order endpoint is enabled by this migration; no broker secrets are stored in client-readable tables; payment confirmation is server-only; AI ideas need provenance, freshness checks and human approval. Use demo accounts for all integration testing.
+
+
+## Demo paper simulator
+
+The DEMO simulator uses a virtual USD 10,000 balance and a server-controlled paper-trade ledger. It requires the signed-in profile and saved bot settings to both be in DEMO mode. Prices are manually supplied by the user until a verified market-data feed and instrument contract specifications are integrated. Virtual units and P/L are simplified educational estimates, not broker lot sizes, executable quotes or automated strategy signals. No endpoint in this layer sends a broker order.
