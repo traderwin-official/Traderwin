@@ -46,9 +46,17 @@ export default async function handler(req,res){
    if(lastError)return res.status(503).json({error:"Could not verify your previous demo session."});
    if(lastSession?.status==="RISK_LOCKED"&&new Date(lastSession.created_at)>=utcNairobiDayStart)
     return res.status(403).json({error:"Your demo session hit its daily loss limit. The safety lock remains active until the next Nairobi trading day."});
-   const {data:active,error:ae2}=await db.from("demo_bot_sessions").select("id,status,current_balance,virtual_currency,started_at").eq("user_id",uid).eq("status","RUNNING").maybeSingle();
+   const {data:active,error:ae2}=await db.from("demo_bot_sessions").select("id,status,current_balance,virtual_currency,started_at").eq("user_id",uid).in("status",["RUNNING","PAUSED"]).maybeSingle();
    if(ae2)return res.status(503).json({error:"Could not check existing demo session."});
+   if(active?.status==="PAUSED"){
+    const {data:resumed,error:resumeError}=await db.from("demo_bot_sessions").update({status:"RUNNING",stopped_at:null,updated_at:new Date().toISOString()}).eq("id",active.id).eq("status","PAUSED").select("id,status,current_balance,virtual_currency,started_at").single();
+    if(resumeError||!resumed)return res.status(503).json({error:"Could not resume DEMO session."});
+    return res.status(200).json({ok:true,session:resumed,message:"DEMO automation resumed. The worker will continue managing any existing bot position."});
+   }
    if(active)return res.status(200).json({ok:true,session:active,message:"Demo paper session is already running."});
+   const {data:orphanOpen,error:orphanError}=await db.from("demo_bot_trades").select("id,trade_source").eq("user_id",uid).eq("status","OPEN").limit(1);
+   if(orphanError)return res.status(503).json({error:"Could not verify existing open DEMO positions."});
+   if(orphanOpen?.length)return res.status(409).json({error:"Close your existing open DEMO position before starting a new session. This protects the account from unmanaged overlapping positions."});
    const {data:session,error}=await db.from("demo_bot_sessions").insert({
     user_id:uid,bot_setting_id:s.id,account_mode:"DEMO",status:"RUNNING",
     starting_balance:10000,current_balance:10000,
@@ -62,9 +70,12 @@ export default async function handler(req,res){
   const {data:s,error:se}=await db.from("demo_bot_sessions").select("id,bot_setting_id").eq("user_id",uid).eq("status","RUNNING").maybeSingle();
   if(se)return res.status(503).json({error:"Could not load active demo session."});
   if(!s)return res.status(200).json({ok:true,session:null,message:"No demo session is running."});
-  const {error}=await db.from("demo_bot_sessions").update({status:"STOPPED",stopped_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",s.id).eq("status","RUNNING");
+  const {data:openPosition,error:positionError}=await db.from("demo_bot_trades").select("id,trade_source").eq("session_id",s.id).eq("user_id",uid).eq("status","OPEN").maybeSingle();
+  if(positionError)return res.status(503).json({error:"Could not verify the open DEMO position before stopping."});
+  const nextStatus=openPosition?.trade_source==="BOT"?"PAUSED":"STOPPED";
+  const {error}=await db.from("demo_bot_sessions").update({status:nextStatus,stopped_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",s.id).eq("status","RUNNING");
   if(error)return res.status(503).json({error:"Could not stop demo session."});
-  await db.from("bot_activity").insert({user_id:uid,bot_setting_id:s.bot_setting_id,event_type:"STOP_REQUESTED",account_mode:"DEMO",details:{session_id:s.id}});
-  return res.status(200).json({ok:true,session:{id:s.id,status:"STOPPED"},message:"Demo paper session stopped."});
+  await db.from("bot_activity").insert({user_id:uid,bot_setting_id:s.bot_setting_id,event_type:"STOP_REQUESTED",account_mode:"DEMO",details:{session_id:s.id,status:nextStatus,open_bot_position_retained:nextStatus==="PAUSED"}});
+  return res.status(200).json({ok:true,session:{id:s.id,status:nextStatus},message:nextStatus==="PAUSED"?"New entries are stopped. The worker will continue managing your existing BOT position until it closes; then the session stays paused.":"DEMO session stopped. Any manual paper position remains under your control."});
  }catch(e){console.error("Demo control:",e.message);return res.status(500).json({error:"Demo bot service encountered an error."});}
 }
