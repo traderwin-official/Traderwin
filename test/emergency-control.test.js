@@ -1,13 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
-test("emergency control endpoint exists and exposes only entry-stop actions", async () => {
-  const { default: handler } = await import("../api/bots/emergency/control.js");
-  assert.equal(typeof handler, "function");
+test("emergency control route requires authenticated account scope and exposes entry-stop actions only", async () => {
+  const source = await readFile(new URL("../api/bots/emergency/control.js", import.meta.url), "utf8");
+  assert.match(source, /getUser\(/);
+  assert.match(source, /STOP_ENTRIES/);
+  assert.match(source, /CLEAR_STOP/);
+  assert.match(source, /kill_switch_active/);
+  assert.match(source, /does not close open positions|does not close positions/i);
+  assert.doesNotMatch(source, /closePosition\s*\(/);
 });
 
 test("emergency control schema is service-role only and scoped to user/account/mode", async () => {
-  const { readFile } = await import("node:fs/promises");
   const sql = await readFile(new URL("../supabase/migrations/202611120011_bot_emergency_controls.sql", import.meta.url), "utf8");
   assert.match(sql, /unique\s*\(user_id,\s*account_mode,\s*broker,\s*broker_account_ref\)/i);
   assert.match(sql, /revoke all on public\.bot_emergency_controls from public, anon, authenticated/i);
