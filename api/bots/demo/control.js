@@ -15,11 +15,13 @@ export default async function handler(req,res){
    const {data:profile,error:profileError}=await db.from("trader_profiles").select("account_mode").eq("user_id",uid).maybeSingle();
    if(profileError)return res.status(503).json({error:"Could not check account mode."});
    if(profile?.account_mode!=="DEMO")return res.status(200).json({ok:true,session:null,message:"Demo simulator is locked outside DEMO mode."});
-   const {data:active,error:activeError}=await db.from("demo_bot_sessions").select("id,status,current_balance,virtual_currency,started_at,bot_setting_id").eq("user_id",uid).eq("status","RUNNING").maybeSingle();
+   const {data:active,error:activeError}=await db.from("demo_bot_sessions").select("id,status,current_balance,virtual_currency,started_at,bot_setting_id").eq("user_id",uid).order("created_at",{ascending:false}).limit(1).maybeSingle();
    if(activeError)return res.status(503).json({error:"Could not load demo session status."});
-   if(!active)return res.status(200).json({ok:true,session:null,message:"No demo session is running."});
+   if(!active)return res.status(200).json({ok:true,session:null,openTrade:null,message:"No demo session exists yet."});
    const {data:settings}=await db.from("bot_settings").select("instrument").eq("id",active.bot_setting_id).maybeSingle();
-   return res.status(200).json({ok:true,session:{...active,instrument:settings?.instrument||null},message:"Demo paper session status loaded."});
+   const {data:openTrade,error:tradeError}=await db.from("demo_bot_trades").select("id,symbol,direction,entry_price,stop_loss,take_profit,status").eq("user_id",uid).eq("status","OPEN").order("opened_at",{ascending:false}).limit(1).maybeSingle();
+   if(tradeError)return res.status(503).json({error:"Could not load your open paper trade."});
+   return res.status(200).json({ok:true,session:{...active,instrument:settings?.instrument||null},openTrade:openTrade||null,message:"Demo session and open paper trade status loaded."});
   }
   if(action==="START"){
    const {data:p,error:pe}=await db.from("trader_profiles").select("account_mode,max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).maybeSingle();
