@@ -41,6 +41,7 @@ create table if not exists public.bot_settings(
 alter table public.bot_settings add column if not exists strategy text not null default 'MANUAL_REVIEW';
 alter table public.bot_settings add column if not exists max_risk_per_trade_pct numeric(5,2) not null default 0.50;
 alter table public.bot_settings add column if not exists updated_at timestamptz not null default now();
+create unique index if not exists traderwin_bot_settings_user_uidx on public.bot_settings(user_id);
 alter table public.bot_settings enable row level security;
 drop policy if exists "Users manage own bot settings" on public.bot_settings;
 create policy "Users manage own bot settings" on public.bot_settings for all to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
@@ -82,6 +83,24 @@ create table if not exists public.trading_signals(
  rationale text,source_name text,source_url text,source_timestamp timestamptz,reviewed_by uuid references auth.users(id),
  published_at timestamptz,expires_at timestamptz,created_by uuid references auth.users(id),created_at timestamptz not null default now());
 alter table public.trading_signals add column if not exists market_category text not null default 'FOREX';
+alter table public.trading_signals add column if not exists symbol text;
+alter table public.trading_signals add column if not exists direction text;
+alter table public.trading_signals add column if not exists timeframe text default 'M15';
+alter table public.trading_signals add column if not exists entry_price numeric;
+alter table public.trading_signals add column if not exists stop_loss numeric;
+alter table public.trading_signals add column if not exists take_profit_1 numeric;
+alter table public.trading_signals add column if not exists take_profit_2 numeric;
+alter table public.trading_signals add column if not exists take_profit_3 numeric;
+alter table public.trading_signals add column if not exists confidence_score numeric(5,2);
+alter table public.trading_signals add column if not exists status text not null default 'DRAFT';
+alter table public.trading_signals add column if not exists rationale text;
+alter table public.trading_signals add column if not exists source_name text;
+alter table public.trading_signals add column if not exists source_url text;
+alter table public.trading_signals add column if not exists source_timestamp timestamptz;
+alter table public.trading_signals add column if not exists reviewed_by uuid references auth.users(id);
+alter table public.trading_signals add column if not exists published_at timestamptz;
+alter table public.trading_signals add column if not exists expires_at timestamptz;
+alter table public.trading_signals add column if not exists created_by uuid references auth.users(id);
 alter table public.trading_signals enable row level security;
 drop policy if exists "Anyone reads active unexpired signals" on public.trading_signals;
 create policy "Anyone reads active unexpired signals" on public.trading_signals for select using(status='ACTIVE' and (expires_at is null or expires_at>now()));
@@ -103,7 +122,7 @@ comment on table public.ai_trade_ideas is 'Research records only; require proven
 
 create table if not exists public.bot_activity(
  id uuid primary key default gen_random_uuid(),user_id uuid not null references auth.users(id) on delete cascade,
- bot_setting_id uuid references public.bot_settings(id) on delete set null,
+ bot_setting_id uuid,
  event_type text not null check(event_type in('CONFIG_SAVED','START_REQUESTED','STOP_REQUESTED','RISK_BLOCK','DEMO_ORDER','ERROR')),
  account_mode text not null default 'DEMO' check(account_mode in('DEMO','REAL')),details jsonb not null default '{}'::jsonb,
  created_at timestamptz not null default now());
