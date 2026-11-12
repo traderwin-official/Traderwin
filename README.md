@@ -15,6 +15,7 @@ Traderwin is a multi-user trading research and risk-management platform being bu
 
 - [Full platform architecture and migration guide](docs/FULL_PLATFORM_BUILD.md)
 - [Release readiness, environment variables and remaining blockers](docs/CORE_UPGRADE_PLAN.md)
+- [Secure one-minute DEMO worker scheduling](docs/DEMO_WORKER_SCHEDULING.md)
 
 ## Safety
 
