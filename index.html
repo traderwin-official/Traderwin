@@ -63,6 +63,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <a href="#markets">Markets</a>
   <a href="#analysis">Analysis</a>
   <a href="#bots">Bots</a>
+  <a href="#payments">Payments</a>
   <a href="#risk">Risk</a>
   <a href="#academy">Academy</a>
  </nav>
@@ -560,7 +561,7 @@ calculateRisk();
    const price=Number(service.price_kes);
    paymentAmount.textContent=Number.isFinite(price)?"KES "+price.toLocaleString("en-KE"):"Price unavailable";
    startPayment.disabled=!Number.isSafeInteger(price)||price<1;
-   paymentMessage.textContent=price<1
+   if(!activePaymentOrderId) paymentMessage.textContent=price<1
     ?"Pricing for this service has not been published yet."
     :"The final amount will be confirmed by Traderwin's server before the M-Pesa prompt is sent.";
   }
