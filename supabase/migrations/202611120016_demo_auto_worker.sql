@@ -68,7 +68,7 @@ revoke all on public.traderwin_worker_leases from public, anon, authenticated;
 
 create or replace function public.claim_traderwin_demo_worker(
   p_lease_token uuid,
-  p_lease_seconds integer default 50
+  p_lease_seconds integer default 120
 ) returns boolean
 language plpgsql
 security definer
@@ -130,6 +130,9 @@ declare
   v_session public.demo_bot_sessions%rowtype;
   v_instrument text;
   v_trade_id uuid;
+  v_day_start timestamptz;
+  v_daily_loss numeric(14,2);
+  v_daily_limit numeric(14,2);
 begin
   if p_user_id is null or p_session_id is null
      or nullif(trim(p_symbol), '') is null
@@ -161,6 +164,21 @@ begin
        and broker = 'DERIV' and broker_account_ref = 'DEMO:' || p_user_id::text
        and kill_switch_active = true
   ) then
+    return null;
+  end if;
+  v_day_start := date_trunc('day', now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
+  select coalesce(sum(least(realized_pnl, 0)), 0)
+    into v_daily_loss
+    from public.demo_bot_trades
+   where user_id = p_user_id and status = 'CLOSED' and closed_at >= v_day_start;
+  v_daily_limit := v_session.starting_balance * v_session.max_daily_loss_pct / 100;
+  if abs(v_daily_loss) >= v_daily_limit then
+    update public.demo_bot_sessions
+       set status = 'RISK_LOCKED', stopped_at = now(), updated_at = now()
+     where id = v_session.id and status = 'RUNNING';
+    insert into public.bot_activity(user_id,bot_setting_id,event_type,account_mode,details)
+    values (p_user_id,v_session.bot_setting_id,'RISK_BLOCK','DEMO',
+      jsonb_build_object('reason','DAILY_LOSS_LIMIT','daily_loss',abs(v_daily_loss),'limit',v_daily_limit));
     return null;
   end if;
   if p_risk_pct > v_session.max_risk_per_trade_pct
@@ -220,7 +238,7 @@ declare
 begin
   if p_user_id is null or p_trade_id is null
      or p_exit_price is null or p_exit_price <= 0
-     or p_quote_source <> 'DERIV'
+     or p_quote_source is null or p_quote_source <> 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now() or p_quote_as_of < now() - interval '30 seconds'
      or p_close_reason is null or p_close_reason not in ('STOP_LOSS','TAKE_PROFIT','MANUAL_STOP') then
     raise exception 'Invalid or stale DEMO close request';
