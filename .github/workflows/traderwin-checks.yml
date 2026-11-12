@@ -18,3 +18,5 @@ jobs:
       - name: Check serverless JavaScript syntax
         run: |
           find api lib -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Check inline page scripts
+        run: node scripts/check-inline-scripts.mjs
