@@ -54,7 +54,7 @@ Do not skip, reorder, or assume migrations have run because GitHub tests pass. T
 Never paste secrets into chat, GitHub source, or browser-visible environment variables. Add them only through Vercel's server-side environment settings.
 
 ## Safe release gates
-1. Apply and verify migrations 002-015 in Supabase.
+1. Apply and verify migrations 002-016 in Supabase.
 2. Configure server-side credentials and registered Deriv/M-Pesa callback URLs.
 3. Wait for Vercel's deployment rate limit to clear, then create a preview deployment.
 4. Test signup/login, onboarding, public market data, server-side DEMO quote entry/mark/close, strategy analysis, payment prompt, provider-confirmed payment and subscription expiry.
