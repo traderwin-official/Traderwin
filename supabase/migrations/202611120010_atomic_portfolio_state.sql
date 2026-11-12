@@ -2,7 +2,8 @@
 -- Apply only after migrations 008 and 009 have been reviewed and applied.
 alter table public.portfolio_profit_protection_state
  add column if not exists quote_source text,
- add column if not exists quote_as_of timestamptz;
+ add column if not exists quote_as_of timestamptz,
+ add column if not exists state_version bigint not null default 0 check(state_version>=0);
 
 alter table public.portfolio_trade_permissions
  add column if not exists bot_trade_management boolean not null default false,
@@ -19,7 +20,8 @@ create or replace function public.save_portfolio_profit_protection_state(
  p_trailing_active boolean,
  p_included_position_ids text[],
  p_membership_version bigint,
- p_expected_membership_version bigint,
+ p_state_version bigint,
+ p_expected_state_version bigint,
  p_last_valuation_at timestamptz,
  p_quote_source text,
  p_quote_as_of timestamptz
@@ -41,7 +43,8 @@ begin
     or p_trailing_active is null
     or p_included_position_ids is null
     or p_membership_version is null or p_membership_version < 0
-    or p_expected_membership_version is null or p_expected_membership_version < 0
+    or p_state_version is null or p_state_version < 1
+    or p_expected_state_version is null or p_expected_state_version < 0
     or p_last_valuation_at is null
     or nullif(trim(p_quote_source),'') is null
     or p_quote_as_of is null then
@@ -60,16 +63,16 @@ begin
    user_id, account_mode, broker, broker_account_ref,
    peak_unrealized_profit_usd, current_unrealized_profit_usd,
    protected_profit_floor_usd, trailing_active,
-   included_position_ids, membership_version,
+   included_position_ids, membership_version, state_version,
    last_valuation_at, quote_source, quote_as_of, updated_at
  )
  select
    p_user_id, p_account_mode, p_broker, p_broker_account_ref,
    p_peak_profit_usd, p_current_profit_usd,
    p_protected_floor_usd, p_trailing_active,
-   p_included_position_ids, p_membership_version,
+   p_included_position_ids, p_membership_version, p_state_version,
    p_last_valuation_at, p_quote_source, p_quote_as_of, now()
- where p_expected_membership_version = 0
+ where p_expected_state_version = 0
  on conflict (user_id, account_mode, broker, broker_account_ref)
  do update set
    peak_unrealized_profit_usd = excluded.peak_unrealized_profit_usd,
@@ -78,11 +81,12 @@ begin
    trailing_active = excluded.trailing_active,
    included_position_ids = excluded.included_position_ids,
    membership_version = excluded.membership_version,
+   state_version = excluded.state_version,
    last_valuation_at = excluded.last_valuation_at,
    quote_source = excluded.quote_source,
    quote_as_of = excluded.quote_as_of,
    updated_at = now()
- where public.portfolio_profit_protection_state.membership_version = p_expected_membership_version
+ where public.portfolio_profit_protection_state.state_version = p_expected_state_version
  returning true into v_saved;
 
  return coalesce(v_saved, false);
@@ -90,7 +94,7 @@ end;
 $$;
 
 revoke all on function public.save_portfolio_profit_protection_state(
- uuid,text,text,text,numeric,numeric,numeric,boolean,text[],bigint,bigint,timestamptz,text,timestamptz
+ uuid,text,text,text,numeric,numeric,numeric,boolean,text[],bigint,bigint,bigint,timestamptz,text,timestamptz
 ) from public, anon, authenticated;
 grant execute on function public.save_portfolio_profit_protection_state(
  uuid,text,text,text,numeric,numeric,numeric,boolean,text[],bigint,bigint,timestamptz,text,timestamptz
