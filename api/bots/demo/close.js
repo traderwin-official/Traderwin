@@ -11,7 +11,7 @@ export default async function handler(req,res){
   if(!/^[0-9a-f-]{36}$/i.test(id))return res.status(400).json({error:"Enter a valid paper trade ID."});
   const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
-  const {data:t,error:te}=await db.from("demo_bot_trades").select("id,user_id,session_id,direction,entry_price,virtual_units,status").eq("id",id).eq("user_id",a.user.id).eq("status","OPEN").maybeSingle();
+  const {data:t,error:te}=await db.from("demo_bot_trades").select("id,user_id,session_id,symbol,direction,entry_price,virtual_units,status").eq("id",id).eq("user_id",a.user.id).eq("status","OPEN").maybeSingle();
   if(te||!t)return res.status(404).json({error:"Open paper trade not found."});
   let quote;try{quote=await getDerivPublicQuote(t.symbol);}catch(e){return res.status(503).json({error:e.message||"Could not obtain a fresh Deriv quote."});}
   const exit=quote.quote;
