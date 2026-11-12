@@ -34,6 +34,11 @@ export default async function handler(req, res) {
     const { data: service, error: serviceError } = await admin.from("service_catalog")
       .select("service_code,service_name,price_kes,price_usd,renewal_price_usd,active").eq("service_code", serviceCode).eq("active", true).maybeSingle();
     if (serviceError || !service) return res.status(404).json({ error: "That Traderwin service is unavailable." });
+    const { data: pendingOrder, error: pendingError } = await admin.from("payment_orders")
+      .select("id").eq("user_id", auth.user.id).eq("service_code", service.service_code)
+      .eq("status", "PENDING").maybeSingle();
+    if (pendingError) return res.status(503).json({ error: "Could not check an existing payment request." });
+    if (pendingOrder) return res.status(409).json({ error: "You already have a pending payment for this service. Check its status before starting another." });
     let priorPaidCount = 0;
     let fx = null;
     if (Number(service.price_usd) > 0) {
