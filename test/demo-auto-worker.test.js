@@ -22,6 +22,9 @@ test("DEMO worker only queries running DEMO sessions and Deriv broker settings",
   assert.match(source, /\.eq\("account_mode", "DEMO"\)/);
   assert.match(source, /String\(settings\.broker\)\.toUpperCase\(\) !== "DERIV"/);
   assert.match(source, /kill_switch_active/);
+  assert.match(source, /emergency\?\.kill_switch_active && !openTrade/);
+  assert.match(source, /SESSION_PAUSED_NO_OPEN_POSITION/);
+  assert.match(source, /\.in\("status", \["RUNNING", "PAUSED"\]\)/);
 });
 
 test("worker migration adds atomic lease, open and close functions", async () => {
@@ -36,6 +39,7 @@ test("worker migration adds atomic lease, open and close functions", async () =>
   assert.match(sql, /MANUAL_TRADE_NOT_MANAGED/);
   assert.match(sql, /trade_source/);
   assert.match(sql, /demo_bot_one_open_trade_per_user/);
+  assert.match(sql, /set status =/);
   assert.match(sql, /Africa\/Nairobi/);
   assert.match(sql, /to service_role/);
 });
