@@ -539,19 +539,18 @@ calculateRisk();
 
     const {error:saveError}=await client
      .from("bot_settings")
-     .insert({
+     .upsert({
       user_id:user.id,
       broker:broker,
       instrument:instrument,
-      account_mode:"DEMO",
-      enabled:false
-     });
+      account_mode:selectedAccountMode,
+      enabled:false,
+      strategy:"MANUAL_REVIEW"
+     },{onConflict:"user_id"});
 
     if(saveError){
 
-     if(saveError.code==="23505"){
-      botMessage.textContent="You already have bot settings saved. Editing existing settings will be enabled after the update policy is verified.";
-     }else if(saveError.code==="42501"){
+     if(saveError.code==="42501"){
       botMessage.textContent="Supabase denied this save under its security policies. Your settings were not changed. We need to check the INSERT policy.";
      }else{
       console.error("Bot settings save error:",saveError);
@@ -561,7 +560,7 @@ calculateRisk();
      return;
     }
 
-    botMessage.textContent="Success! Your bot preferences have been saved. Your selected account preference is "+selectedAccountMode+". Bot configuration remains DEMO and automation stays OFF until broker verification and a separate live-trading safety workflow are completed.";
+    botMessage.textContent="Saved. Your bot preferences match your selected "+selectedAccountMode+" account mode. Automation remains OFF; this form does not authorize or place trades.";
     botForm.reset();
 
    }catch(error){
