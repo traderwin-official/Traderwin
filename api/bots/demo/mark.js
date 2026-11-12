@@ -62,6 +62,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       closed: false,
+      currentPrice,
       currentUnrealizedPnl: unrealizedPnl,
       markedAt,
       quote: { source: quote.source, asOf: quote.quoteAsOf, instrument: quote.providerSymbol },
