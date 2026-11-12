@@ -71,7 +71,16 @@ export default async function handler(req, res) {
       if (serviceError || !service) {
         console.error("Paid service entitlement could not be resolved:", serviceError?.message || "Service missing");
       } else {
-        const startsAt = new Date();
+        const { data: existingSubscription, error: existingSubscriptionError } = await admin
+          .from("user_subscriptions").select("ends_at,status")
+          .eq("user_id", paidOrder.user_id).eq("service_code", paidOrder.service_code).maybeSingle();
+        if (existingSubscriptionError) {
+          console.error("Existing subscription lookup failed:", existingSubscriptionError.message);
+          return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment verified; entitlement update pending" });
+        }
+        const now = new Date();
+        const existingEnd = existingSubscription?.ends_at ? new Date(existingSubscription.ends_at) : null;
+        const startsAt = existingEnd && existingEnd > now ? existingEnd : now;
         const endsAt = new Date(startsAt);
         if (service.billing_period === "MONTHLY") endsAt.setMonth(endsAt.getMonth() + 1);
         else if (service.billing_period === "YEARLY") endsAt.setFullYear(endsAt.getFullYear() + 1);
