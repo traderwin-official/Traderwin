@@ -1,7 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { darajaBaseUrl, createNairobiTimestamp, buildStkPassword } from "../../../lib/mpesa.js";
-function darajaBaseUrl() { return process.env.MPESA_ENV === "production" ? "https://api.safaricom.co.ke" : "https://sandbox.safaricom.co.ke"; }
-function createNairobiTimestamp() { return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().replace(/[-:TZ.]/g, "").slice(0, 14); }
 async function getAccessToken() {
   const { MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET } = process.env;
   const response = await fetch(darajaBaseUrl() + "/oauth/v1/generate?grant_type=client_credentials", {
