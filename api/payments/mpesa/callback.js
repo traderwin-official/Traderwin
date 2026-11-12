@@ -1,9 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-function mpesaBase() { return process.env.MPESA_ENV === "production" ? "https://api.safaricom.co.ke" : "https://sandbox.safaricom.co.ke"; }
-function nairobiTimestamp() { return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().replace(/[-:TZ.]/g, "").slice(0, 14); }
+import { darajaBaseUrl, createNairobiTimestamp, buildStkPassword } from "../../../lib/mpesa.js";
+function darajaBaseUrl() { return process.env.MPESA_ENV === "production" ? "https://api.safaricom.co.ke" : "https://sandbox.safaricom.co.ke"; }
+function createNairobiTimestamp() { return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().replace(/[-:TZ.]/g, "").slice(0, 14); }
 async function getAccessToken() {
   const { MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET } = process.env;
-  const response = await fetch(mpesaBase() + "/oauth/v1/generate?grant_type=client_credentials", {
+  const response = await fetch(darajaBaseUrl() + "/oauth/v1/generate?grant_type=client_credentials", {
     headers: { Authorization: "Basic " + Buffer.from(MPESA_CONSUMER_KEY + ":" + MPESA_CONSUMER_SECRET).toString("base64") },
     signal: AbortSignal.timeout(12000)
   });
@@ -32,10 +33,10 @@ export default async function handler(req, res) {
       .select("id,user_id,service_code,amount_kes,phone_number,status").eq("checkout_request_id", checkoutId).maybeSingle();
     if (orderError || !order || order.status !== "PENDING") return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged" });
     // The public callback is not trusted by itself. Verify the checkout with Daraja.
-    const timestamp = nairobiTimestamp();
-    const password = Buffer.from(MPESA_SHORTCODE + MPESA_PASSKEY + timestamp).toString("base64");
+    const timestamp = createNairobiTimestamp();
+    const password = buildStkPassword(MPESA_SHORTCODE, MPESA_PASSKEY, timestamp);
     const token = await getAccessToken();
-    const verifyResponse = await fetch(mpesaBase() + "/mpesa/stkpushquery/v1/query", {
+    const verifyResponse = await fetch(darajaBaseUrl() + "/mpesa/stkpushquery/v1/query", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
       body: JSON.stringify({ BusinessShortCode: MPESA_SHORTCODE, Password: password, Timestamp: timestamp, CheckoutRequestID: checkoutId }),
