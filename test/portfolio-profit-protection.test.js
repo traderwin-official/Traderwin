@@ -123,3 +123,15 @@ test("invalid previous membership IDs are rejected", () => {
     positions: base, previousIncludedPositionIds: "bot-1"
   }), RangeError);
 });
+
+
+test("bot positions are excluded unless bot management is explicitly enabled", () => {
+  const result = aggregatePortfolioProfitProtection({
+    positions: base,
+    manageBotTrades: false,
+    manageManualTrades: true
+  });
+  assert.equal(result.currentProfitUsd, 7);
+  assert.deepEqual(result.includedPositionIds, ["manual-1"]);
+  assert.deepEqual(result.excludedBotPositionIds, ["bot-1", "bot-2"]);
+});
