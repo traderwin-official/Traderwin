@@ -271,7 +271,26 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <div class="card"><h3>Premium Member</h3><p class="muted">Premium education, advanced tools and other services can be introduced after secure membership and payment integration.</p></div>
   <div class="card"><h3>Traderwin Course</h3><p class="muted">A planned learning programme for beginner traders. Course purchasing and delivery are not yet connected.</p></div>
  </div>
- <p class="muted">No payments are collected by this page at present. M-Pesa integration must be completed securely before accepting payments.</p>
+ <p class="muted">Service prices are controlled by Traderwin's server-side catalogue. No payment is accepted until a service price and M-Pesa merchant configuration are active.</p>
+</section>
+
+<section id="payments">
+ <h2 class="section-title">Secure <span>M-Pesa Checkout</span></h2>
+ <div class="card">
+  <p class="muted">Choose a published Traderwin service. The amount is loaded from the protected service catalogue; you cannot change it here.</p>
+  <div class="field">
+   <label for="paymentService">Service</label>
+   <select id="paymentService"><option value="">Loading services...</option></select>
+  </div>
+  <p class="result" id="paymentAmount">Price not loaded</p>
+  <div class="field">
+   <label for="paymentPhone">M-Pesa phone number</label>
+   <input id="paymentPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="07XXXXXXXX" required>
+  </div>
+  <button id="startMpesaPayment" type="button" disabled>Pay with M-Pesa</button>
+  <button id="checkMpesaPayment" type="button" class="secondary" disabled>Check payment status</button>
+  <p id="mpesaPaymentMessage" class="muted" role="status" aria-live="polite">Payment services are loading.</p>
+ </div>
 </section>
 
 <section id="about">
@@ -517,6 +536,108 @@ calculateRisk();
   });
 
   refreshDerivStatus();
+
+  // SECURE M-PESA CHECKOUT: amount always comes from the server-side catalogue.
+  const paymentService=document.getElementById("paymentService");
+  const paymentAmount=document.getElementById("paymentAmount");
+  const paymentPhone=document.getElementById("paymentPhone");
+  const startPayment=document.getElementById("startMpesaPayment");
+  const checkPayment=document.getElementById("checkMpesaPayment");
+  const paymentMessage=document.getElementById("mpesaPaymentMessage");
+  let paymentServices=[];
+  let activePaymentOrderId=null;
+
+  function selectedPaymentService(){
+   return paymentServices.find(item=>item.service_code===paymentService.value)||null;
+  }
+  function renderPaymentPrice(){
+   const service=selectedPaymentService();
+   if(!service){
+    paymentAmount.textContent="Select a service";
+    startPayment.disabled=true;
+    return;
+   }
+   const price=Number(service.price_kes);
+   paymentAmount.textContent=Number.isFinite(price)?"KES "+price.toLocaleString("en-KE"):"Price unavailable";
+   startPayment.disabled=!Number.isSafeInteger(price)||price<1;
+   paymentMessage.textContent=price<1
+    ?"Pricing for this service has not been published yet."
+    :"The final amount will be confirmed by Traderwin's server before the M-Pesa prompt is sent.";
+  }
+  try{
+   const {data:services,error:catalogError}=await client.from("service_catalog")
+    .select("service_code,service_name,description,price_kes,billing_period")
+    .eq("active",true).order("service_name");
+   if(catalogError) throw catalogError;
+   paymentServices=services||[];
+   paymentService.replaceChildren();
+   if(!paymentServices.length){
+    paymentService.add(new Option("No services available",""));
+   }else{
+    paymentService.add(new Option("Choose a service",""));
+    paymentServices.forEach(item=>paymentService.add(new Option(item.service_name,item.service_code)));
+   }
+   renderPaymentPrice();
+   if(!paymentServices.length) paymentMessage.textContent="No services are currently published.";
+  }catch(error){
+   console.warn("Service catalogue unavailable:",error.message);
+   paymentService.replaceChildren(new Option("Catalogue unavailable",""));
+   paymentAmount.textContent="Price unavailable";
+   paymentMessage.textContent="Could not load the service catalogue. Please try again later.";
+  }
+  paymentService.addEventListener("change",renderPaymentPrice);
+
+  startPayment.addEventListener("click",async()=>{
+   const service=selectedPaymentService();
+   if(!service) return;
+   startPayment.disabled=true;
+   paymentMessage.textContent="Creating a secure M-Pesa payment request...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/payments/mpesa/stk-push",{
+     method:"POST",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+     body:JSON.stringify({serviceCode:service.service_code,phoneNumber:paymentPhone.value.trim()}),
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"M-Pesa checkout could not start.");
+    activePaymentOrderId=result.orderId;
+    checkPayment.disabled=false;
+    paymentMessage.textContent=result.customerMessage||"Check your phone and enter your M-Pesa PIN.";
+   }catch(error){
+    paymentMessage.textContent=error.message||"Payment request failed.";
+   }finally{
+    renderPaymentPrice();
+   }
+  });
+
+  checkPayment.addEventListener("click",async()=>{
+   if(!activePaymentOrderId) return;
+   checkPayment.disabled=true;
+   paymentMessage.textContent="Checking payment status...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/payments/mpesa/status?orderId="+encodeURIComponent(activePaymentOrderId),{
+     headers:{"Authorization":"Bearer "+sessionData.session.access_token},
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Could not check payment status.");
+    const status=result.order.status;
+    paymentMessage.textContent=status==="PAID"
+     ?"Payment confirmed. Your service access is being activated."
+     :status==="FAILED"?"Payment was not completed. You can start a new request."
+     :"Payment is still pending. Complete the M-Pesa prompt, then check again.";
+    if(status!=="PENDING") activePaymentOrderId=null;
+   }catch(error){
+    paymentMessage.textContent=error.message||"Could not check payment status.";
+   }finally{
+    checkPayment.disabled=!activePaymentOrderId;
+   }
+  });
 
   connectButton.addEventListener("click",async function(){
 
