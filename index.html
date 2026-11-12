@@ -200,6 +200,33 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </form>
  </div>
 
+ <div class="card" id="demoSimulator" style="margin-top:15px">
+  <h3>DEMO Paper-Trading Simulator</h3>
+  <p class="muted">Virtual practice only. This is not an automated market-feed bot and it never sends orders to Deriv, MT5 or any broker. Until a verified price feed is connected, enter demo prices yourself. Virtual units and P/L are simplified learning estimates, not broker lot sizes.</p>
+  <p class="status" id="demoSessionStatus">Session: Not started</p>
+  <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
+  <button type="button" id="startDemoSession">Start DEMO Session</button>
+  <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
+  <p id="demoSessionMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <div class="field"><label for="paperDirection">Direction</label><select id="paperDirection"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
+   <div class="field"><label for="paperSymbol">Instrument (saved bot symbol)</label><input id="paperSymbol" maxlength="24" placeholder="XAUUSD"></div>
+  </div>
+  <div class="grid">
+   <div class="field"><label for="paperEntry">Demo entry price</label><input id="paperEntry" type="number" step="any" min="0" inputmode="decimal"></div>
+   <div class="field"><label for="paperStop">Stop-loss</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal"></div>
+   <div class="field"><label for="paperTarget">Take-profit</label><input id="paperTarget" type="number" step="any" min="0" inputmode="decimal"></div>
+  </div>
+  <button type="button" id="recordPaperTrade" disabled>Record Paper Trade</button>
+  <p id="paperTradeMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <div class="field"><label for="paperTradeId">Open paper trade ID</label><input id="paperTradeId" placeholder="Returned after recording"></div>
+   <div class="field"><label for="paperExit">Demo closing price</label><input id="paperExit" type="number" step="any" min="0" inputmode="decimal"></div>
+  </div>
+  <button type="button" class="secondary" id="closePaperTrade" disabled>Close Paper Trade</button>
+  <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
+ </div>
+
  <div class="grid" style="margin-top:15px">
 
   <div class="card" id="derivCard">
@@ -754,7 +781,71 @@ calculateRisk();
 
   });
 
-  // SIGN OUT BUTTON
+  // DEMO-ONLY PAPER SIMULATOR CONTROLS
+   const demoStatus=document.getElementById("demoSessionStatus");
+   const demoBalance=document.getElementById("demoVirtualBalance");
+   const demoMessage=document.getElementById("demoSessionMessage");
+   const startDemo=document.getElementById("startDemoSession");
+   const stopDemo=document.getElementById("stopDemoSession");
+   const recordPaper=document.getElementById("recordPaperTrade");
+   const closePaper=document.getElementById("closePaperTrade");
+   let activeDemoSession=null;
+   async function callDemoApi(path,payload){
+    const {data:s,error:e}=await client.auth.getSession();
+    if(e||!s.session)throw new Error("Please sign in again.");
+    const response=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+s.session.access_token},body:JSON.stringify(payload),credentials:"same-origin",cache:"no-store"});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||"Demo request failed.");
+    return result;
+   }
+   if(selectedAccountMode!=="DEMO"){
+    [startDemo,stopDemo,recordPaper,closePaper].forEach(x=>x.disabled=true);
+    demoMessage.textContent="Paper simulator is locked in REAL mode. Switch to DEMO to practise.";
+   }
+   startDemo.addEventListener("click",async()=>{
+    startDemo.disabled=true;demoMessage.textContent="Starting virtual demo session...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/control",{action:"START"});
+     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+     stopDemo.disabled=false;recordPaper.disabled=false;demoMessage.textContent=r.message;
+    }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
+   });
+   stopDemo.addEventListener("click",async()=>{
+    stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
+     activeDemoSession=null;demoStatus.textContent="Session: STOPPED";recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";demoMessage.textContent=r.message;
+    }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
+   });
+   recordPaper.addEventListener("click",async()=>{
+    recordPaper.disabled=true;const msg=document.getElementById("paperTradeMessage");msg.textContent="Recording virtual paper trade...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/trade",{
+      symbol:document.getElementById("paperSymbol").value.trim(),
+      direction:document.getElementById("paperDirection").value,
+      entryPrice:document.getElementById("paperEntry").value,
+      stopLoss:document.getElementById("paperStop").value,
+      takeProfit:document.getElementById("paperTarget").value
+     });
+     document.getElementById("paperTradeId").value=r.trade.id;closePaper.disabled=false;
+     msg.textContent=r.message+" Virtual risk: USD "+Number(r.trade.risk_amount).toFixed(2)+".";
+    }catch(e){msg.textContent=e.message;}
+    finally{recordPaper.disabled=!activeDemoSession;}
+   });
+   closePaper.addEventListener("click",async()=>{
+    closePaper.disabled=true;const msg=document.getElementById("paperCloseMessage");msg.textContent="Closing paper trade...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/close",{
+      tradeId:document.getElementById("paperTradeId").value.trim(),
+      exitPrice:document.getElementById("paperExit").value
+     });
+     msg.textContent=r.message+" Simulated P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);
+     document.getElementById("paperTradeId").value="";
+    }catch(e){msg.textContent=e.message;closePaper.disabled=false;}
+   });
+
+   // SIGN OUT BUTTON
   const logout=document.createElement("button");
   logout.textContent="Sign Out";
   logout.style.cssText="position:fixed;top:12px;right:12px;z-index:99999;padding:10px 16px;background:#d7a83c;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer";
