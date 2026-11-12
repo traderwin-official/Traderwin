@@ -60,3 +60,12 @@ The dashboard now opens Deriv's public WebSocket market-data endpoint (wss://api
 The branch now includes `lib/portfolio-monitor.js`, a broker-agnostic coordinator designed for a persistent server worker. It requires injected adapters for a fresh account-scoped snapshot, USD-normalized P&L, persisted protection state, explicit permissions, compare-and-swap state persistence, and broker close requests. Stale or malformed quotes, mixed account positions, missing permissions, invalid valuation, and concurrent state-version conflicts stop processing without a close. REAL close requests additionally require a separate server-side real-execution authorization check. Close requests are processed per position with idempotency keys and partial failures returned for retry; this is not an atomic multi-position broker operation.
 
 This coordinator is an integration boundary, not a running worker: no Deriv/MT5 position adapter, trusted valuation service, scheduled worker, or real-order endpoint is wired to it yet. It must not be described as active account protection until those components are implemented and verified. A worker should persist broker-confirmed close outcomes and reconcile positions after every request.
+
+
+## Atomic portfolio state and account permissions
+
+Migration `202611120010_atomic_portfolio_state.sql` adds quote provenance fields, explicit per-account `bot_trade_management` and `close_managed_positions` permissions, and a service-role-only compare-and-swap RPC. The RPC creates a new state row only from expected version zero and updates an existing row only when its stored membership version matches the caller's expected version. This prevents concurrent valuation workers from silently overwriting a newer peak/membership snapshot.
+
+`lib/supabase-portfolio-adapters.js` maps the coordinator to server-side Supabase state and permission records. Missing permission rows default to no bot management, no manual management and no closing authority. REAL authorization is checked separately against the server-only authorization record. Broker snapshot and close adapters remain injected; they are not implemented by this helper.
+
+Before applying migration 010, review and apply compatible migrations 008 and 009 in order. The migration is not yet confirmed applied in the live Supabase project. Do not enable any closing permission until verified broker adapters, position valuation, idempotent close/reconciliation and user-facing permission controls are complete.
