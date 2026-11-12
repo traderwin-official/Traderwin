@@ -27,6 +27,11 @@ export default async function handler(req,res){
    const {data:s,error:se}=await db.from("bot_settings").select("id,broker,instrument,account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
    if(se||!s)return res.status(409).json({error:"Save your bot preferences first."});
    if(s.account_mode!=="DEMO")return res.status(403).json({error:"Your saved bot settings are not DEMO."});
+   const emergencyBroker=String(s.broker||"").toUpperCase()==="DERIV"?"DERIV":String(s.broker||"").toUpperCase()==="MT5"?"MT5":null;
+   if(!emergencyBroker)return res.status(403).json({error:"Unsupported broker for emergency control."});
+   const {data:emergencyControl,error:emergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker",emergencyBroker).eq("broker_account_ref",`DEMO:${uid}`).maybeSingle();
+   if(emergencyError)return res.status(503).json({error:"Emergency control status is unavailable. Apply the emergency-controls migration before starting the bot."});
+   if(emergencyControl?.kill_switch_active)return res.status(403).json({error:"Emergency stop is active. Clear it only after checking your account and risk controls."});
    const {data:modeProfile}=await db.from("bot_mode_profiles").select("max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("account_mode","DEMO").maybeSingle();
    const nairobiToday=new Date(Date.now()+3*60*60*1000);nairobiToday.setUTCHours(0,0,0,0);
    const utcNairobiDayStart=new Date(nairobiToday.getTime()-3*60*60*1000);
