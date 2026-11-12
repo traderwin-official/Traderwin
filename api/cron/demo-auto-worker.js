@@ -4,7 +4,9 @@ import { getDerivPublicQuote } from "../../lib/deriv-public-quote.js";
 import { getDerivCandles } from "../../lib/deriv-candles.js";
 import { decideDemoAutoAction } from "../../lib/demo-auto-decision.js";
 
-const MAX_SESSIONS_PER_TICK = 10;
+export const config = { maxDuration: 25 };
+
+const MAX_SESSIONS_PER_TICK = 3;
 const safeError = error => String(error?.message || "Worker step failed").slice(0, 240);
 
 async function processSession(db, session) {
@@ -133,7 +135,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET } = process.env;
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !CRON_SECRET) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !CRON_SECRET || CRON_SECRET.length < 32) {
     return res.status(503).json({ error: "DEMO worker is not configured." });
   }
   const authorization = req.headers.authorization || "";
