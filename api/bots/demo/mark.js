@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     }
 
     const { data: trade, error: tradeError } = await db.from("demo_bot_trades")
-      .select("id,direction,entry_price,virtual_units,status")
+      .select("id,symbol,direction,entry_price,virtual_units,status")
       .eq("id", tradeId)
       .eq("user_id", auth.user.id)
       .eq("status", "OPEN")
