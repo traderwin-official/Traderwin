@@ -6,13 +6,14 @@
 3. **Account modes:** DEMO/REAL preference and risk limits. REAL selection never authorizes an order.
 4. **Bots:** Per-user bot preferences and activity audit. Automation remains off until a broker-specific demo engine, order validation, kill switch and tests are complete.
 5. **AI analyst and signals:** Structured ideas with entry, SL, multiple targets, confidence, evidence timestamps and freshness fields. Human review is required before publication.
-6. **Business operations:** M-Pesa payment ledger, separate service catalogue, subscriptions, courses, enrolments and admin-role foundation.
+6. **Business operations:** M-Pesa payment ledger, separate service catalogue, subscriptions, courses, enrolments and admin-role foundation. M-Pesa checkout scaffolding stays unavailable until Daraja credentials and merchant settings are configured.
 
 ## Database setup
 Run in Supabase SQL Editor, in this order:
 1. `supabase/migrations/202611120001_trader_profiles.sql`
 2. `supabase/migrations/202611120002_platform_foundation.sql`
 3. `supabase/migrations/202611120003_deriv_connection_security.sql`
+4. `supabase/migrations/202611120004_service_catalog_security.sql`
 
 Check each SQL result and verify the new tables in Table Editor before deployment.
 
@@ -20,7 +21,7 @@ Check each SQL result and verify the new tables in Table Editor before deploymen
 - Deriv application credentials and approved redirect URI. The new status/disconnect endpoints depend on the private `deriv_connections` table from migration 003.
 - MT5 broker/server and a secure hosted bridge; a browser cannot connect directly to a desktop MT5 terminal.
 - A licensed market-data provider for live prices.
-- M-Pesa Daraja credentials, callback URL and merchant setup. Never confirm payment from the browser.
+- M-Pesa Daraja sandbox/production credentials, shortcode, passkey, HTTPS callback URL and merchant approval. The server-side STK endpoint reads prices from the catalogue; the callback re-queries Daraja before marking an order PAID. Never confirm payment from the browser.
 - AI provider key and legal market/news data sources, stored only as Vercel server-side environment variables.
 - Admin roles assigned through trusted server-side operations, never self-service.
 
