@@ -44,7 +44,12 @@ alter table public.bot_settings add column if not exists updated_at timestamptz 
 alter table public.bot_settings enable row level security;
 drop policy if exists "Users manage own bot settings" on public.bot_settings;
 create policy "Users manage own bot settings" on public.bot_settings for all to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
-grant select,insert,update,delete on public.bot_settings to authenticated;
+revoke all on public.bot_settings from anon,authenticated;
+grant select on public.bot_settings to authenticated;
+grant insert(user_id,broker,instrument,account_mode,strategy,max_risk_per_trade_pct)
+ on public.bot_settings to authenticated;
+grant update(broker,instrument,account_mode,strategy,max_risk_per_trade_pct)
+ on public.bot_settings to authenticated;
 
 create table if not exists public.broker_connections(
  id uuid primary key default gen_random_uuid(),user_id uuid not null references auth.users(id) on delete cascade,
@@ -60,7 +65,11 @@ drop policy if exists "Users create own broker connection metadata" on public.br
 create policy "Users create own broker connection metadata" on public.broker_connections for insert to authenticated with check(auth.uid()=user_id);
 drop policy if exists "Users update own broker connection metadata" on public.broker_connections;
 create policy "Users update own broker connection metadata" on public.broker_connections for update to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
-grant select,insert,update on public.broker_connections to authenticated;
+revoke all on public.broker_connections from anon,authenticated;
+grant select on public.broker_connections to authenticated;
+grant insert(user_id,provider,external_account_id,account_label,account_mode)
+ on public.broker_connections to authenticated;
+grant update(account_label,account_mode) on public.broker_connections to authenticated;
 comment on table public.broker_connections is 'Metadata only. OAuth tokens must remain encrypted server-side.';
 
 create table if not exists public.trading_signals(
