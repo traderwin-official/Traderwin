@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { normalizeKenyanPhone, darajaBaseUrl, createNairobiTimestamp, buildStkPassword } from "../../../lib/mpesa.js";
+import { buildCheckoutPrice, fetchUsdKesRate } from "../../../lib/service-pricing.js";
 
 async function getAccessToken() {
   const { MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET } = process.env;
@@ -31,12 +32,27 @@ export default async function handler(req, res) {
     const { data: auth, error: authError } = await admin.auth.getUser(authHeader.slice(7).trim());
     if (authError || !auth.user) return res.status(401).json({ error: "Your login session is invalid." });
     const { data: service, error: serviceError } = await admin.from("service_catalog")
-      .select("service_code,service_name,price_kes,active").eq("service_code", serviceCode).eq("active", true).maybeSingle();
+      .select("service_code,service_name,price_kes,price_usd,renewal_price_usd,active").eq("service_code", serviceCode).eq("active", true).maybeSingle();
     if (serviceError || !service) return res.status(404).json({ error: "That Traderwin service is unavailable." });
-    const amount = Number(service.price_kes);
-    if (!Number.isSafeInteger(amount) || amount < 1) return res.status(409).json({ error: "This service does not have a payable KES price yet." });
+    let priorPaidCount = 0;
+    let fx = null;
+    if (Number(service.price_usd) > 0) {
+      const { count, error: historyError } = await admin.from("payment_orders")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", auth.user.id).eq("service_code", service.service_code).eq("status", "PAID");
+      if (historyError) return res.status(503).json({ error: "Could not verify your subscription purchase history." });
+      priorPaidCount = Number(count || 0);
+      try { fx = await fetchUsdKesRate(); }
+      catch (error) { return res.status(503).json({ error: error.message || "A fresh USD/KES rate is unavailable." }); }
+    }
+    let pricing;
+    try { pricing = buildCheckoutPrice({ service, priorPaidCount, fx }); }
+    catch (error) { return res.status(409).json({ error: error.message || "This service is not priced for checkout." }); }
+    const amount = pricing.amountKes;
     const { data: order, error: orderError } = await admin.from("payment_orders").insert({
       user_id: auth.user.id, service_code: service.service_code, amount_kes: amount,
+      amount_usd: pricing.amountUsd, fx_rate_kes: pricing.fxRateKes,
+      fx_source: pricing.fxSource, fx_as_of: pricing.fxAsOf, price_basis: pricing.priceBasis,
       currency: "KES", payment_method: "MPESA", phone_number: phone, status: "PENDING"
     }).select("id").single();
     if (orderError || !order) {
@@ -70,7 +86,7 @@ export default async function handler(req, res) {
       console.error("Could not save M-Pesa checkout reference:", updateError.message);
       return res.status(503).json({ error: "Payment prompt started, but Traderwin could not save its reference. Contact support before retrying." });
     }
-    return res.status(200).json({ ok: true, orderId: order.id, customerMessage: stkResult.CustomerMessage || "Check your phone and enter your M-Pesa PIN." });
+    return res.status(200).json({ ok: true, orderId: order.id, amountKes: amount, amountUsd: pricing.amountUsd, priceBasis: pricing.priceBasis, fxRateKes: pricing.fxRateKes, customerMessage: stkResult.CustomerMessage || "Check your phone and enter your M-Pesa PIN." });
   } catch (error) {
     console.error("M-Pesa STK request failed:", error.message);
     return res.status(502).json({ error: "M-Pesa checkout is temporarily unavailable." });
