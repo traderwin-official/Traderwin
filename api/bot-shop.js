@@ -5,9 +5,9 @@ const clean=(v,n=160)=>String(v??"").trim().slice(0,n);
 const emailOk=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 function normalizePhone(value){
  const digits=String(value||"").replace(/[^0-9]/g,"");
- if(/^07\d{8}$/.test(digits))return "254"+digits.slice(1);
- if(/^2547\d{8}$/.test(digits))return digits;
- if(/^7\d{8}$/.test(digits))return "254"+digits;
+ if(/^0[17]\d{8}$/.test(digits))return "254"+digits.slice(1);
+ if(/^254[17]\d{8}$/.test(digits))return digits;
+ if(/^[17]\d{8}$/.test(digits))return "254"+digits;
  return null;
 }
 function eatTimestamp(){
@@ -42,7 +42,8 @@ export default async function handler(req,res){
   if(!/^[A-Z0-9_]{3,50}$/.test(productCode)||name.length<2||!emailOk(email)||!phone)return res.status(400).json({error:"Enter your name, valid email, Kenyan M-Pesa phone and choose a product."});
   const required=["DARAJA_CONSUMER_KEY","DARAJA_CONSUMER_SECRET","DARAJA_PASSKEY","DARAJA_SHORTCODE","DARAJA_CALLBACK_URL","BOT_LICENSE_ENCRYPTION_KEY"];
   const missing=required.filter(k=>!process.env[k]);
-  if(missing.length)return res.status(503).json({error:"Automatic M-Pesa checkout is not configured yet."});\n  if(!/^[a-fA-F0-9]{64}$/.test(process.env.BOT_LICENSE_ENCRYPTION_KEY))return res.status(503).json({error:"Secure license delivery is not configured yet."});
+  if(missing.length)return res.status(503).json({error:"Automatic M-Pesa checkout is not configured yet."});
+  if(!/^[a-fA-F0-9]{64}$/.test(process.env.BOT_LICENSE_ENCRYPTION_KEY))return res.status(503).json({error:"Secure license delivery is not configured yet."});\n  if(!/^[a-fA-F0-9]{64}$/.test(process.env.BOT_LICENSE_ENCRYPTION_KEY))return res.status(503).json({error:"Secure license delivery is not configured yet."});
   if(!/^https:\/\//.test(process.env.DARAJA_CALLBACK_URL))return res.status(503).json({error:"The secure M-Pesa callback URL is not configured."});
   const {data:product,error:pe}=await db.from("bot_products").select("product_code,product_name,broker,license_type,price_kes,currency").eq("product_code",productCode).eq("active",true).not("price_kes","is",null).maybeSingle();
   if(pe)throw pe;if(!product)return res.status(404).json({error:"This bot is not available for purchase yet."});
