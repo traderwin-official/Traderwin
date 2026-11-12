@@ -23,6 +23,8 @@ grant update(broker,instrument,account_mode,strategy,max_risk_per_trade_pct,time
 
 alter table public.demo_bot_trades
   add column if not exists trade_source text not null default 'MANUAL';
+create unique index if not exists demo_bot_one_open_trade_per_session
+  on public.demo_bot_trades(session_id) where status = 'OPEN';
 do $$
 begin
   if not exists (
