@@ -11,7 +11,7 @@ function adapters(overrides = {}) {
   const calls = { saved: [], closed: [] };
   return {
     calls,
-    loadSnapshot: async () => ({ positions, source: "verified-test-feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10_000 }),
+    loadSnapshot: async () => ({ positions: positions.map((p, i) => ({ ...p, profitUsd: i === 0 ? 60 : 21 })), source: "verified-test-feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10_000 }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4 }),
     loadPermissions: async () => ({ manageManualTrades: false, closeManagedPositions: true }),
     saveState: async (_scope, state, expected) => { calls.saved.push({ state, expected }); return { saved: true }; },
@@ -24,7 +24,7 @@ test("fresh DEMO snapshot calculates and persists portfolio state without closin
   const a = adapters();
   const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
   assert.equal(result.status, "MONITORED");
-  assert.equal(result.calculation.currentProfitUsd, 80);
+  assert.equal(result.calculation.currentProfitUsd, 81);
   assert.equal(result.calculation.protectedFloorUsd, 80);
   assert.equal(a.calls.saved.length, 1);
   assert.equal(a.calls.closed.length, 0);
@@ -90,7 +90,7 @@ test("partial broker close failures are reported per position", async () => {
 
 test("REAL execution gate is checked only after a valid trailing trigger", async () => {
   const realScope = { ...scope, accountMode: "REAL" };
-  const realPositions = positions.map(p => ({ ...p, accountMode: "REAL", profitUsd: 50 }));
+  const realPositions = positions.map(p => ({ ...p, accountMode: "REAL", profitUsd: 30 }));
   const a = adapters({
     loadSnapshot: async () => ({ positions: realPositions, source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000 }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], membershipVersion: 4 }),
