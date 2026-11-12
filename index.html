@@ -186,7 +186,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="grid">
     <div class="field">
      <label>Account mode</label>
-     <input value="DEMO" readonly>
+     <input id="botAccountMode" value="DEMO" readonly>
     </div>
     <div class="field">
      <label>Automation status</label>
@@ -420,6 +420,7 @@ calculateRisk();
   );
 
   window.traderwinAuth=client;
+  let selectedAccountMode = "DEMO";
 
   const {data,error}=await client.auth.getSession();
 
@@ -427,6 +428,28 @@ calculateRisk();
    window.location.replace("/auth.html");
    return;
   }
+
+  const {data:profile,error:profileError}=await client
+   .from("trader_profiles")
+   .select("account_mode,real_trading_enabled,max_risk_per_trade_pct,max_daily_loss_pct")
+   .eq("user_id",data.session.user.id)
+   .maybeSingle();
+
+  if(profileError){
+   throw new Error("Traderwin account settings are not ready. Apply the core upgrade SQL migration in Supabase. "+profileError.message);
+  }
+
+  if(!profile){
+   window.location.replace("/onboarding.html");
+   return;
+  }
+
+  selectedAccountMode=profile.account_mode;
+  document.getElementById("botAccountMode").value=selectedAccountMode;
+  document.getElementById("botModeSafetyNotice").textContent=
+   selectedAccountMode==="REAL"
+    ? "REAL MODE SELECTED. Live trading remains LOCKED; no broker orders can be placed from this setting. Broker verification, explicit live authorization and risk controls are still required."
+    : "DEMO MODE SELECTED. Use demo funds for testing. Automation remains OFF until a separate, tested broker integration is authorized.";
 
   document.body.style.visibility="visible";
 
@@ -521,7 +544,7 @@ calculateRisk();
       user_id:user.id,
       broker:broker,
       instrument:instrument,
-      account_mode:"DEMO",
+      account_mode:selectedAccountMode,
       enabled:false
      });
 
@@ -539,7 +562,7 @@ calculateRisk();
      return;
     }
 
-    botMessage.textContent="Success! Your bot preferences have been saved. Account mode: DEMO. Automation: OFF.";
+    botMessage.textContent="Success! Your bot preferences have been saved. Account mode: "+selectedAccountMode+". Automation: OFF.";
     botForm.reset();
 
    }catch(error){
