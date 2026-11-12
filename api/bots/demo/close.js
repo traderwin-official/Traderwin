@@ -10,6 +10,7 @@ export default async function handler(req,res){
   if(!/^[0-9a-f-]{36}$/i.test(id)||!Number.isFinite(exit)||exit<=0)return res.status(400).json({error:"Enter a valid paper trade ID and closing price."});
   const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
+  return res.status(503).json({error:"Verified live market-data feed is not connected. DEMO closing by client-supplied price is temporarily disabled until a trusted quote adapter is ready."});
   const {data:t,error:te}=await db.from("demo_bot_trades").select("id,user_id,session_id,direction,entry_price,virtual_units,status").eq("id",id).eq("user_id",a.user.id).eq("status","OPEN").maybeSingle();
   if(te||!t)return res.status(404).json({error:"Open paper trade not found."});
   let pnl;try{pnl=calculatePaperPnl({direction:t.direction,entry:Number(t.entry_price),exit,units:Number(t.virtual_units)});}catch{return res.status(400).json({error:"Invalid paper close calculation."});}
