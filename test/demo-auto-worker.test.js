@@ -9,7 +9,7 @@ test("DEMO worker is cron-secret protected and uses a database lease", async () 
   assert.ok(source.includes("CRON_SECRET"));
   assert.match(source, /claim_traderwin_demo_worker/);
   assert.match(source, /release_traderwin_demo_worker/);
-  assert.match(source, /p_lease_seconds: 120/);
+  assert.match(source, /p_lease_seconds: 120/);\n  assert.match(source, /maxDuration = 25/);\n  assert.match(source, /CRON_SECRET.length < 32/);
   assert.match(source, /MANUAL_POSITION_NOT_MANAGED/);
   assert.match(source, /realOrdersSent: 0/);
 });
@@ -38,7 +38,12 @@ test("worker migration adds atomic lease, open and close functions", async () =>
   assert.match(sql, /to service_role/);
 });
 
-test("Vercel schedules the DEMO worker once per minute", async () => {
-  const config = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
-  assert.deepEqual(config.crons, [{ path: "/api/cron/demo-auto-worker", schedule: "* * * * *" }]);
+test("Supabase Cron schedule stores the worker secret in Vault and calls the endpoint every minute", async () => {
+  const setup = await readFile(new URL("../docs/DEMO_WORKER_SCHEDULING.md", import.meta.url), "utf8");
+  assert.match(setup, /vault\.create_secret/);
+  assert.match(setup, /vault\.decrypted_secrets/);
+  assert.match(setup, /cron\.schedule/);
+  assert.match(setup, /\* \* \* \* \*/);
+  assert.match(setup, /net\.http_get/);
+  assert.match(setup, /Authorization/);
 });
