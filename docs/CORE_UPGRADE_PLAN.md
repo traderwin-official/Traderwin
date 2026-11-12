@@ -41,6 +41,7 @@ Run in Supabase SQL Editor, exactly in this order, and verify each result:
 13. `supabase/migrations/202611120013_broker_metadata_write_lock.sql`
 14. `supabase/migrations/202611120014_usd_subscription_pricing.sql`
 15. `supabase/migrations/202611120015_deriv_account_verification.sql`
+16. `supabase/migrations/202611120016_demo_auto_worker.sql`
 
 Do not skip, reorder, or assume migrations have run because GitHub tests pass. The live Supabase project must be migrated before runtime verification.
 
