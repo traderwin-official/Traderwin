@@ -64,7 +64,7 @@ test("closes a BUY at stop loss and computes the paper P&L", () => {
   const result = decideDemoAutoAction({ ...input, now });
   assert.equal(result.action, "CLOSE");
   assert.equal(result.reason, "STOP_LOSS");
-  assert.equal(result.unrealizedPnl, -4.2);
+  assert.ok(Math.abs(result.unrealizedPnl + 4.2) < 1e-9);
 });
 
 test("marks a position while neither stop nor target has been reached", () => {
