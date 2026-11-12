@@ -789,7 +789,8 @@ calculateRisk();
      ?"Payment confirmed. Your service access is being activated."
      :status==="FAILED"?"Payment was not completed. You can start a new request."
      :"Payment is still pending. Complete the M-Pesa prompt, then check again.";
-    if(status==="PAID") await refreshRealSubscriptionStatus();\n    if(status!=="PENDING") activePaymentOrderId=null;
+    if(status==="PAID") await refreshRealSubscriptionStatus();
+    if(status!=="PENDING") activePaymentOrderId=null;
    }catch(error){
     paymentMessage.textContent=error.message||"Could not check payment status.";
    }finally{
