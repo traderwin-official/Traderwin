@@ -41,6 +41,8 @@ create table if not exists public.bot_settings(
 alter table public.bot_settings add column if not exists strategy text not null default 'MANUAL_REVIEW';
 alter table public.bot_settings add column if not exists max_risk_per_trade_pct numeric(5,2) not null default 0.50;
 alter table public.bot_settings add column if not exists updated_at timestamptz not null default now();
+-- Existing installations may predate UUID defaults; preserve rows and make new inserts safe.
+alter table public.bot_settings alter column id set default gen_random_uuid();
 create unique index if not exists traderwin_bot_settings_user_uidx on public.bot_settings(user_id);
 alter table public.bot_settings enable row level security;
 drop policy if exists "Users manage own bot settings" on public.bot_settings;
@@ -59,6 +61,24 @@ create table if not exists public.broker_connections(
  connection_status text not null default 'PENDING' check(connection_status in('PENDING','CONNECTED','DISCONNECTED','ERROR')),
  verified_at timestamptz,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),
  unique(user_id,provider,external_account_id));
+-- Bring legacy broker_connections columns forward before column-level grants below.
+-- Keep the old masked identifier untouched; only a verified server flow may set external_account_id.
+alter table public.broker_connections
+ add column if not exists provider text,
+ add column if not exists external_account_id text,
+ add column if not exists account_label text,
+ add column if not exists account_mode text not null default 'DEMO',
+ add column if not exists connection_status text not null default 'PENDING',
+ add column if not exists verified_at timestamptz,
+ add column if not exists created_at timestamptz not null default now(),
+ add column if not exists updated_at timestamptz not null default now();
+do $
+begin
+ if exists (select 1 from information_schema.columns where table_schema='public' and table_name='broker_connections' and column_name='broker') then
+  execute 'update public.broker_connections set provider = coalesce(provider, upper(broker))';
+ end if;
+end;
+$;
 alter table public.broker_connections enable row level security;
 drop policy if exists "Users read own broker connection metadata" on public.broker_connections;
 create policy "Users read own broker connection metadata" on public.broker_connections for select to authenticated using(auth.uid()=user_id);
@@ -82,6 +102,7 @@ create table if not exists public.trading_signals(
  status text not null default 'DRAFT' check(status in('DRAFT','PENDING_REVIEW','ACTIVE','CLOSED','CANCELLED')),
  rationale text,source_name text,source_url text,source_timestamp timestamptz,reviewed_by uuid references auth.users(id),
  published_at timestamptz,expires_at timestamptz,created_by uuid references auth.users(id),created_at timestamptz not null default now());
+alter table public.trading_signals alter column id set default gen_random_uuid();
 alter table public.trading_signals add column if not exists market_category text not null default 'FOREX';
 alter table public.trading_signals add column if not exists symbol text;
 alter table public.trading_signals add column if not exists direction text;
