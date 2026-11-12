@@ -599,7 +599,9 @@ calculateRisk();
  }catch(error){
   console.error("Traderwin authentication error:",error);
   document.body.style.visibility="visible";
-  document.body.innerHTML="<main><div class='card'><h2>Authentication unavailable</h2><p>Please check your internet connection and try again.</p><a href='/auth.html'>Return to login</a></div></main>";
+  document.body.innerHTML="<main><div class='card'><h2>Traderwin setup needs attention</h2><p id='setupError'></p><a href='/auth.html'>Return to login</a></div></main>";
+  const setupError=document.getElementById("setupError");
+  if(setupError) setupError.textContent=error.message||"Please check your connection and try again.";
  }
 
 })();
