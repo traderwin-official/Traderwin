@@ -902,7 +902,7 @@ calculateRisk();
      if(r.closed){msg.textContent=r.message+" Simulated exit P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);document.getElementById("paperTradeId").value="";closePaper.disabled=true;}
      else{msg.textContent=r.message+" Peak profit: USD "+Number(r.protection.peakProfit).toFixed(2)+". Protected floor: USD "+Number(r.protection.protectedProfit).toFixed(2)+". Protective stop: "+Number(r.protection.protectedStopPrice).toFixed(5);}
     }catch(e){msg.textContent=e.message;}
-    finally{markPaper.disabled=!activeDemoSession||!document.getElementById("paperTradeId").value.trim();}
+    finally{markPaper.disabled=!document.getElementById("paperTradeId").value.trim();}
    });
       closePaper.addEventListener("click",async()=>{
     closePaper.disabled=true;const msg=document.getElementById("paperCloseMessage");msg.textContent="Closing paper trade...";
