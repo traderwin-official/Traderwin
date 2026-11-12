@@ -217,9 +217,13 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
      <input id="botAccountMode" value="DEMO" readonly>
     </div>
     <div class="field">
-     <label>Automation status</label>
-     <input value="OFF" readonly>
+     <label for="botTimeframe">Analysis timeframe</label>
+     <select id="botTimeframe"><option value="M15">M15</option><option value="M5">M5</option><option value="H1">H1</option><option value="H4">H4</option></select>
     </div>
+   </div>
+   <div class="field">
+    <label for="botStrategy">Automated strategy</label>
+    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation (EMA + RSI + ATR + Breakout)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
    </div>
 
    <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
@@ -248,8 +252,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 
  <div class="card" id="demoSimulator" style="margin-top:15px">
   <h3>DEMO Paper-Trading Simulator</h3>
-  <p class="muted">Virtual practice only. Entry, mark and close prices are obtained server-side from Deriv public market data; prices typed into the browser are never trusted. Orders are virtual and never sent to a broker. The MT5 quote adapter and unattended strategy worker are not connected yet. Virtual units and P/L are simplified learning estimates, not broker lot sizes or executable quotes.</p>
-  <p class="status" id="demoSessionStatus">Session: Not started</p>
+  <p class="muted">Virtual practice only. The Smart Auto worker analyses supported Deriv DEMO instruments on scheduled runs, opens virtual positions on confirmed new candles, and manages bot-originated positions at their stop-loss or take-profit. Manual paper positions are not managed by the auto worker. This requires migration 016, the Vercel CRON_SECRET and a deployment plan that supports the configured one-minute cron. MT5 automation is not connected. Virtual units and P/L are simplified learning estimates, not broker lot sizes or executable quotes.</p>
+  <p class="status" id="demoSessionStatus">Session: Not started</p>\n  <p class="muted" id="demoWorkerHealth">Worker status: waiting for a scheduled check.</p>
   <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
   <button type="button" id="startDemoSession">Start DEMO Session</button>
   <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
@@ -925,7 +929,8 @@ calculateRisk();
       broker:broker,
       instrument:instrument,
       account_mode:selectedAccountMode,
-      strategy:"MANUAL_REVIEW"
+      timeframe:document.getElementById("botTimeframe").value,
+      strategy:document.getElementById("botStrategy").value
      },{onConflict:"user_id"});
 
     if(saveError){
@@ -940,7 +945,7 @@ calculateRisk();
      return;
     }
 
-    botMessage.textContent="Saved. Your bot preferences match your selected "+selectedAccountMode+" account mode. Automation remains OFF; this form does not authorize or place trades.";
+    botMessage.textContent="Saved. "+selectedAccountMode+" preferences updated with "+document.getElementById("botTimeframe").value+" and "+document.getElementById("botStrategy").selectedOptions[0].text+". Start Smart Auto only in Deriv DEMO; REAL execution remains locked.";
     botForm.reset();
 
    }catch(error){
@@ -994,6 +999,12 @@ calculateRisk();
    const demoStatus=document.getElementById("demoSessionStatus");
    const demoBalance=document.getElementById("demoVirtualBalance");
    const demoMessage=document.getElementById("demoSessionMessage");
+   const demoWorkerHealth=document.getElementById("demoWorkerHealth");
+   function showDemoWorkerHealth(heartbeat){
+    if(!heartbeat){demoWorkerHealth.textContent="Worker status: waiting for its first scheduled run. Check CRON_SECRET and Vercel cron support.";return;}
+    const when=heartbeat.last_tick_at?new Date(heartbeat.last_tick_at).toLocaleString():"unknown";
+    demoWorkerHealth.textContent="Worker last checked: "+when+" · "+heartbeat.last_action+(heartbeat.last_reason?" · "+heartbeat.last_reason:"")+(heartbeat.last_error?" · "+heartbeat.last_error:"");
+   }
    const startDemo=document.getElementById("startDemoSession");
    const stopDemo=document.getElementById("stopDemoSession");
    const recordPaper=document.getElementById("recordPaperTrade");
@@ -1015,7 +1026,7 @@ calculateRisk();
     startDemo.disabled=true;demoMessage.textContent="Starting virtual demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"START"});
-     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";\n     showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
      stopDemo.disabled=false;recordPaper.disabled=false;demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
@@ -1065,16 +1076,16 @@ calculateRisk();
    {
     callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
      if(r.session){
-      activeDemoSession=r.session.status==="RUNNING"?r.session:null;
+      activeDemoSession=r.session.status==="RUNNING"?r.session:null;\n      showDemoWorkerHealth(r.workerHeartbeat);
       demoStatus.textContent="Session: "+r.session.status;
       demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
       const running=r.session.status==="RUNNING";
       startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
       stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
-      demoMessage.textContent="Your existing DEMO session has been restored. You can still manage open paper positions while viewing REAL mode.";
+      demoMessage.textContent="Your existing DEMO session has been restored. The scheduled Smart Auto worker manages bot-originated trades only; manual paper positions remain under your control.";
      }else{
-      demoStatus.textContent="Session: Not started";
+      demoStatus.textContent="Session: Not started";\n      showDemoWorkerHealth(null);
       const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
       if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
       startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
