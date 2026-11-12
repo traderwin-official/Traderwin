@@ -28,6 +28,7 @@ export default async function handler(req,res){
    const {data:s,error:se}=await db.from("bot_settings").select("id,broker,instrument,account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle();
    if(se||!s)return res.status(409).json({error:"Save your bot preferences first."});
    if(s.account_mode!=="DEMO")return res.status(403).json({error:"Your saved bot settings are not DEMO."});
+   const {data:modeProfile}=await db.from("bot_mode_profiles").select("max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("account_mode","DEMO").maybeSingle();
    const nairobiToday=new Date(Date.now()+3*60*60*1000);nairobiToday.setUTCHours(0,0,0,0);
    const utcNairobiDayStart=new Date(nairobiToday.getTime()-3*60*60*1000);
    const {data:lastSession,error:lastError}=await db.from("demo_bot_sessions").select("id,status,created_at").eq("user_id",uid).order("created_at",{ascending:false}).limit(1).maybeSingle();
@@ -40,8 +41,8 @@ export default async function handler(req,res){
    const {data:session,error}=await db.from("demo_bot_sessions").insert({
     user_id:uid,bot_setting_id:s.id,account_mode:"DEMO",status:"RUNNING",
     starting_balance:10000,current_balance:10000,
-    max_risk_per_trade_pct:Math.min(Number(p.max_risk_per_trade_pct),Number(s.max_risk_per_trade_pct)),
-    max_daily_loss_pct:Number(p.max_daily_loss_pct)
+    max_risk_per_trade_pct:Math.min(Number(p.max_risk_per_trade_pct),Number(s.max_risk_per_trade_pct),Number(modeProfile?.max_risk_per_trade_pct||p.max_risk_per_trade_pct)),
+    max_daily_loss_pct:Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss_pct||p.max_daily_loss_pct))
    }).select("id,status,current_balance,virtual_currency,started_at").single();
    if(error||!session){console.error("Demo start failed:",error?.message);return res.status(409).json({error:"Could not start demo session. Check for an existing session."});}
    await db.from("bot_activity").insert({user_id:uid,bot_setting_id:s.id,event_type:"START_REQUESTED",account_mode:"DEMO",details:{session_id:session.id,instrument:s.instrument,simulator:"PAPER_ONLY"}});
