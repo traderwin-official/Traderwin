@@ -25,6 +25,16 @@ alter table public.demo_bot_trades
   add column if not exists trade_source text not null default 'MANUAL';
 create unique index if not exists demo_bot_one_open_trade_per_user
   on public.demo_bot_trades(user_id) where status = 'OPEN';
+
+-- Preserve automated risk management for BOT positions left open by older STOPPED sessions.
+update public.demo_bot_sessions s
+   set status = 'PAUSED', updated_at = now()
+ where s.status = 'STOPPED'
+   and exists (
+     select 1 from public.demo_bot_trades t
+      where t.session_id = s.id and t.user_id = s.user_id
+        and t.status = 'OPEN' and t.trade_source = 'BOT'
+   );
 do $$
 begin
   if not exists (
@@ -329,5 +339,5 @@ grant execute on function public.open_demo_auto_trade(uuid,uuid,text,text,numeri
 grant execute on function public.close_demo_auto_trade(uuid,uuid,numeric,text,timestamptz,text) to service_role;
 
 comment on table public.traderwin_worker_leases is 'Service-role-only singleton lease preventing overlapping DEMO worker runs.';
-comment on function public.open_demo_auto_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,timestamptz) is 'Atomically opens one DEMO paper position only for a new completed candle and a running DEMO session.';
+comment on function public.open_demo_auto_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,timestamptz) is 'Atomically opens at most one DEMO paper position per user, only for a new completed candle and a running DEMO session.';
 comment on function public.close_demo_auto_trade(uuid,uuid,numeric,text,timestamptz,text) is 'Atomically closes a DEMO paper position, updates virtual balance and applies the Nairobi-day loss lock.';
