@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { calculatePaperPnl } from "../../../lib/demo-risk.js";
+import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -20,9 +21,8 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const tradeId = String(body.tradeId || "");
-    const currentPrice = Number(body.currentPrice);
-    if (!/^[0-9a-f-]{36}$/i.test(tradeId) || !Number.isFinite(currentPrice) || currentPrice <= 0) {
-      return res.status(400).json({ error: "Enter a valid trade ID and current demo price." });
+    if (!/^[0-9a-f-]{36}$/i.test(tradeId)) {
+      return res.status(400).json({ error: "Enter a valid paper trade ID." });
     }
 
     const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -33,8 +33,6 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Your login session is invalid." });
     }
 
-    return res.status(503).json({ error: "Verified live market-data feed is not connected. DEMO price marking is temporarily disabled until a trusted quote adapter is ready." });
-
     const { data: trade, error: tradeError } = await db.from("demo_bot_trades")
       .select("id,direction,entry_price,virtual_units,status")
       .eq("id", tradeId)
@@ -44,7 +42,7 @@ export default async function handler(req, res) {
     if (tradeError || !trade) {
       return res.status(404).json({ error: "Open paper trade not found." });
     }
-
+    let quote;\n    try { quote = await getDerivPublicQuote(trade.symbol); }\n    catch (error) { return res.status(503).json({ error: error.message || "Could not obtain a fresh Deriv quote." }); }\n    const currentPrice = quote.quote;\n
     const unrealizedPnl = calculatePaperPnl({
       direction: trade.direction,
       entry: Number(trade.entry_price),
@@ -66,6 +64,7 @@ export default async function handler(req, res) {
       closed: false,
       currentUnrealizedPnl: unrealizedPnl,
       markedAt,
+      quote: { source: quote.source, asOf: quote.quoteAsOf, instrument: quote.providerSymbol },
       protection: {
         active: false,
         scope: "PORTFOLIO",
