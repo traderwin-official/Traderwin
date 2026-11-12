@@ -25,6 +25,6 @@ test("DEMO bot start and paper-entry endpoints both enforce the persisted emerge
   for (const source of [startRoute, entryRoute]) {
     assert.match(source, /from\("bot_emergency_controls"\)/);
     assert.match(source, /kill_switch_active/);
-    assert.match(source, /DEMO:\\$\{uid\}/);
+    assert.ok(source.includes("DEMO:${uid}"));
   }
 });
