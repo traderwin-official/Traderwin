@@ -12,11 +12,12 @@
 Run in Supabase SQL Editor, in this order:
 1. `supabase/migrations/202611120001_trader_profiles.sql`
 2. `supabase/migrations/202611120002_platform_foundation.sql`
+3. `supabase/migrations/202611120003_deriv_connection_security.sql`
 
 Check each SQL result and verify the new tables in Table Editor before deployment.
 
 ## Credentials and external services still needed
-- Deriv application credentials and approved redirect URI.
+- Deriv application credentials and approved redirect URI. The new status/disconnect endpoints depend on the private `deriv_connections` table from migration 003.
 - MT5 broker/server and a secure hosted bridge; a browser cannot connect directly to a desktop MT5 terminal.
 - A licensed market-data provider for live prices.
 - M-Pesa Daraja credentials, callback URL and merchant setup. Never confirm payment from the browser.
