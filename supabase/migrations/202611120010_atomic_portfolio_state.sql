@@ -4,6 +4,10 @@ alter table public.portfolio_profit_protection_state
  add column if not exists quote_source text,
  add column if not exists quote_as_of timestamptz;
 
+alter table public.portfolio_trade_permissions
+ add column if not exists bot_trade_management boolean not null default false,
+ add column if not exists close_managed_positions boolean not null default false;
+
 create or replace function public.save_portfolio_profit_protection_state(
  p_user_id uuid,
  p_account_mode text,
@@ -44,10 +48,12 @@ begin
    raise exception 'Invalid portfolio protection state payload';
  end if;
 
- if cardinality(p_included_position_ids) <> (
-   select count(distinct position_id) from unnest(p_included_position_ids) as position_id
- ) then
-   raise exception 'Included position IDs must be unique';
+ if array_position(p_included_position_ids, null) is not null
+    or exists (select 1 from unnest(p_included_position_ids) as ids(position_id) where nullif(trim(position_id),'') is null)
+    or cardinality(p_included_position_ids) <> (
+      select count(distinct position_id) from unnest(p_included_position_ids) as ids(position_id)
+    ) then
+   raise exception 'Included position IDs must be unique and non-empty';
  end if;
 
  insert into public.portfolio_profit_protection_state(
@@ -89,6 +95,9 @@ revoke all on function public.save_portfolio_profit_protection_state(
 grant execute on function public.save_portfolio_profit_protection_state(
  uuid,text,text,text,numeric,numeric,numeric,boolean,text[],bigint,bigint,timestamptz,text,timestamptz
 ) to service_role;
+
+comment on column public.portfolio_trade_permissions.bot_trade_management is 'Explicit per-account permission for Traderwin to manage positions opened by its bot.';
+comment on column public.portfolio_trade_permissions.close_managed_positions is 'Explicit per-account permission to close positions included in profit protection. Monitoring-only never grants this permission.';
 
 comment on function public.save_portfolio_profit_protection_state(
  uuid,text,text,text,numeric,numeric,numeric,boolean,text[],bigint,bigint,timestamptz,text,timestamptz
