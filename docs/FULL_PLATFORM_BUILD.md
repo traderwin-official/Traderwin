@@ -25,6 +25,7 @@ Run in Supabase SQL Editor, in this order:
 13. `supabase/migrations/202611120013_broker_metadata_write_lock.sql`
 14. `supabase/migrations/202611120014_usd_subscription_pricing.sql`
 15. `supabase/migrations/202611120015_deriv_account_verification.sql`
+16. `supabase/migrations/202611120016_demo_auto_worker.sql`
 
 Migration 002 now adds the broker metadata aliases and UUID defaults needed by older Traderwin schemas before its column-level grants. Migration 012 remains a final idempotent compatibility pass. Migration 013 explicitly revokes legacy browser column-level writes to broker connection identifiers. Migration 014 adds USD subscription pricing and payment FX snapshots; Migration 015 adds verified Deriv demo/real account IDs and OAuth expiry. Check each SQL result and verify the new tables in Table Editor before deployment. Do not skip or reorder migrations.
 
