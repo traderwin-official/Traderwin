@@ -107,3 +107,17 @@ test("paused session continues to manage an existing bot position but never open
   noPosition.session.status = "PAUSED";
   assert.equal(decideDemoAutoAction({ ...noPosition, now }).reason, "SESSION_PAUSED_NO_OPEN_POSITION");
 });
+
+test("existing DEMO BOT position remains manageable after the member changes future broker preferences", () => {
+  const input = structuredClone(base);
+  input.settings.broker = "MetaTrader 5";
+  input.settings.account_mode = "REAL";
+  input.market = null;
+  input.openTrade = {
+    id: "existing-deriv-trade", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, stop_loss: 118, take_profit: 124, virtual_units: 2, status: "OPEN"
+  };
+  input.quote.instrument = "XAUUSD";
+  input.quote.quote = 119;
+  assert.equal(decideDemoAutoAction({ ...input, now }).action, "MARK");
+});
