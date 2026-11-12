@@ -829,8 +829,13 @@ calculateRisk();
    const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user){profileMessage.textContent="Please sign in again.";return;}
    const button=document.getElementById("saveModeProfile");button.disabled=true;
    try{
-    const {error}=await client.from("bot_mode_profiles").upsert({user_id:auth.user.id,account_mode:profileMode.value,broker:profileBroker.value,instrument,strategy:"MULTI_CONFIRMATION_V1",max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,profit_giveback_pct:giveback},{onConflict:"user_id,account_mode"});
-    if(error)throw error;
+    const profileValues={broker:profileBroker.value,instrument,strategy:"MULTI_CONFIRMATION_V1",max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,profit_giveback_pct:giveback};
+    const {data:existing,error:lookupError}=await client.from("bot_mode_profiles").select("id").eq("user_id",auth.user.id).eq("account_mode",profileMode.value).maybeSingle();
+    if(lookupError)throw lookupError;
+    const result=existing
+     ? await client.from("bot_mode_profiles").update(profileValues).eq("user_id",auth.user.id).eq("account_mode",profileMode.value)
+     : await client.from("bot_mode_profiles").insert({user_id:auth.user.id,account_mode:profileMode.value,...profileValues});
+    if(result.error)throw result.error;
     profileMessage.textContent=profileMode.value+" profile saved. "+(profileMode.value==="REAL"?"Live execution is still locked.":"Use DEMO to test the strategy and profit protection.");
    }catch(e){profileMessage.textContent="Could not save profile: "+e.message;}
    finally{button.disabled=false;}
