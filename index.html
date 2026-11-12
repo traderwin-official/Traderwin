@@ -144,8 +144,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 <section id="bots">
  <h2 class="section-title">Traderwin <span>Automation Centre</span></h2>
 
- <div class="notice">
-  DEMO MODE ONLY: Saving your preferences does not connect to a broker or place trades. Broker automation requires secure backend integration, broker authorization, testing and risk controls.
+ <div class="notice" id="botModeSafetyNotice">
+  Your selected account mode is being checked. Saving bot preferences does not connect to a broker or place trades. Automation remains OFF until a separate, tested broker integration is authorized.
  </div>
 
  <div class="card" style="margin-top:15px">
@@ -544,7 +544,7 @@ calculateRisk();
       user_id:user.id,
       broker:broker,
       instrument:instrument,
-      account_mode:selectedAccountMode,
+      account_mode:"DEMO",
       enabled:false
      });
 
@@ -562,7 +562,7 @@ calculateRisk();
      return;
     }
 
-    botMessage.textContent="Success! Your bot preferences have been saved. Account mode: "+selectedAccountMode+". Automation: OFF.";
+    botMessage.textContent="Success! Your bot preferences have been saved. Your selected account preference is "+selectedAccountMode+". Bot configuration remains DEMO and automation stays OFF until broker verification and a separate live-trading safety workflow are completed.";
     botForm.reset();
 
    }catch(error){
