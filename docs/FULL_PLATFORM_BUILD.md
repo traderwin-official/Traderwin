@@ -47,3 +47,7 @@ Profit protection activates only after the maximum unrealised profit reaches USD
 ## REAL execution gate
 
 The platform keeps a REAL profile available alongside DEMO, but real execution remains LOCKED. Before any live-order implementation can be enabled, the system must verify the broker account and its DEMO/REAL environment, require a fresh risk acknowledgement, apply server-side risk checks, use broker-native protective stops where supported, enforce an emergency kill switch and pass broker sandbox/DEMO testing. Users must separately opt in; a REAL profile or connected OAuth account alone never places an order.
+
+## Live DEMO market chart foundation
+
+The dashboard now opens Deriv's public WebSocket market-data endpoint (wss://api.derivws.com/trading/v1/options/ws/public) to load active symbols and stream ticks for the selected Deriv instrument. Deriv documents active_symbols and ticks as public, no-auth market-data operations. The live chart is a market-data display only: it does not place orders, establish the user's broker execution connection, or make a TradingView quote equivalent to a Deriv/MT5 execution quote. Instruments not listed by Deriv are not offered by this feed. Before automatic DEMO P/L marking or REAL risk management is enabled, add verified instrument contract specifications, quote-currency conversion, spread/commission treatment, and a persistent server-side worker that continues monitoring when the member closes the browser.
