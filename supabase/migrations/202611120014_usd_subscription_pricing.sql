@@ -61,3 +61,8 @@ comment on column public.payment_orders.fx_rate_kes is
   'Server-captured USD/KES rate used to calculate this exact M-Pesa amount.';
 comment on column public.payment_orders.fx_as_of is
   'Timestamp of the exchange-rate source used for the payment snapshot.';
+
+-- Prevent concurrent duplicate payment prompts for the same service and user.
+create unique index if not exists payment_orders_one_pending_service_per_user
+  on public.payment_orders(user_id, service_code)
+  where status = 'PENDING';
