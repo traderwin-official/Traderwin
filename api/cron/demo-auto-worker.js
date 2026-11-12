@@ -23,8 +23,6 @@ async function processSession(db, session) {
     .eq("broker", "DERIV")
     .eq("broker_account_ref", `DEMO:${session.user_id}`)
     .maybeSingle();
-  if (emergencyError) return { sessionId: session.id, action: "BLOCK", reason: "EMERGENCY_STATUS_UNAVAILABLE" };
-
   const { data: openTrade, error: openError } = await db.from("demo_bot_trades")
     .select("id,symbol,direction,entry_price,stop_loss,take_profit,virtual_units,status,trade_source")
     .eq("session_id", session.id)
@@ -32,6 +30,7 @@ async function processSession(db, session) {
     .eq("status", "OPEN")
     .maybeSingle();
   if (openError) return { sessionId: session.id, action: "ERROR", reason: "OPEN_TRADE_LOOKUP_FAILED" };
+  if (emergencyError && !openTrade) return { sessionId: session.id, action: "BLOCK", reason: "EMERGENCY_STATUS_UNAVAILABLE" };
   if (openTrade && openTrade.trade_source !== "BOT") {
     return { sessionId: session.id, action: "SKIP", reason: "MANUAL_POSITION_NOT_MANAGED" };
   }
