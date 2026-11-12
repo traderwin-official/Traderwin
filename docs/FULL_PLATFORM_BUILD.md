@@ -21,7 +21,7 @@ Check each SQL result and verify the new tables in Table Editor before deploymen
 - Deriv application credentials and approved redirect URI. The new status/disconnect endpoints depend on the private `deriv_connections` table from migration 003.
 - MT5 broker/server and a secure hosted bridge; a browser cannot connect directly to a desktop MT5 terminal.
 - A licensed market-data provider for live prices.
-- M-Pesa Daraja sandbox/production credentials, shortcode, passkey, HTTPS callback URL and merchant approval. The server-side STK endpoint reads prices from the catalogue; the callback re-queries Daraja before marking an order PAID. Never confirm payment from the browser.
+- Vercel server-side variables: `MPESA_ENV` (`sandbox` or `production`), `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL` (for example `https://YOUR-DOMAIN/api/payments/mpesa/callback`) and optional `MPESA_TRANSACTION_TYPE`. Also configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` only in Vercel. Daraja merchant approval is required. The server-side STK endpoint reads prices from the catalogue; the callback re-queries Daraja before marking an order PAID. Never confirm payment from the browser.
 - AI provider key and legal market/news data sources, stored only as Vercel server-side environment variables.
 - Admin roles assigned through trusted server-side operations, never self-service.
 
