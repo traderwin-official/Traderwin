@@ -335,7 +335,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <div class="card"><h3>REAL Trading Subscription</h3><p class="muted">USD 75 for the first month, then USD 175 per month. Payment is only one eligibility step; broker verification, risk checks and explicit REAL-trading authorization are still required. Payment never starts live trading automatically.</p></div>
   <div class="card"><h3>Traderwin Course</h3><p class="muted">Education is a separate service with its own price and delivery. Course pricing will be published before checkout is enabled.</p></div>
  </div>
- <p class="muted">Renewal is manual by default. Automatic renewal will only be enabled after explicit consent and a supported recurring-payment arrangement are configured. M-Pesa checkout also requires verified merchant credentials.</p>
+ <p class="muted">Renewal is manual by default. Automatic renewal will only be enabled after explicit consent and a supported recurring-payment arrangement are configured. M-Pesa checkout also requires verified merchant credentials.</p>\n <p class="status" id="realSubscriptionStatus">Checking your REAL subscription status...</p>
 </section>
 
 <section id="payments">
@@ -675,6 +675,24 @@ calculateRisk();
   const startPayment=document.getElementById("startMpesaPayment");
   const checkPayment=document.getElementById("checkMpesaPayment");
   const paymentMessage=document.getElementById("mpesaPaymentMessage");
+  const subscriptionStatusLabel=document.getElementById("realSubscriptionStatus");
+  async function refreshRealSubscriptionStatus(){
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session){subscriptionStatusLabel.textContent="Sign in to check REAL subscription status.";return;}
+    const response=await fetch("/api/subscriptions/status",{
+     headers:{"Authorization":"Bearer "+sessionData.session.access_token},
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Subscription status unavailable.");
+    subscriptionStatusLabel.textContent=result.active
+     ?"REAL subscription active until "+new Date(result.endsAt).toLocaleDateString()+". Live trading remains locked pending separate broker and safety authorization."
+     :"REAL subscription: "+result.status+". DEMO remains free.";
+   }catch(error){subscriptionStatusLabel.textContent=error.message||"Could not load subscription status.";}
+  }
+  refreshRealSubscriptionStatus();
+
   let paymentServices=[];
   let activePaymentOrderId=null;
 
@@ -771,7 +789,7 @@ calculateRisk();
      ?"Payment confirmed. Your service access is being activated."
      :status==="FAILED"?"Payment was not completed. You can start a new request."
      :"Payment is still pending. Complete the M-Pesa prompt, then check again.";
-    if(status!=="PENDING") activePaymentOrderId=null;
+    if(status==="PAID") await refreshRealSubscriptionStatus();\n    if(status!=="PENDING") activePaymentOrderId=null;
    }catch(error){
     paymentMessage.textContent=error.message||"Could not check payment status.";
    }finally{
