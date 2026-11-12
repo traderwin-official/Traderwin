@@ -27,6 +27,8 @@ test("fresh DEMO snapshot calculates and persists portfolio state without closin
   assert.equal(result.calculation.currentProfitUsd, 81);
   assert.equal(result.calculation.protectedFloorUsd, 80);
   assert.equal(a.calls.saved.length, 1);
+  assert.equal(a.calls.saved[0].expected, 7);
+  assert.equal(a.calls.saved[0].state.stateVersion, 8);
   assert.equal(a.calls.closed.length, 0);
 });
 
