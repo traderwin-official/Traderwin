@@ -10,6 +10,17 @@ The money settles to the Safaricom business account attached to the configured P
 
 Use a business Paybill/Till owned or authorized by the Traderwin business. Do not use a personal shortcode unless Safaricom has approved that setup for the business.
 
+
+## Important: the supplied 522522 number is not a Traderwin Daraja merchant shortcode
+
+Safaricom's published mobile-banking paybill list identifies **522522 as KCB Bank's M-PESA-to-bank paybill**. The account number is used to deposit into a KCB bank account. It is not evidence of a Traderwin-owned Safaricom merchant Paybill, and it must not be placed in `DARAJA_SHORTCODE` or treated as an STK Push merchant shortcode. Confirm the KCB account ownership and intended settlement arrangement before publishing any manual bank-deposit instructions. KCB bank deposits do not automatically provide Traderwin's Daraja merchant callback; reconciliation would need a supported bank integration or controlled manual verification.
+
+## International checkout status
+
+The current Daraja checkout accepts Kenyan M-Pesa phone numbers only. It does not provide worldwide card acceptance. Flutterwave is the leading candidate for the international checkout layer because its published Kenya payment methods include international cards and Kenya M-Pesa, subject to merchant verification and international-card activation. Its documented regional options include card payments for US/UK/EU customers. A Flutterwave integration is **not yet implemented or live**: it still needs a verified Traderwin merchant account, server-side API credentials, webhook signature/transaction verification, a payment-provider reference in the order ledger, and sandbox-to-production testing. Keep the current M-Pesa flow separate until that is completed.
+
+Regional pricing must be shown clearly before payment. Any country-based price difference must be calculated from the verified billing country supplied by the payment provider, recorded on the order, and displayed in the checkout total and currency. Do not infer a customer's region only from their IP address or silently apply a surcharge.
+
 ## Single Vercel configuration
 
 Configure these as server-side Vercel environment variables only:
