@@ -774,6 +774,7 @@ calculateRisk();
    if(!service){
     paymentAmount.textContent="Select a service";
     startPayment.disabled=true;
+    startFlutterwavePayment.disabled=true;
     return;
    }
    const usd=Number(service.price_usd);
@@ -781,12 +782,14 @@ calculateRisk();
     const renewal=Number(service.renewal_price_usd);
     paymentAmount.textContent="USD "+usd.toFixed(2)+" first purchase · USD "+(Number.isFinite(renewal)?renewal.toFixed(2):usd.toFixed(2))+" renewal. KES amount confirmed at checkout.";
     startPayment.disabled=false;
+    startFlutterwavePayment.disabled=false;
     if(!activePaymentOrderId) paymentMessage.textContent="Traderwin calculates the live KES equivalent on the server immediately before requesting your M-Pesa prompt.";
     return;
    }
    const price=Number(service.price_kes);
    paymentAmount.textContent=Number.isFinite(price)?"KES "+price.toLocaleString("en-KE"):"Price unavailable";
    startPayment.disabled=!Number.isSafeInteger(price)||price<1;
+   startFlutterwavePayment.disabled=!Number.isSafeInteger(price)||price<1;
    if(!activePaymentOrderId) paymentMessage.textContent=price<1
     ?"Pricing for this service has not been published yet."
     :"The final amount will be confirmed by Traderwin's server before the M-Pesa prompt is sent.";
