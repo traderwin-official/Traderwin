@@ -52,6 +52,8 @@ section{margin:28px 0}
 footer{text-align:center;padding:30px 15px;background:#101a29;color:var(--muted);font-size:13px}
 ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 @media(max-width:600px){header{padding:14px}nav{gap:10px}.hero{padding:38px 5%}main{padding:18px 4%}.chart{height:420px}}
+
+.live-feed{margin-top:18px;padding:16px;border:1px solid #26364b;border-radius:12px;background:#0c1727}.live-feed-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.live-feed-status{font-size:12px;color:#9fb0c6}.live-feed-price{font-size:25px;font-weight:800;color:#e5bd59;margin:10px 0}.live-feed canvas{display:block;width:100%;height:220px;background:#08111e;border-radius:8px}.live-feed select{width:100%;padding:10px;background:#101e30;color:#fff;border:1px solid #33465e;border-radius:8px;margin-top:8px}
 </style>
 </head>
 
@@ -62,7 +64,10 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <nav>
   <a href="#markets">Markets</a>
   <a href="#analysis">Analysis</a>
+  <a href="#smart-analyst">Smart Analyst</a>
   <a href="#bots">Bots</a>
+  <a href="/bot-shop.html">Buy Standalone Bot</a>
+  <a href="#payments">Payments</a>
   <a href="#risk">Risk</a>
   <a href="#academy">Academy</a>
  </nav>
@@ -119,6 +124,16 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <div id="tradingview_chart" class="chart"></div>
   <p class="muted">Chart supplied by TradingView. Confirm prices, spreads and execution on your broker platform before trading.</p>
+  <div class="live-feed" id="derivLiveFeed">
+   <div class="live-feed-head"><h3>Traderwin Live Market Feed</h3><span class="live-feed-status" id="derivFeedStatus">Connecting to Deriv public market data…</span></div>
+   <label for="derivLiveSymbol">Choose a market available on Deriv</label>
+   <select id="derivLiveSymbol"><option value="">Loading available markets…</option></select>
+   <div class="live-feed-price" id="derivLivePrice">Waiting for live price</div>
+   <canvas id="derivLiveCanvas" width="1000" height="300" aria-label="Live market price chart"></canvas>
+   <p class="muted" id="derivFeedTimestamp">No quote received yet.</p>
+   <p class="muted">Source: Deriv public market-data stream. Availability depends on the selected instrument and market session. This chart is for market analysis; it is not an executable quote for another broker. DEMO balances and trades remain virtual.</p>
+  </div>
+
  </div>
 </section>
 
@@ -138,6 +153,22 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <button onclick="analyseLevels()">Analyse Levels</button>
   <p id="levelResult" class="muted"></p>
+ </div>
+</section>
+
+<section id="smart-analyst">
+ <h2 class="section-title">Smart Strategy <span>Analyst</span></h2>
+ <div class="card">
+  <p class="muted">Analyses completed Deriv OHLC candles using EMA, RSI, ATR, momentum and breakout confirmation. This is a rule-based research tool, not an AI guarantee and not an order-execution bot.</p>
+  <div class="grid">
+   <div class="field"><label for="smartInstrument">Instrument</label><input id="smartInstrument" value="XAUUSD" maxlength="24"></div>
+   <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
+   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology + Support &amp; Resistance</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
+  </div>
+  <p class="muted">The Tiger indicator checks H1 trend direction, confirmed swing Fibonacci 50% / 61.8% / 78.6%, psychological round numbers, support and resistance, rejection or liquidity sweep, and selected-timeframe structure. It is analysis only in both DEMO and REAL profiles.</p>
+  <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
+  <p id="smartAnalysisStatus" class="muted" role="status" aria-live="polite">Ready to analyse fresh Deriv market data.</p>
+  <div id="smartAnalysisResult" class="notice" hidden></div>
  </div>
 </section>
 
@@ -189,14 +220,72 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
      <input id="botAccountMode" value="DEMO" readonly>
     </div>
     <div class="field">
-     <label>Automation status</label>
-     <input value="OFF" readonly>
+     <label for="botTimeframe">Analysis timeframe</label>
+     <select id="botTimeframe"><option value="M15">M15</option><option value="M5">M5</option><option value="H1">H1</option><option value="H4">H4</option></select>
     </div>
+   </div>
+   <div class="field">
+    <label for="botStrategy">Automated strategy</label>
+    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation (EMA + RSI + ATR + Breakout)</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (H1 trend + Fibonacci + S/R + liquidity)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
    </div>
 
    <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
    <p id="botSetupMessage" class="muted" role="status" aria-live="polite"></p>
   </form>
+ </div>
+
+ <div class="card" id="dualModeProfiles" style="margin-top:15px">
+  <h3>DEMO + REAL Bot Profiles</h3>
+  <p class="muted">Keep separate preferences for both account modes. REAL settings are saved as preferences only; live execution remains locked until broker verification, server authorization and full safety testing are complete.</p>
+  <div class="grid">
+   <div class="field"><label for="profileMode">Profile to edit</label><select id="profileMode"><option value="DEMO">DEMO profile</option><option value="REAL">REAL profile (locked)</option></select></div>
+   <div class="field"><label for="profileStrategy">Strategy for this mode</label><select id="profileStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
+   <div class="field"><label for="profileBroker">Broker</label><select id="profileBroker"><option>Deriv</option><option>MetaTrader 5</option><option>FxPro</option><option>Exness</option><option>Other</option></select></div>
+   <div class="field"><label for="profileInstrument">Instrument</label><input id="profileInstrument" value="XAUUSD" maxlength="80"></div>
+  </div>
+  <div class="grid">
+   <div class="field"><label for="profileRisk">Risk per trade (%)</label><input id="profileRisk" type="number" min="0.1" max="2" step="0.1" value="0.5"></div>
+   <div class="field"><label for="profileDailyLoss">Daily loss limit (%)</label><input id="profileDailyLoss" type="number" min="0.5" max="10" step="0.5" value="2"></div>
+   <div class="field"><label for="profileGiveback">Profit giveback limit (%)</label><input id="profileGiveback" type="number" min="1" max="50" step="1" value="20"></div>
+  </div>
+  <p class="muted">Profit protection default: once a trade has been profitable, the protective level follows its peak profit. A 20% giveback means the bot aims to retain 80% of the highest unrealised profit, subject to spread, slippage, gaps and broker stop rules.</p>
+  <button type="button" id="saveModeProfile">Save This Mode's Settings</button>
+  <p id="modeProfileMessage" class="muted" role="status" aria-live="polite"></p>
+  <p class="notice">REAL EXECUTION: LOCKED. This screen cannot enable live orders. A verified broker connection and a separate server-side approval are required.</p>
+ </div>
+
+ <div class="card" id="demoSimulator" style="margin-top:15px">
+  <h3>DEMO Paper-Trading Simulator</h3>
+  <p class="muted">Virtual practice only. The Smart Auto worker analyses supported Deriv DEMO instruments on scheduled runs, opens virtual positions on confirmed new candles, and manages bot-originated positions at their stop-loss or take-profit. Manual paper positions are not managed by the auto worker. This requires migration 016, the Vercel CRON_SECRET and a deployment plan that supports the configured one-minute cron. MT5 automation is not connected. Virtual units and P/L are simplified learning estimates, not broker lot sizes or executable quotes.</p>
+  <p class="status" id="demoSessionStatus">Session: Not started</p>
+  <p class="muted" id="demoWorkerHealth">Worker status: waiting for a scheduled check.</p>
+  <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh worker status</button>
+  <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
+  <button type="button" id="startDemoSession">Start DEMO Session</button>
+  <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
+  <p id="demoSessionMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <div class="field"><label for="paperDirection">Direction</label><select id="paperDirection"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
+   <div class="field"><label for="paperSymbol">Instrument (saved bot symbol)</label><input id="paperSymbol" maxlength="24" placeholder="XAUUSD"></div>
+  </div>
+  <div class="grid">
+   <div class="field"><label>Entry price</label><input value="Fetched securely from Deriv when you open the paper position" readonly></div>
+   <div class="field"><label for="paperStop">Stop-loss</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal"></div>
+   <div class="field"><label for="paperTarget">Take-profit</label><input id="paperTarget" type="number" step="any" min="0" inputmode="decimal"></div>
+  </div>
+  <button type="button" id="recordPaperTrade" disabled>Open DEMO Position at Live Quote</button>
+  <p id="paperTradeMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <div class="field"><label for="paperTradeId">Open paper trade ID</label><input id="paperTradeId" placeholder="Returned after recording"></div>
+   <div class="field"><label>Closing price</label><input value="Fetched securely from Deriv when you close" readonly></div>
+  </div>
+  <button type="button" class="secondary" id="closePaperTrade" disabled>Close at Latest Verified Quote</button>
+  <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <p class="muted">Refresh uses a new server-side Deriv quote. Portfolio-wide 20% profit protection is not active until its persistent monitor is connected and tested.</p>
+  </div>
+  <button type="button" class="secondary" id="markPaperTrade" disabled>Refresh Verified Quote</button>
+  <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
  </div>
 
  <div class="grid" style="margin-top:15px">
@@ -267,11 +356,31 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 <section id="membership">
  <h2 class="section-title">Traderwin <span>Membership</span></h2>
  <div class="grid">
-  <div class="card"><h3>Free Member</h3><p class="muted">Explore the public dashboard and educational resources.</p></div>
-  <div class="card"><h3>Premium Member</h3><p class="muted">Premium education, advanced tools and other services can be introduced after secure membership and payment integration.</p></div>
-  <div class="card"><h3>Traderwin Course</h3><p class="muted">A planned learning programme for beginner traders. Course purchasing and delivery are not yet connected.</p></div>
+  <div class="card"><h3>Free Member</h3><p class="muted">Explore the dashboard, market information and education. DEMO practice remains free.</p></div>
+  <div class="card"><h3>REAL Trading Subscription</h3><p class="muted">USD 75 for the first month, then USD 175 per month. Payment is only one eligibility step; broker verification, risk checks and explicit REAL-trading authorization are still required. Payment never starts live trading automatically.</p></div>
+  <div class="card"><h3>Traderwin Course</h3><p class="muted">Education is a separate service with its own price and delivery. Course pricing will be published before checkout is enabled.</p></div>
  </div>
- <p class="muted">No payments are collected by this page at present. M-Pesa integration must be completed securely before accepting payments.</p>
+ <p class="muted">Renewal is manual by default. Automatic renewal will only be enabled after explicit consent and a supported recurring-payment arrangement are configured. M-Pesa checkout also requires verified merchant credentials.</p>
+ <p class="status" id="realSubscriptionStatus">Checking your REAL subscription status...</p>
+</section>
+
+<section id="payments">
+ <h2 class="section-title">Secure <span>M-Pesa Checkout</span></h2>
+ <div class="card">
+  <p class="muted">Choose a published Traderwin service. The amount is loaded from the protected service catalogue; you cannot change it here.</p>
+  <div class="field">
+   <label for="paymentService">Service</label>
+   <select id="paymentService"><option value="">Loading services...</option></select>
+  </div>
+  <p class="result" id="paymentAmount">Price not loaded</p>
+  <div class="field">
+   <label for="paymentPhone">M-Pesa phone number</label>
+   <input id="paymentPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="07XXXXXXXX" required>
+  </div>
+  <button id="startMpesaPayment" type="button" disabled>Pay with M-Pesa</button>
+  <button id="checkMpesaPayment" type="button" class="secondary" disabled>Check payment status</button>
+  <p id="mpesaPaymentMessage" class="muted" role="status" aria-live="polite">Payment services are loading.</p>
+ </div>
 </section>
 
 <section id="about">
@@ -364,6 +473,109 @@ document.querySelectorAll("#timeTabs button").forEach(button=>{
   loadChart();
  });
 });
+
+const smartButton=document.getElementById("runSmartAnalysis");
+smartButton.addEventListener("click",async()=>{
+ smartButton.disabled=true;
+ const status=document.getElementById("smartAnalysisStatus");
+ const output=document.getElementById("smartAnalysisResult");
+ output.hidden=true;
+ status.textContent="Fetching completed candles and analysing...";
+ try{
+  const {data:sessionData,error:sessionError}=await client.auth.getSession();
+  if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+  const response=await fetch("/api/analysis/market",{
+   method:"POST",
+   headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+   body:JSON.stringify({
+    instrument:document.getElementById("smartInstrument").value.trim(),
+    timeframe:document.getElementById("smartTimeframe").value,
+    strategy:document.getElementById("smartStrategy").value,
+    accountMode:document.getElementById("profileMode").value
+   }),
+   credentials:"same-origin",cache:"no-store"
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(result.error||"Market analysis failed.");
+  const r=result.result,ind=r.indicators||{};
+  const fmt=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):"Unavailable";
+  const sr="Support: "+fmt(ind.support?.price)+" ("+(ind.support?.strength||"n/a")+") · Resistance: "+fmt(ind.resistance?.price)+" ("+(ind.resistance?.strength||"n/a")+")"+(typeof ind.nearSupport==="boolean"?" · Near support: "+(ind.nearSupport?"YES":"NO")+" · Near resistance: "+(ind.nearResistance?"YES":"NO")+" · S/R confluence: "+(ind.supportResistanceConfluence?"YES":"NO"):"");
+  const fib=ind.fibonacci? " · Fib 50% "+fmt(ind.fibonacci["50"])+", 61.8% "+fmt(ind.fibonacci["61.8"])+", 78.6% "+fmt(ind.fibonacci["78.6"]):"";
+  const extra=r.strategy==="TIGER_FIBONACCI_PSYCHOLOGY_V1"
+   ?" · H1 trend "+(ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+" · SL "+fmt(ind.stopLoss)+" · TP "+fmt(ind.takeProfit)+fib
+   :"";
+  output.hidden=false;
+  output.textContent="Profile: "+document.getElementById("profileMode").value+" · "+r.direction+" · Confidence "+r.confidence+"/95 · "+r.strategy+". "+r.explanation+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Analysis only; no trade was executed.";
+  status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
+ }catch(error){status.textContent=error.message||"Could not analyse the market.";}
+ finally{smartButton.disabled=false;}
+});
+
+// DERIV PUBLIC LIVE MARKET FEED: real quotes for charting; no account token or order permission required.
+(function initDerivLiveMarketFeed(){
+ const select=document.getElementById("derivLiveSymbol");
+ const status=document.getElementById("derivFeedStatus");
+ const priceLabel=document.getElementById("derivLivePrice");
+ const timeLabel=document.getElementById("derivFeedTimestamp");
+ const canvas=document.getElementById("derivLiveCanvas");
+ if(!select||!status||!priceLabel||!timeLabel||!canvas||!window.WebSocket)return;
+ const endpoint="wss://api.derivws.com/trading/v1/options/ws/public";
+ let socket=null,selectedSymbol="",subscriptionId=null,prices=[],epochs=[],reconnectDelay=3000;
+ const ctx=canvas.getContext("2d");
+ function send(payload){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload));}
+ function draw(){
+  const ratio=Math.min(window.devicePixelRatio||1,2),width=Math.max(320,canvas.clientWidth||600),height=220;
+  canvas.width=width*ratio;canvas.height=height*ratio;ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);
+  if(prices.length<2)return;
+  const min=Math.min(...prices),max=Math.max(...prices),range=max-min||Math.max(Math.abs(max)*.0001,.00000001),pad=12;
+  ctx.beginPath();prices.forEach((v,i)=>{const x=pad+(width-2*pad)*i/(prices.length-1),y=height-pad-(v-min)/(range)*(height-2*pad);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.strokeStyle="#e5bd59";ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle="#9fb0c6";ctx.font="11px sans-serif";ctx.fillText(max.toPrecision(7),pad,14);ctx.fillText(min.toPrecision(7),pad,height-4);
+ }
+ function setStatus(message){status.textContent=message;}
+ function subscribeSelected(){
+  const symbol=select.value;if(!symbol||!socket||socket.readyState!==WebSocket.OPEN)return;
+  if(subscriptionId)send({forget:subscriptionId});subscriptionId=null;selectedSymbol=symbol;prices=[];epochs=[];draw();priceLabel.textContent="Loading "+symbol+"…";timeLabel.textContent="Requesting recent tick history…";
+  send({ticks_history:symbol,count:120,end:"latest",style:"ticks"});
+  send({ticks:symbol,subscribe:1});
+ }
+ function populateSymbols(list){
+  const valid=(list||[]).filter(x=>x&&typeof x.symbol==="string"&&typeof x.display_name==="string");
+  if(!valid.length){setStatus("Deriv did not return available symbols.");return;}
+  const previous=select.value;select.replaceChildren();
+  valid.sort((a,b)=>(a.market_display_name||a.market||"").localeCompare(b.market_display_name||b.market||"")||a.display_name.localeCompare(b.display_name));
+  valid.forEach(item=>{const groupName=item.market_display_name||item.market||"Other";let group=Array.from(select.children).find(x=>x.tagName==="OPTGROUP"&&x.label===groupName);if(!group){group=document.createElement("optgroup");group.label=groupName;select.appendChild(group);}group.appendChild(new Option(item.display_name+" ("+item.symbol+")",item.symbol));});
+  const gold=valid.find(x=>/gold/i.test(x.display_name)||/XAU/i.test(x.symbol));
+  if(previous&&valid.some(x=>x.symbol===previous))select.value=previous;else if(gold)select.value=gold.symbol;else select.selectedIndex=0;
+  setStatus(valid.length+" Deriv markets available. Selecting a symbol streams its public ticks.");subscribeSelected();
+ }
+ function connect(){
+  try{socket=new WebSocket(endpoint);}catch(e){setStatus("Could not open Deriv market feed.");return;}
+  setStatus("Connecting to Deriv public feed…");
+  socket.onopen=()=>{reconnectDelay=3000;setStatus("Connected. Loading available markets…");send({active_symbols:"full"});};
+  socket.onmessage=event=>{
+   let data;try{data=JSON.parse(event.data);}catch{return;}
+   if(data.error){setStatus("Feed notice: "+(data.error.message||"Market data unavailable."));return;}
+   if(data.msg_type==="active_symbols"){populateSymbols(data.active_symbols);return;}
+   if(data.msg_type==="history"&&data.history&&data.history.prices){prices=data.history.prices.map(Number).filter(Number.isFinite).slice(-180);epochs=(data.history.times||[]).slice(-180);draw();return;}
+   if(data.msg_type==="tick"&&data.tick){
+    const q=Number(data.tick.quote);if(!Number.isFinite(q))return;
+    if(data.tick.symbol&&selectedSymbol&&data.tick.symbol!==selectedSymbol)return;
+    prices.push(q);epochs.push(data.tick.epoch);if(prices.length>180){prices.shift();epochs.shift();}draw();
+    priceLabel.textContent=q.toLocaleString(undefined,{maximumFractionDigits:8});
+    timeLabel.textContent="Last Deriv tick: "+new Date(Number(data.tick.epoch)*1000).toLocaleString()+" · "+(data.tick.symbol||selectedSymbol);
+    if(data.subscription&&data.subscription.id)subscriptionId=data.subscription.id;
+    setStatus("LIVE · Deriv public tick stream");
+   }
+  };
+  socket.onerror=()=>setStatus("Deriv feed connection error. Retrying…");
+  socket.onclose=()=>{setStatus("Market feed disconnected. Reconnecting…");setTimeout(()=>{if(!socket||socket.readyState===WebSocket.CLOSED)connect();},reconnectDelay);reconnectDelay=Math.min(reconnectDelay*2,30000);};
+ }
+ select.addEventListener("change",subscribeSelected);
+ window.addEventListener("resize",draw);
+ setInterval(()=>send({ping:1}),30000);
+ connect();
+})();
 
 function calculateRisk(){
  const balance=Number(document.getElementById("balance").value);
@@ -458,6 +670,196 @@ calculateRisk();
   const connectButton=document.getElementById("connectDerivButton");
   const derivStatus=document.getElementById("derivConnectionStatus");
 
+  const disconnectButton=document.createElement("button");
+  disconnectButton.type="button";
+  disconnectButton.textContent="Disconnect Deriv";
+  disconnectButton.style.cssText="display:none;margin:8px 0;padding:10px 16px;background:#5b2630;color:#fff;border:1px solid #b85c69;border-radius:8px;font-weight:bold;cursor:pointer";
+  connectButton.insertAdjacentElement("afterend",disconnectButton);
+
+  async function refreshDerivStatus(){
+   try{
+    const {data:session,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!session.session) return;
+    const response=await fetch("/api/deriv/status",{
+     method:"GET",
+     headers:{"Authorization":"Bearer "+session.session.access_token},
+     credentials:"same-origin",
+     cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Status unavailable");
+    if(result.connected){
+     derivStatus.textContent="Deriv connected · DEMO account "+String(result.demoAccountId||"").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". REAL account "+(result.realAccountId?"found but still locked":"not detected")+". Token storage is encrypted server-side.";
+     connectButton.disabled=true;
+     connectButton.textContent="Deriv Connected";
+     disconnectButton.style.display="inline-block";
+    }else{
+     derivStatus.textContent="Deriv is not connected yet.";
+     connectButton.disabled=false;
+     connectButton.textContent="Connect Deriv";
+     disconnectButton.style.display="none";
+    }
+   }catch(error){
+    console.warn("Deriv status could not be loaded:",error.message);
+    derivStatus.textContent="Could not verify Deriv connection status. You can retry later.";
+   }
+  }
+
+  disconnectButton.addEventListener("click",async function(){
+   disconnectButton.disabled=true;
+   derivStatus.textContent="Disconnecting Deriv...";
+   try{
+    const {data:session,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!session.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/deriv/disconnect",{
+     method:"POST",
+     headers:{"Authorization":"Bearer "+session.session.access_token},
+     credentials:"same-origin",
+     cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Disconnect failed.");
+    derivStatus.textContent="Deriv has been disconnected from Traderwin.";
+    await refreshDerivStatus();
+   }catch(error){
+    derivStatus.textContent=error.message||"Could not disconnect Deriv.";
+   }finally{
+    disconnectButton.disabled=false;
+   }
+  });
+
+  refreshDerivStatus();
+
+  // SECURE M-PESA CHECKOUT: amount always comes from the server-side catalogue.
+  const paymentService=document.getElementById("paymentService");
+  const paymentAmount=document.getElementById("paymentAmount");
+  const paymentPhone=document.getElementById("paymentPhone");
+  const startPayment=document.getElementById("startMpesaPayment");
+  const checkPayment=document.getElementById("checkMpesaPayment");
+  const paymentMessage=document.getElementById("mpesaPaymentMessage");
+  const subscriptionStatusLabel=document.getElementById("realSubscriptionStatus");
+  async function refreshRealSubscriptionStatus(){
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session){subscriptionStatusLabel.textContent="Sign in to check REAL subscription status.";return;}
+    const response=await fetch("/api/subscriptions/status",{
+     headers:{"Authorization":"Bearer "+sessionData.session.access_token},
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Subscription status unavailable.");
+    subscriptionStatusLabel.textContent=result.active
+     ?"REAL subscription active until "+new Date(result.endsAt).toLocaleDateString()+". Live trading remains locked pending separate broker and safety authorization."
+     :"REAL subscription: "+result.status+". DEMO remains free.";
+   }catch(error){subscriptionStatusLabel.textContent=error.message||"Could not load subscription status.";}
+  }
+  refreshRealSubscriptionStatus();
+
+  let paymentServices=[];
+  let activePaymentOrderId=null;
+
+  function selectedPaymentService(){
+   return paymentServices.find(item=>item.service_code===paymentService.value)||null;
+  }
+  function renderPaymentPrice(){
+   const service=selectedPaymentService();
+   if(!service){
+    paymentAmount.textContent="Select a service";
+    startPayment.disabled=true;
+    return;
+   }
+   const usd=Number(service.price_usd);
+   if(Number.isFinite(usd)&&usd>0){
+    const renewal=Number(service.renewal_price_usd);
+    paymentAmount.textContent="USD "+usd.toFixed(2)+" first purchase · USD "+(Number.isFinite(renewal)?renewal.toFixed(2):usd.toFixed(2))+" renewal. KES amount confirmed at checkout.";
+    startPayment.disabled=false;
+    if(!activePaymentOrderId) paymentMessage.textContent="Traderwin calculates the live KES equivalent on the server immediately before requesting your M-Pesa prompt.";
+    return;
+   }
+   const price=Number(service.price_kes);
+   paymentAmount.textContent=Number.isFinite(price)?"KES "+price.toLocaleString("en-KE"):"Price unavailable";
+   startPayment.disabled=!Number.isSafeInteger(price)||price<1;
+   if(!activePaymentOrderId) paymentMessage.textContent=price<1
+    ?"Pricing for this service has not been published yet."
+    :"The final amount will be confirmed by Traderwin's server before the M-Pesa prompt is sent.";
+  }
+  try{
+   const {data:services,error:catalogError}=await client.from("service_catalog")
+    .select("service_code,service_name,description,price_kes,price_usd,renewal_price_usd,billing_period")
+    .eq("active",true).order("service_name");
+   if(catalogError) throw catalogError;
+   paymentServices=services||[];
+   paymentService.replaceChildren();
+   if(!paymentServices.length){
+    paymentService.add(new Option("No services available",""));
+   }else{
+    paymentService.add(new Option("Choose a service",""));
+    paymentServices.forEach(item=>paymentService.add(new Option(item.service_name,item.service_code)));
+   }
+   renderPaymentPrice();
+   if(!paymentServices.length) paymentMessage.textContent="No services are currently published.";
+  }catch(error){
+   console.warn("Service catalogue unavailable:",error.message);
+   paymentService.replaceChildren(new Option("Catalogue unavailable",""));
+   paymentAmount.textContent="Price unavailable";
+   paymentMessage.textContent="Could not load the service catalogue. Please try again later.";
+  }
+  paymentService.addEventListener("change",renderPaymentPrice);
+
+  startPayment.addEventListener("click",async()=>{
+   const service=selectedPaymentService();
+   if(!service) return;
+   startPayment.disabled=true;
+   paymentMessage.textContent="Creating a secure M-Pesa payment request...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/payments/mpesa/stk-push",{
+     method:"POST",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+     body:JSON.stringify({serviceCode:service.service_code,phoneNumber:paymentPhone.value.trim()}),
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"M-Pesa checkout could not start.");
+    activePaymentOrderId=result.orderId;
+    checkPayment.disabled=false;
+    if(result.amountKes) paymentAmount.textContent="Checkout amount: KES "+Number(result.amountKes).toLocaleString("en-KE")+(result.amountUsd?" (USD "+Number(result.amountUsd).toFixed(2)+")":"");
+    paymentMessage.textContent=(result.customerMessage||"Check your phone and enter your M-Pesa PIN.")+" The M-Pesa prompt shows the exact KES amount to approve.";
+   }catch(error){
+    paymentMessage.textContent=error.message||"Payment request failed.";
+   }finally{
+    renderPaymentPrice();
+   }
+  });
+
+  checkPayment.addEventListener("click",async()=>{
+   if(!activePaymentOrderId) return;
+   checkPayment.disabled=true;
+   paymentMessage.textContent="Checking payment status...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/payments/mpesa/status?orderId="+encodeURIComponent(activePaymentOrderId),{
+     headers:{"Authorization":"Bearer "+sessionData.session.access_token},
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Could not check payment status.");
+    const status=result.order.status;
+    paymentMessage.textContent=status==="PAID"
+     ?"Payment confirmed. Your service access is being activated."
+     :status==="FAILED"?"Payment was not completed. You can start a new request."
+     :"Payment is still pending. Complete the M-Pesa prompt, then check again.";
+    if(status==="PAID") await refreshRealSubscriptionStatus();
+    if(status!=="PENDING") activePaymentOrderId=null;
+   }catch(error){
+    paymentMessage.textContent=error.message||"Could not check payment status.";
+   }finally{
+    checkPayment.disabled=!activePaymentOrderId;
+   }
+  });
+
   connectButton.addEventListener("click",async function(){
 
    connectButton.disabled=true;
@@ -539,19 +941,18 @@ calculateRisk();
 
     const {error:saveError}=await client
      .from("bot_settings")
-     .insert({
+     .upsert({
       user_id:user.id,
       broker:broker,
       instrument:instrument,
-      account_mode:"DEMO",
-      enabled:false
-     });
+      account_mode:selectedAccountMode,
+      timeframe:document.getElementById("botTimeframe").value,
+      strategy:document.getElementById("botStrategy").value
+     },{onConflict:"user_id"});
 
     if(saveError){
 
-     if(saveError.code==="23505"){
-      botMessage.textContent="You already have bot settings saved. Editing existing settings will be enabled after the update policy is verified.";
-     }else if(saveError.code==="42501"){
+     if(saveError.code==="42501"){
       botMessage.textContent="Supabase denied this save under its security policies. Your settings were not changed. We need to check the INSERT policy.";
      }else{
       console.error("Bot settings save error:",saveError);
@@ -561,7 +962,7 @@ calculateRisk();
      return;
     }
 
-    botMessage.textContent="Success! Your bot preferences have been saved. Your selected account preference is "+selectedAccountMode+". Bot configuration remains DEMO and automation stays OFF until broker verification and a separate live-trading safety workflow are completed.";
+    botMessage.textContent="Saved. "+selectedAccountMode+" preferences updated with "+document.getElementById("botTimeframe").value+" and "+document.getElementById("botStrategy").selectedOptions[0].text+". Start Smart Auto only in Deriv DEMO; REAL execution remains locked.";
     botForm.reset();
 
    }catch(error){
@@ -574,7 +975,168 @@ calculateRisk();
 
   });
 
-  // SIGN OUT BUTTON
+  // Save and load independent DEMO and REAL configuration profiles.
+  const profileMode=document.getElementById("profileMode");
+  const profileBroker=document.getElementById("profileBroker");
+  const profileInstrument=document.getElementById("profileInstrument");
+  const profileStrategy=document.getElementById("profileStrategy");
+  const profileRisk=document.getElementById("profileRisk");
+  const profileDaily=document.getElementById("profileDailyLoss");
+  const profileGiveback=document.getElementById("profileGiveback");
+  const profileMessage=document.getElementById("modeProfileMessage");
+  async function loadModeProfile(){
+   profileMessage.textContent="Loading "+profileMode.value+" profile...";
+   try{
+    const {data:p,error}=await client.from("bot_mode_profiles").select("broker,instrument,strategy,max_risk_per_trade_pct,max_daily_loss_pct,profit_giveback_pct").eq("account_mode",profileMode.value).maybeSingle();
+    if(error)throw error;
+    if(p){profileBroker.value=p.broker;profileInstrument.value=p.instrument;profileStrategy.value=p.strategy||"MULTI_CONFIRMATION_V1";profileRisk.value=p.max_risk_per_trade_pct;profileDaily.value=p.max_daily_loss_pct;profileGiveback.value=p.profit_giveback_pct;}
+    profileMessage.textContent=profileMode.value+" preferences loaded. Real execution remains locked.";
+   }catch(e){profileMessage.textContent="Mode profiles will be available after the dual-mode database migration is applied. "+e.message;}
+  }
+  profileMode.addEventListener("change",loadModeProfile);
+  document.getElementById("saveModeProfile").addEventListener("click",async()=>{
+   const risk=Number(profileRisk.value),daily=Number(profileDaily.value),giveback=Number(profileGiveback.value),instrument=profileInstrument.value.trim();
+   if(!instrument||!Number.isFinite(risk)||risk<.1||risk>2||!Number.isFinite(daily)||daily<.5||daily>10||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk (0.1–2%), daily loss (0.5–10%) and giveback (1–50%).";return;}
+   const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user){profileMessage.textContent="Please sign in again.";return;}
+   const button=document.getElementById("saveModeProfile");button.disabled=true;
+   try{
+    const profileValues={broker:profileBroker.value,instrument,strategy:profileStrategy.value,max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,profit_giveback_pct:giveback};
+    const {data:existing,error:lookupError}=await client.from("bot_mode_profiles").select("id").eq("user_id",auth.user.id).eq("account_mode",profileMode.value).maybeSingle();
+    if(lookupError)throw lookupError;
+    const result=existing
+     ? await client.from("bot_mode_profiles").update(profileValues).eq("user_id",auth.user.id).eq("account_mode",profileMode.value)
+     : await client.from("bot_mode_profiles").insert({user_id:auth.user.id,account_mode:profileMode.value,...profileValues});
+    if(result.error)throw result.error;
+    if(profileMode.value==="DEMO"){
+     const {error:botSettingsError}=await client.from("bot_settings").upsert({
+      user_id:auth.user.id,broker:profileBroker.value,instrument,strategy:profileStrategy.value,
+      account_mode:"DEMO",max_risk_per_trade_pct:risk
+     },{onConflict:"user_id"});
+     if(botSettingsError)throw botSettingsError;
+    }
+    profileMessage.textContent=profileMode.value+" profile saved with "+profileStrategy.selectedOptions[0].text+". "+(profileMode.value==="REAL"?"Live execution is still locked; this saves preferences only.":"The DEMO bot setting now uses this strategy, subject to existing safety controls.");
+   }catch(e){profileMessage.textContent="Could not save profile: "+e.message;}
+   finally{button.disabled=false;}
+  });
+  loadModeProfile();
+
+  // DEMO-ONLY PAPER SIMULATOR CONTROLS
+   const demoStatus=document.getElementById("demoSessionStatus");
+   const demoBalance=document.getElementById("demoVirtualBalance");
+   const demoMessage=document.getElementById("demoSessionMessage");
+   const demoWorkerHealth=document.getElementById("demoWorkerHealth");
+   function showDemoWorkerHealth(heartbeat){
+    if(!heartbeat){demoWorkerHealth.textContent="Worker status: waiting for its first scheduled run. Check CRON_SECRET and Supabase Cron/Vault setup.";return;}
+    const when=heartbeat.last_tick_at?new Date(heartbeat.last_tick_at).toLocaleString():"unknown";
+    demoWorkerHealth.textContent="Worker last checked: "+when+" · "+heartbeat.last_action+(heartbeat.last_reason?" · "+heartbeat.last_reason:"")+(heartbeat.last_error?" · "+heartbeat.last_error:"");
+   }
+   const startDemo=document.getElementById("startDemoSession");
+   const stopDemo=document.getElementById("stopDemoSession");
+   const recordPaper=document.getElementById("recordPaperTrade");
+   const closePaper=document.getElementById("closePaperTrade");
+   let activeDemoSession=null;
+   async function callDemoApi(path,payload){
+    const {data:s,error:e}=await client.auth.getSession();
+    if(e||!s.session)throw new Error("Please sign in again.");
+    const response=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+s.session.access_token},body:JSON.stringify(payload),credentials:"same-origin",cache:"no-store"});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||"Demo request failed.");
+    return result;
+   }
+   document.getElementById("refreshDemoWorkerStatus").addEventListener("click",async()=>{
+    const refresh=document.getElementById("refreshDemoWorkerStatus");
+    refresh.disabled=true;
+    try{
+     const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
+     showDemoWorkerHealth(status.workerHeartbeat);
+     if(status.session)demoStatus.textContent="Session: "+status.session.status;
+    }catch(error){demoWorkerHealth.textContent="Worker status unavailable: "+error.message;}
+    finally{refresh.disabled=false;}
+   });
+   if(selectedAccountMode!=="DEMO"){
+    [startDemo,stopDemo,recordPaper,closePaper].forEach(x=>x.disabled=true);
+    demoMessage.textContent="Paper simulator is locked in REAL mode. Switch to DEMO to practise.";
+   }
+   startDemo.addEventListener("click",async()=>{
+    startDemo.disabled=true;demoMessage.textContent="Starting virtual demo session...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/control",{action:"START"});
+     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     showDemoWorkerHealth(null);
+     demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+     stopDemo.disabled=false;recordPaper.disabled=false;demoMessage.textContent=r.message;
+    }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
+   });
+   stopDemo.addEventListener("click",async()=>{
+    stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
+     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";demoMessage.textContent=r.message;
+    }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
+   });
+   recordPaper.addEventListener("click",async()=>{
+    recordPaper.disabled=true;const msg=document.getElementById("paperTradeMessage");msg.textContent="Recording virtual paper trade...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/trade",{
+      symbol:document.getElementById("paperSymbol").value.trim(),
+      direction:document.getElementById("paperDirection").value,
+      stopLoss:document.getElementById("paperStop").value,
+      takeProfit:document.getElementById("paperTarget").value
+     });
+     document.getElementById("paperTradeId").value=r.trade.id;closePaper.disabled=false;markPaper.disabled=false;
+     msg.textContent=r.message+" Virtual risk: USD "+Number(r.trade.risk_amount).toFixed(2)+".";
+    }catch(e){msg.textContent=e.message;}
+    finally{recordPaper.disabled=!activeDemoSession;}
+   });
+   const markPaper=document.getElementById("markPaperTrade");
+   markPaper.addEventListener("click",async()=>{
+    markPaper.disabled=true;const msg=document.getElementById("paperProtectionMessage");msg.textContent="Updating profit protection...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/mark",{tradeId:document.getElementById("paperTradeId").value.trim()});
+     if(r.closed){msg.textContent=r.message+" Simulated exit P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);document.getElementById("paperTradeId").value="";closePaper.disabled=true;}
+     else{msg.textContent=r.message+" Latest verified price: "+Number(r.currentPrice).toFixed(5)+" · unrealised P/L: USD "+Number(r.currentUnrealizedPnl).toFixed(2)+". "+r.protection.reason;}
+    }catch(e){msg.textContent=e.message;}
+    finally{markPaper.disabled=!document.getElementById("paperTradeId").value.trim();}
+   });
+      closePaper.addEventListener("click",async()=>{
+    closePaper.disabled=true;const msg=document.getElementById("paperCloseMessage");msg.textContent="Closing paper trade...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/close",{
+      tradeId:document.getElementById("paperTradeId").value.trim(),
+     });
+     msg.textContent=r.message+" Simulated P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);
+     document.getElementById("paperTradeId").value="";markPaper.disabled=true;
+    }catch(e){msg.textContent=e.message;closePaper.disabled=false;}
+   });
+
+   {
+    callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
+     if(r.session){
+      activeDemoSession=r.session.status==="RUNNING"?r.session:null;
+      showDemoWorkerHealth(r.workerHeartbeat);
+      demoStatus.textContent="Session: "+r.session.status;
+      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+      if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
+      const running=r.session.status==="RUNNING";
+      startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
+      stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
+      demoMessage.textContent="Your existing DEMO session has been restored. The scheduled Smart Auto worker manages bot-originated trades only; manual paper positions remain under your control.";
+     }else{
+      demoStatus.textContent="Session: Not started";
+      showDemoWorkerHealth(null);
+      const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
+      if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
+      startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
+     }
+     if(r.openTrade){
+      document.getElementById("paperTradeId").value=r.openTrade.id;
+      document.getElementById("paperSymbol").value=r.openTrade.symbol;
+      closePaper.disabled=false;markPaper.disabled=false;
+     }else{closePaper.disabled=true;markPaper.disabled=true;}
+    }).catch(e=>{demoMessage.textContent=e.message;});
+   }
+
+   // SIGN OUT BUTTON
   const logout=document.createElement("button");
   logout.textContent="Sign Out";
   logout.style.cssText="position:fixed;top:12px;right:12px;z-index:99999;padding:10px 16px;background:#d7a83c;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer";

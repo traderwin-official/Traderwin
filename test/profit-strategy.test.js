@@ -1,0 +1,31 @@
+import test from "node:test";import assert from "node:assert/strict";
+import {calculateProfitProtection} from "../lib/profit-protection.js";
+import {analyseCandles,analyseTigerFibonacciPsychology,calculateSupportResistance,ema,rsi,atr} from "../lib/strategy-engine.js";
+test("BUY protection locks 80% of peak profit",()=>{const x=calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:108.1,units:10,peakProfit:100,givebackPct:20});assert.equal(x.protectedProfit,80);assert.equal(x.protectedStopPrice,108);assert.equal(x.shouldClose,false);});
+test("20% peak-profit giveback closes",()=>{const x=calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:107.9,units:10,peakProfit:100,givebackPct:20});assert.equal(x.shouldClose,true);assert.ok(Math.abs(x.currentProfit-79)<1e-9);});
+test("SELL protective stop never loosens",()=>{const x=calculateProfitProtection({direction:"SELL",entryPrice:100,currentPrice:90,units:10,peakProfit:100,givebackPct:20,existingStopLoss:92});assert.equal(x.protectedStopPrice,92);});
+test("protection stays inactive below USD 20 peak",()=>{const x=calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:101.99,units:10});assert.equal(x.protectionActive,false);assert.equal(x.activationThreshold,20);});
+test("protection activates at USD 20 peak",()=>{const x=calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:102,units:10});assert.equal(x.protectionActive,true);assert.equal(x.protectedProfit,16);});
+test("reject invalid giveback percentage",()=>assert.throws(()=>calculateProfitProtection({direction:"BUY",entryPrice:100,currentPrice:110,units:1,givebackPct:100}),RangeError));
+test("indicators calculate",()=>{const v=Array.from({length:40},(_,i)=>100+i),c=v.map(x=>({open:x,high:x+1,low:x-1,close:x}));assert.ok(ema(v,9)>ema(v,21));assert.equal(rsi(v),100);assert.ok(atr(c)>0);});
+test("strategy identifies aligned bullish candles",()=>{const c=Array.from({length:50},(_,i)=>({open:100+i,high:101+i,low:99+i,close:100+i}));assert.equal(analyseCandles(c).direction,"BUY");});
+test("strategy rejects insufficient candles",()=>assert.throws(()=>analyseCandles([]),RangeError));
+
+test("Tiger indicator publishes support and resistance proximity and confluence",()=>{
+ const c=Array.from({length:80},(_,i)=>{
+  const mid=100+i*.03+Math.sin(i*.7)*2;
+  const open=mid,close=mid+Math.cos(i*.7)*.2;
+  return {open,high:Math.max(open,close)+.4,low:Math.min(open,close)-.4,close};
+ });
+ const levels=calculateSupportResistance(c);
+ assert.ok(levels.tolerance>0);
+ const result=analyseTigerFibonacciPsychology(c,{trendCandles:c,instrument:"XAUUSD"});
+ const i=result.indicators;
+ assert.ok(i.support&&i.resistance);
+ assert.equal(typeof i.nearSupport,"boolean");
+ assert.equal(typeof i.nearResistance,"boolean");
+ assert.equal(typeof i.supportResistanceConfluence,"boolean");
+ assert.ok(i.supportResistanceTolerance>0);
+ assert.ok(Number.isInteger(i.bullishLocationScore));
+ assert.ok(Number.isInteger(i.bearishLocationScore));
+});

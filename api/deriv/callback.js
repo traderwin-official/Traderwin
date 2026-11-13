@@ -152,12 +152,42 @@ export default async function handler(req, res) {
 
     const tokenData = await tokenResponse.json();
 
-    if (!tokenResponse.ok || !tokenData.access_token) {
-      console.error("Deriv token exchange failed.");
+    if (!tokenResponse.ok || !tokenData.access_token ||
+        !Number.isFinite(Number(tokenData.expires_in)) || Number(tokenData.expires_in) <= 0) {
+      console.error("Deriv token exchange failed or returned no valid expiry.");
+      return finish("error");
+    }
+
+    // Verify the user's actual Deriv accounts before marking the connection complete.
+    const accountsResponse = await fetch("https://api.derivws.com/trading/v1/options/accounts", {
+      headers: { Authorization: "Bearer " + tokenData.access_token },
+      signal: AbortSignal.timeout(12000)
+    });
+    const accountsPayload = await accountsResponse.json().catch(() => ({}));
+    const rawAccounts = Array.isArray(accountsPayload.data)
+      ? accountsPayload.data
+      : Array.isArray(accountsPayload.data?.accounts) ? accountsPayload.data.accounts : [];
+    if (!accountsResponse.ok || !rawAccounts.length) {
+      console.error("Deriv account verification failed.");
+      return finish("error");
+    }
+    const eligible = rawAccounts.filter(account => {
+      const status = String(account.status || "active").toLowerCase();
+      return account && account.account_id && status === "active";
+    });
+    const demoAccount = eligible.find(account =>
+      String(account.account_type || account.type || "").toLowerCase() === "demo"
+    );
+    const realAccount = eligible.find(account =>
+      String(account.account_type || account.type || "").toLowerCase() === "real"
+    );
+    if (!demoAccount) {
+      console.error("Deriv did not return an active demo account.");
       return finish("error");
     }
 
     const encryptedToken = encryptToken(tokenData.access_token);
+    const tokenExpiresAt = new Date(Date.now() + Number(tokenData.expires_in) * 1000).toISOString();
 
     const supabase = createClient(
       SUPABASE_URL,
@@ -175,7 +205,10 @@ export default async function handler(req, res) {
       .upsert(
         {
           user_id: session.userId,
-          deriv_account_id: null,
+          deriv_account_id: String(demoAccount.account_id),
+          demo_account_id: String(demoAccount.account_id),
+          real_account_id: realAccount ? String(realAccount.account_id) : null,
+          token_expires_at: tokenExpiresAt,
           encrypted_access_token: encryptedToken,
           updated_at: new Date().toISOString()
         },
