@@ -162,8 +162,10 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <p class="muted">Analyses completed Deriv OHLC candles using EMA, RSI, ATR, momentum and breakout confirmation. This is a rule-based research tool, not an AI guarantee and not an order-execution bot.</p>
   <div class="grid">
    <div class="field"><label for="smartInstrument">Instrument</label><input id="smartInstrument" value="XAUUSD" maxlength="24"></div>
-   <div class="field"><label for="smartTimeframe">Timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
+   <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
+   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology + Support &amp; Resistance</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
   </div>
+  <p class="muted">The Tiger indicator checks H1 trend direction, confirmed swing Fibonacci 50% / 61.8% / 78.6%, psychological round numbers, support and resistance, rejection or liquidity sweep, and selected-timeframe structure. It is analysis only in both DEMO and REAL profiles.</p>
   <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
   <p id="smartAnalysisStatus" class="muted" role="status" aria-live="polite">Ready to analyse fresh Deriv market data.</p>
   <div id="smartAnalysisResult" class="notice" hidden></div>
@@ -224,7 +226,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    </div>
    <div class="field">
     <label for="botStrategy">Automated strategy</label>
-    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation (EMA + RSI + ATR + Breakout)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
+    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation (EMA + RSI + ATR + Breakout)</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (H1 trend + Fibonacci + S/R + liquidity)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
    </div>
 
    <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
@@ -237,6 +239,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <p class="muted">Keep separate preferences for both account modes. REAL settings are saved as preferences only; live execution remains locked until broker verification, server authorization and full safety testing are complete.</p>
   <div class="grid">
    <div class="field"><label for="profileMode">Profile to edit</label><select id="profileMode"><option value="DEMO">DEMO profile</option><option value="REAL">REAL profile (locked)</option></select></div>
+   <div class="field"><label for="profileStrategy">Strategy for this mode</label><select id="profileStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
    <div class="field"><label for="profileBroker">Broker</label><select id="profileBroker"><option>Deriv</option><option>MetaTrader 5</option><option>FxPro</option><option>Exness</option><option>Other</option></select></div>
    <div class="field"><label for="profileInstrument">Instrument</label><input id="profileInstrument" value="XAUUSD" maxlength="80"></div>
   </div>
@@ -468,35 +471,45 @@ document.querySelectorAll("#timeTabs button").forEach(button=>{
   button.classList.add("active");
   selectedTime=button.dataset.time;
   loadChart();
-  const smartButton=document.getElementById("runSmartAnalysis");
-  smartButton.addEventListener("click",async()=>{
-   smartButton.disabled=true;
-   const status=document.getElementById("smartAnalysisStatus");
-   const output=document.getElementById("smartAnalysisResult");
-   output.hidden=true;
-   status.textContent="Fetching completed candles from Deriv and analysing...";
-   try{
-    const {data:sessionData,error:sessionError}=await client.auth.getSession();
-    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
-    const response=await fetch("/api/analysis/market",{
-     method:"POST",
-     headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
-     body:JSON.stringify({instrument:document.getElementById("smartInstrument").value.trim(),timeframe:document.getElementById("smartTimeframe").value}),
-     credentials:"same-origin",cache:"no-store"
-    });
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(result.error||"Market analysis failed.");
-    const r=result.result;
-    output.hidden=false;
-    output.textContent=r.direction+" · Confidence score "+r.confidence+"/95 · Strategy "+r.strategy+". "+r.explanation+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". No trade was executed.";
-    status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
-   }catch(error){status.textContent=error.message||"Could not analyse the market.";}
-   finally{smartButton.disabled=false;}
-  });
-
  });
 });
 
+const smartButton=document.getElementById("runSmartAnalysis");
+smartButton.addEventListener("click",async()=>{
+ smartButton.disabled=true;
+ const status=document.getElementById("smartAnalysisStatus");
+ const output=document.getElementById("smartAnalysisResult");
+ output.hidden=true;
+ status.textContent="Fetching completed candles and analysing...";
+ try{
+  const {data:sessionData,error:sessionError}=await client.auth.getSession();
+  if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+  const response=await fetch("/api/analysis/market",{
+   method:"POST",
+   headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+   body:JSON.stringify({
+    instrument:document.getElementById("smartInstrument").value.trim(),
+    timeframe:document.getElementById("smartTimeframe").value,
+    strategy:document.getElementById("smartStrategy").value,
+    accountMode:document.getElementById("profileMode").value
+   }),
+   credentials:"same-origin",cache:"no-store"
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(result.error||"Market analysis failed.");
+  const r=result.result,ind=r.indicators||{};
+  const fmt=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):"Unavailable";
+  const sr="Support: "+fmt(ind.support?.price)+" ("+(ind.support?.strength||"n/a")+") · Resistance: "+fmt(ind.resistance?.price)+" ("+(ind.resistance?.strength||"n/a")+")";
+  const fib=ind.fibonacci? " · Fib 50% "+fmt(ind.fibonacci["50"])+", 61.8% "+fmt(ind.fibonacci["61.8"])+", 78.6% "+fmt(ind.fibonacci["78.6"]):"";
+  const extra=r.strategy==="TIGER_FIBONACCI_PSYCHOLOGY_V1"
+   ?" · H1 trend "+(ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+" · SL "+fmt(ind.stopLoss)+" · TP "+fmt(ind.takeProfit)+fib
+   :"";
+  output.hidden=false;
+  output.textContent="Profile: "+document.getElementById("profileMode").value+" · "+r.direction+" · Confidence "+r.confidence+"/95 · "+r.strategy+". "+r.explanation+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Analysis only; no trade was executed.";
+  status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
+ }catch(error){status.textContent=error.message||"Could not analyse the market.";}
+ finally{smartButton.disabled=false;}
+});
 
 // DERIV PUBLIC LIVE MARKET FEED: real quotes for charting; no account token or order permission required.
 (function initDerivLiveMarketFeed(){
@@ -966,6 +979,7 @@ calculateRisk();
   const profileMode=document.getElementById("profileMode");
   const profileBroker=document.getElementById("profileBroker");
   const profileInstrument=document.getElementById("profileInstrument");
+  const profileStrategy=document.getElementById("profileStrategy");
   const profileRisk=document.getElementById("profileRisk");
   const profileDaily=document.getElementById("profileDailyLoss");
   const profileGiveback=document.getElementById("profileGiveback");
@@ -973,9 +987,9 @@ calculateRisk();
   async function loadModeProfile(){
    profileMessage.textContent="Loading "+profileMode.value+" profile...";
    try{
-    const {data:p,error}=await client.from("bot_mode_profiles").select("broker,instrument,max_risk_per_trade_pct,max_daily_loss_pct,profit_giveback_pct").eq("account_mode",profileMode.value).maybeSingle();
+    const {data:p,error}=await client.from("bot_mode_profiles").select("broker,instrument,strategy,max_risk_per_trade_pct,max_daily_loss_pct,profit_giveback_pct").eq("account_mode",profileMode.value).maybeSingle();
     if(error)throw error;
-    if(p){profileBroker.value=p.broker;profileInstrument.value=p.instrument;profileRisk.value=p.max_risk_per_trade_pct;profileDaily.value=p.max_daily_loss_pct;profileGiveback.value=p.profit_giveback_pct;}
+    if(p){profileBroker.value=p.broker;profileInstrument.value=p.instrument;profileStrategy.value=p.strategy||"MULTI_CONFIRMATION_V1";profileRisk.value=p.max_risk_per_trade_pct;profileDaily.value=p.max_daily_loss_pct;profileGiveback.value=p.profit_giveback_pct;}
     profileMessage.textContent=profileMode.value+" preferences loaded. Real execution remains locked.";
    }catch(e){profileMessage.textContent="Mode profiles will be available after the dual-mode database migration is applied. "+e.message;}
   }
@@ -986,14 +1000,20 @@ calculateRisk();
    const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user){profileMessage.textContent="Please sign in again.";return;}
    const button=document.getElementById("saveModeProfile");button.disabled=true;
    try{
-    const profileValues={broker:profileBroker.value,instrument,strategy:"MULTI_CONFIRMATION_V1",max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,profit_giveback_pct:giveback};
+    const profileValues={broker:profileBroker.value,instrument,strategy:profileStrategy.value,max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,profit_giveback_pct:giveback};
     const {data:existing,error:lookupError}=await client.from("bot_mode_profiles").select("id").eq("user_id",auth.user.id).eq("account_mode",profileMode.value).maybeSingle();
     if(lookupError)throw lookupError;
     const result=existing
      ? await client.from("bot_mode_profiles").update(profileValues).eq("user_id",auth.user.id).eq("account_mode",profileMode.value)
      : await client.from("bot_mode_profiles").insert({user_id:auth.user.id,account_mode:profileMode.value,...profileValues});
     if(result.error)throw result.error;
-    profileMessage.textContent=profileMode.value+" profile saved. "+(profileMode.value==="REAL"?"Live execution is still locked.":"Use DEMO to test the strategy and profit protection.");
+    if(profileMode.value==="DEMO"){
+     const {error:botSettingsError}=await client.from("bot_settings").update({
+      broker:profileBroker.value,instrument,strategy:profileStrategy.value,account_mode:"DEMO"
+     }).eq("user_id",auth.user.id);
+     if(botSettingsError)throw botSettingsError;
+    }
+    profileMessage.textContent=profileMode.value+" profile saved with "+profileStrategy.selectedOptions[0].text+". "+(profileMode.value==="REAL"?"Live execution is still locked; this saves preferences only.":"The DEMO bot setting now uses this strategy, subject to existing safety controls.");
    }catch(e){profileMessage.textContent="Could not save profile: "+e.message;}
    finally{button.disabled=false;}
   });
