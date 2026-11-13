@@ -150,3 +150,19 @@ test("accepts M1 scalping analysis on fresh completed candles", () => {
   assert.notEqual(result.reason, "CANDLE_HISTORY_STALE");
   assert.ok(["WAIT", "OPEN"].includes(result.action));
 });
+
+
+test("closes a DEMO BUY when the combined strategy confirms an opposite SELL", () => {
+  const input = structuredClone(base);
+  input.openTrade = {
+    id: "reversal-trade", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, stop_loss: 118, take_profit: 124, virtual_units: 2, status: "OPEN"
+  };
+  const result = decideDemoAutoAction({
+    ...input, now,
+    analysisFn: () => ({ direction: "SELL", confidence: 80 })
+  });
+  assert.equal(result.action, "CLOSE");
+  assert.equal(result.reason, "STRATEGY_REVERSAL");
+  assert.equal(result.exitPrice, input.quote.quote);
+});
