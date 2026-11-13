@@ -163,7 +163,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <div class="grid">
    <div class="field"><label for="smartInstrument">Instrument</label><input id="smartInstrument" value="XAUUSD" maxlength="24"></div>
    <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
-   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Tiger Combined Multi-Strategy (Automated)</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (Standalone Analysis)</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
+   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Tiger Scheme AI Bot — Combined Multi-Strategy</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (Standalone Analysis)</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
   </div>
   <p class="muted">Automated Tiger mode combines trend, momentum, breakout, H1 direction, Fibonacci 50% / 61.8% / 78.6%, psychological levels, support/resistance, order blocks, supply/demand context, liquidity sweeps, rejection candles and BOS/CHOCH. Conflicting or incomplete confirmations mean NO TRADE. This analyst is not itself a broker execution service.</p>
   <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
@@ -226,7 +226,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    </div>
    <div class="field">
     <label for="botStrategy">Automated strategy</label>
-    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation (EMA + RSI + ATR + Breakout)</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (H1 trend + Fibonacci + S/R + order blocks + BOS/CHOCH)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
+    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Tiger Scheme AI Bot — Combined Multi-Strategy</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (H1 trend + Fibonacci + S/R + order blocks + BOS/CHOCH)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
    </div>
 
    <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
@@ -239,7 +239,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <p class="muted">Keep separate preferences for both account modes. REAL settings are saved as preferences only; live execution remains locked until broker verification, server authorization and full safety testing are complete.</p>
   <div class="grid">
    <div class="field"><label for="profileMode">Profile to edit</label><select id="profileMode"><option value="DEMO">DEMO profile</option><option value="REAL">REAL profile (locked)</option></select></div>
-   <div class="field"><label for="profileStrategy">Strategy for this mode</label><select id="profileStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
+   <div class="field"><label for="profileStrategy">Strategy for this mode</label><select id="profileStrategy"><option value="MULTI_CONFIRMATION_V1">Tiger Scheme AI Bot</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
    <div class="field"><label for="profileBroker">Broker</label><select id="profileBroker"><option>Deriv</option><option>MetaTrader 5</option><option>FxPro</option><option>Exness</option><option>Other</option></select></div>
    <div class="field"><label for="profileInstrument">Instrument</label><input id="profileInstrument" value="XAUUSD" maxlength="80"></div>
   </div>
