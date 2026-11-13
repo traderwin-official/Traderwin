@@ -138,7 +138,7 @@ test("accepts M1 scalping analysis on fresh completed candles", () => {
   const input = structuredClone(base);
   input.settings.timeframe = "M1";
   input.market.timeframe = "M1";
-  input.market.latestCandleAsOf = new Date(now - 60000).toISOString();
+  input.market.latestCandleAsOf = new Date(now).toISOString();
   input.market.candles = Array.from({ length: 40 }, (_, i) => {
     const open = 100 + i * 0.02;
     return { epoch: now / 1000 - (40 - i) * 60, open, high: open + 0.1, low: open - 0.1, close: open + 0.02 };
