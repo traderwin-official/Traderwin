@@ -11,7 +11,8 @@ async function completePayment(admin, txRef, transactionId) {
   if (!order) return { ok: false, reason: "ORDER_NOT_FOUND" };
   if (order.status === "PAID") return { ok: true, status: "ALREADY_PAID" };
   const verified = await verifyFlutterwaveTransaction(transactionId, FLW_SECRET_KEY);
-  if (!validateFlutterwavePayment(verified, order) || String(verified.id) !== String(transactionId)) {
+  if ((order.flutterwave_transaction_id && String(order.flutterwave_transaction_id) !== String(transactionId)) ||
+      !validateFlutterwavePayment(verified, order) || String(verified.id) !== String(transactionId)) {
     await admin.from("payment_orders").update({ status: "PAYMENT_REVIEW" })
       .eq("id", order.id).eq("status", "PENDING");
     return { ok: false, reason: "PAYMENT_REQUIRES_REVIEW" };
