@@ -6,6 +6,9 @@ on:
       - upgrade/full-platform-build
     paths:
       - "**.html"
+      - "functions/**"
+      - "lib/**"
+      - "test/**"
       - "scripts/**"
       - "package.json"
       - "wrangler.toml"
