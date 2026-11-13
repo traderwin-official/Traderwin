@@ -365,19 +365,24 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 </section>
 
 <section id="payments">
- <h2 class="section-title">Secure <span>M-Pesa Checkout</span></h2>
+ <h2 class="section-title">Secure <span>Payments</span></h2>
  <div class="card">
-  <p class="muted">Create your Traderwin account for free. Choose a paid service below and pay through the same secure M-Pesa business account. DEMO trading remains free; the amount is loaded from the protected service catalogue.</p>
+  <p class="muted">Choose a paid service and your preferred payment method. Pay by Kenyan M-Pesa or use Flutterwave hosted checkout for supported cards and mobile-money methods. DEMO trading remains free; the amount is calculated by Traderwin.</p>
   <div class="field">
    <label for="paymentService">Service</label>
    <select id="paymentService"><option value="">Loading services...</option></select>
   </div>
   <p class="result" id="paymentAmount">Price not loaded</p>
   <div class="field">
+   <label for="paymentMethod">Payment method</label>
+   <select id="paymentMethod"><option value="MPESA">M-Pesa (Kenya)</option><option value="FLUTTERWAVE">Flutterwave (cards / supported methods)</option></select>
+  </div>
+  <div class="field" id="paymentPhoneField">
    <label for="paymentPhone">M-Pesa phone number</label>
    <input id="paymentPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="07XXXXXXXX" required>
   </div>
   <button id="startMpesaPayment" type="button" disabled>Pay with M-Pesa</button>
+  <button id="startFlutterwavePayment" type="button" class="secondary" disabled>Continue to Flutterwave</button>
   <button id="checkMpesaPayment" type="button" class="secondary" disabled>Check payment status</button>
   <p id="mpesaPaymentMessage" class="muted" role="status" aria-live="polite">Payment services are loading.</p>
  </div>
@@ -734,6 +739,9 @@ calculateRisk();
   const paymentService=document.getElementById("paymentService");
   const paymentAmount=document.getElementById("paymentAmount");
   const paymentPhone=document.getElementById("paymentPhone");
+  const paymentMethod=document.getElementById("paymentMethod");
+  const paymentPhoneField=document.getElementById("paymentPhoneField");
+  const startFlutterwavePayment=document.getElementById("startFlutterwavePayment");
   const startPayment=document.getElementById("startMpesaPayment");
   const checkPayment=document.getElementById("checkMpesaPayment");
   const paymentMessage=document.getElementById("mpesaPaymentMessage");
@@ -805,6 +813,50 @@ calculateRisk();
    paymentMessage.textContent="Could not load the service catalogue. Please try again later.";
   }
   paymentService.addEventListener("change",renderPaymentPrice);
+  function renderPaymentMethod(){
+   const useMpesa=paymentMethod.value==="MPESA";
+   paymentPhoneField.style.display=useMpesa?"":"none";
+   startPayment.style.display=useMpesa?"":"none";
+   startFlutterwavePayment.style.display=useMpesa?"none":"";
+   startFlutterwavePayment.disabled=!selectedPaymentService();
+   if(!activePaymentOrderId) paymentMessage.textContent=useMpesa
+    ?"The final M-Pesa amount is confirmed by Traderwin before the phone prompt."
+    :"Flutterwave checkout opens on Flutterwave's secure hosted payment page. The initial integration charges in KES; your card issuer may convert it.";
+  }
+  paymentMethod.addEventListener("change",renderPaymentMethod);
+  const paymentReturn=new URLSearchParams(window.location.search);
+  if(paymentReturn.get("provider")==="flutterwave"){
+   paymentMessage.textContent=paymentReturn.get("payment")==="success"
+    ?"Flutterwave payment verified. Your service access is being activated."
+    :"Flutterwave returned to Traderwin. Payment confirmation is pending; do not pay again until status is checked.";
+   if(paymentReturn.get("payment")==="success") refreshRealSubscriptionStatus();
+   window.history.replaceState({},document.title,window.location.pathname+window.location.hash);
+  }
+  renderPaymentMethod();
+
+  startFlutterwavePayment.addEventListener("click",async()=>{
+   const service=selectedPaymentService();
+   if(!service) return;
+   startFlutterwavePayment.disabled=true;
+   paymentMessage.textContent="Creating a secure Flutterwave checkout...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/payments/flutterwave/create",{
+     method:"POST",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+     body:JSON.stringify({serviceCode:service.service_code}),
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.checkoutUrl) throw new Error(result.error||"Flutterwave checkout could not start.");
+    paymentMessage.textContent="Opening Flutterwave's secure checkout...";
+    window.location.assign(result.checkoutUrl);
+   }catch(error){
+    paymentMessage.textContent=error.message||"Flutterwave checkout failed.";
+    startFlutterwavePayment.disabled=false;
+   }
+  });
 
   startPayment.addEventListener("click",async()=>{
    const service=selectedPaymentService();
