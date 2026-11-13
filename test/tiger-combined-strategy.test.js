@@ -16,6 +16,9 @@ test("combined Tiger strategy requires agreement and exposes both analyses",()=>
   assert.ok(result.components.trendMomentumBreakout);
   assert.ok(result.components.tigerConfluence);
   assert.equal(result.agreement.required,2);
+  assert.ok(result.indicators.atr14 > 0);
+  assert.equal(result.indicators.stopLoss, null);
+  assert.equal(result.indicators.takeProfit, null);
 });
 
 test("MULTI strategy selection routes through combined Tiger consensus",()=>{
