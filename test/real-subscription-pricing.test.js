@@ -29,7 +29,7 @@ test("subscription status never treats payment as live-trading authorization", a
 
 test("unified callback activates paid service and extends early monthly renewals atomically", async () => {
   const source = await readFile(new URL("../api/payments/mpesa/bot-shop-callback.js", import.meta.url), "utf8");
-  const sql = await readFile(new URL("../supabase/migrations/202611130021_unified_mpesa_services.sql", import.meta.url), "utf8");
+  const sql = await readFile(new URL("../supabase/migrations/202611130022_unified_mpesa_services.sql", import.meta.url), "utf8");
   assert.match(source, /fulfill_traderwin_service_payment/);
   assert.ok(sql.includes("existing_end + case"));
   assert.match(sql, /next_end/);
