@@ -58,7 +58,12 @@ async function processSession(db, session) {
   let market = null;
   if (!openTrade) {
     try {
-      market = await getDerivCandles(settings.instrument, settings.timeframe || "M15");
+      const timeframe = settings.timeframe || "M15";
+      const selectedMarket = await getDerivCandles(settings.instrument, timeframe);
+      const trendMarket = (settings.strategy || "MULTI_CONFIRMATION_V1") === "TIGER_FIBONACCI_PSYCHOLOGY_V1" && timeframe !== "H1"
+        ? await getDerivCandles(settings.instrument, "H1")
+        : selectedMarket;
+      market = { ...selectedMarket, trendCandles: trendMarket.candles };
     } catch (error) {
       return { sessionId: session.id, action: "BLOCK", reason: "CANDLE_HISTORY_UNAVAILABLE", detail: safeError(error) };
     }
