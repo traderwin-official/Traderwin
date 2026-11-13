@@ -1,4 +1,4 @@
-# Unified Traderwin M-Pesa Setup
+# Unified Tiger Scheme M-Pesa Setup
 
 ## One receiving account
 
@@ -17,11 +17,11 @@ Safaricom's published mobile-banking paybill list identifies **522522 as KCB Ban
 
 ## International checkout status
 
-The current Daraja checkout accepts Kenyan M-Pesa phone numbers only. It does not provide worldwide card acceptance. Flutterwave is the leading candidate for the international checkout layer because its published Kenya payment methods include international cards and Kenya M-Pesa, subject to merchant verification and international-card activation. Its documented regional options include card payments for US/UK/EU customers. A Flutterwave integration is **not yet implemented or live**: it still needs a verified Traderwin merchant account, server-side API credentials, webhook signature/transaction verification, a payment-provider reference in the order ledger, and sandbox-to-production testing. Keep the current M-Pesa flow separate until that is completed.
+Tiger Scheme now has a Cloudflare Pages Flutterwave checkout implementation in `functions/api/payments/flutterwave/`. It is code-complete only at the current integration boundary: it still requires Cloudflare environment secrets, the Supabase migration `202611130023_flutterwave_checkout.sql`, a verified merchant account, and sandbox end-to-end testing. Do not describe it as live or production-ready. The M-Pesa member checkout and unified Daraja callback are still in the original Vercel API routes; their Cloudflare Pages Functions migration and sandbox verification remain outstanding.
 
 Regional pricing must be shown clearly before payment. Any country-based price difference must be calculated from the verified billing country supplied by the payment provider, recorded on the order, and displayed in the checkout total and currency. Do not infer a customer's region only from their IP address or silently apply a surcharge.
 
-## Single Vercel configuration
+## Current Vercel configuration (existing deployment)
 
 Configure these as server-side Vercel environment variables only:
 
@@ -66,8 +66,8 @@ USD subscription amounts are converted to KES using a fresh USD/KES quote at che
 
 ## Supabase migration
 
-After reviewing the existing schema, apply:
-`supabase/migrations/202611130021_unified_mpesa_services.sql`
+After reviewing the existing schema and confirming all prerequisite migrations are installed, the migration file in this branch is:
+`supabase/migrations/202611130022_unified_mpesa_services.sql`
 
 Do not apply it until the preceding Traderwin migrations have been reviewed and applied in order. This migration adds the unified service entitlement ledger, service payment fulfillment RPC, pricing and premium signal/AI access policy.
 
