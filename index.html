@@ -163,9 +163,9 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <div class="grid">
    <div class="field"><label for="smartInstrument">Instrument</label><input id="smartInstrument" value="XAUUSD" maxlength="24"></div>
    <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
-   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology + Support &amp; Resistance</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
+   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Tiger Combined Multi-Strategy (Automated)</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (Standalone Analysis)</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
   </div>
-  <p class="muted">The Tiger indicator checks H1 trend direction, confirmed swing Fibonacci 50% / 61.8% / 78.6%, psychological round numbers, support and resistance, order-block zones, rejection or liquidity sweep, and BOS/CHOCH structure checks. It is analysis only in both DEMO and REAL profiles.</p>
+  <p class="muted">Automated Tiger mode combines trend, momentum, breakout, H1 direction, Fibonacci 50% / 61.8% / 78.6%, psychological levels, support/resistance, order blocks, supply/demand context, liquidity sweeps, rejection candles and BOS/CHOCH. Conflicting or incomplete confirmations mean NO TRADE. This analyst is not itself a broker execution service.</p>
   <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
   <p id="smartAnalysisStatus" class="muted" role="status" aria-live="polite">Ready to analyse fresh Deriv market data.</p>
   <div id="smartAnalysisResult" class="notice" hidden></div>
