@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { getDerivCandles } from "../../lib/deriv-candles.js";
-import { analyseCandles } from "../../lib/strategy-engine.js";
+import { analyseStrategy } from "../../lib/strategy-engine.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -30,14 +30,26 @@ export default async function handler(req, res) {
     if (!/^[A-Z0-9_]{2,24}$/.test(instrument)) {
       return res.status(400).json({ error: "Choose a supported instrument." });
     }
+    const strategy = String(body.strategy || "MULTI_CONFIRMATION_V1");
+    if (!["MULTI_CONFIRMATION_V1", "TIGER_FIBONACCI_PSYCHOLOGY_V1", "MANUAL_REVIEW"].includes(strategy)) {
+      return res.status(400).json({ error: "Choose a supported strategy." });
+    }
     const market = await getDerivCandles(instrument, timeframe);
-    const result = analyseCandles(market.candles);
+    const trendMarket = strategy === "TIGER_FIBONACCI_PSYCHOLOGY_V1" && timeframe !== "H1"
+      ? await getDerivCandles(instrument, "H1")
+      : market;
+    const result = analyseStrategy(market.candles, strategy, {
+      trendCandles: trendMarket.candles,
+      instrument
+    });
     return res.status(200).json({
       ok: true,
       instrument: market.instrument,
       providerSymbol: market.providerSymbol,
       timeframe: market.timeframe,
       source: market.source,
+      strategy,
+      trendTimeframe: strategy === "TIGER_FIBONACCI_PSYCHOLOGY_V1" ? "H1" : timeframe,
       latestCandleAsOf: market.latestCandleAsOf,
       analysedAt: new Date().toISOString(),
       result,
