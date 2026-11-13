@@ -30,6 +30,10 @@ export default async function handler(req, res) {
     if (!/^[A-Z0-9_]{2,24}$/.test(instrument)) {
       return res.status(400).json({ error: "Choose a supported instrument." });
     }
+    const accountMode = String(body.accountMode || "DEMO").trim().toUpperCase();
+    if (!["DEMO", "REAL"].includes(accountMode)) {
+      return res.status(400).json({ error: "Choose DEMO or REAL analysis mode." });
+    }
     const strategy = String(body.strategy || "MULTI_CONFIRMATION_V1");
     if (!["MULTI_CONFIRMATION_V1", "TIGER_FIBONACCI_PSYCHOLOGY_V1", "MANUAL_REVIEW"].includes(strategy)) {
       return res.status(400).json({ error: "Choose a supported strategy." });
@@ -49,6 +53,7 @@ export default async function handler(req, res) {
       timeframe: market.timeframe,
       source: market.source,
       strategy,
+      accountMode,
       trendTimeframe: strategy === "TIGER_FIBONACCI_PSYCHOLOGY_V1" ? "H1" : timeframe,
       latestCandleAsOf: market.latestCandleAsOf,
       analysedAt: new Date().toISOString(),
