@@ -92,8 +92,11 @@ test("fails closed for REAL sessions, unsupported strategy and stale quotes", ()
   assert.equal(decideDemoAutoAction({ ...real, now }).reason, "SESSION_NOT_RUNNING_DEMO");
 
   const unsupported = structuredClone(base);
-  unsupported.settings.strategy = "MANUAL_REVIEW";
+  unsupported.settings.strategy = "NOT_A_REAL_STRATEGY";
   assert.equal(decideDemoAutoAction({ ...unsupported, now }).reason, "STRATEGY_NOT_VALIDATED");
+  const manual = structuredClone(base);
+  manual.settings.strategy = "MANUAL_REVIEW";
+  assert.equal(decideDemoAutoAction({ ...manual, now }).reason, "MANUAL_REVIEW_NO_AUTO");
 
   const stale = structuredClone(base);
   stale.quote.quoteAsOf = new Date(now - 60000).toISOString();
