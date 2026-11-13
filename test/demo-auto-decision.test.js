@@ -66,7 +66,7 @@ test("closes a BUY at stop loss and computes the paper P&L", () => {
   input.market = null;
   input.openTrade = {
     id: "trade-1", symbol: "XAUUSD", direction: "BUY",
-    entry_price: 120, stop_loss: 118, take_profit: 124, virtual_units: 2, status: "OPEN"
+    entry_price: 120, stop_loss: 118, take_profit: 126, tp1_price: 122, tp2_price: 124, tp3_price: 126, tp1_done: false, tp2_done: false, tp3_done: false, virtual_units: 2, status: "OPEN"
   };
   input.quote.quote = 117.9;
   const result = decideDemoAutoAction({ ...input, now });
@@ -80,7 +80,7 @@ test("marks a position while neither stop nor target has been reached", () => {
   input.market = null;
   input.openTrade = {
     id: "trade-2", symbol: "XAUUSD", direction: "SELL",
-    entry_price: 120, stop_loss: 124, take_profit: 114, virtual_units: 2, status: "OPEN"
+    entry_price: 120, stop_loss: 124, take_profit: 108, tp1_price: 116, tp2_price: 112, tp3_price: 108, tp1_done: false, tp2_done: false, tp3_done: false, virtual_units: 2, status: "OPEN"
   };
   input.quote.quote = 119;
   assert.equal(decideDemoAutoAction({ ...input, now }).action, "MARK");
@@ -109,7 +109,7 @@ test("paused session continues to manage an existing bot position but never open
   paused.market = null;
   paused.openTrade = {
     id: "paused-trade", symbol: "XAUUSD", direction: "BUY",
-    entry_price: 120, stop_loss: 118, take_profit: 124, virtual_units: 2, status: "OPEN"
+    entry_price: 120, stop_loss: 118, take_profit: 126, tp1_price: 122, tp2_price: 124, tp3_price: 126, tp1_done: false, tp2_done: false, tp3_done: false, virtual_units: 2, status: "OPEN"
   };
   paused.quote.quote = 119;
   assert.equal(decideDemoAutoAction({ ...paused, now }).action, "MARK");
@@ -126,7 +126,7 @@ test("existing DEMO BOT position remains manageable after the member changes fut
   input.market = null;
   input.openTrade = {
     id: "existing-deriv-trade", symbol: "XAUUSD", direction: "BUY",
-    entry_price: 120, stop_loss: 118, take_profit: 124, virtual_units: 2, status: "OPEN"
+    entry_price: 120, stop_loss: 118, take_profit: 126, tp1_price: 122, tp2_price: 124, tp3_price: 126, tp1_done: false, tp2_done: false, tp3_done: false, virtual_units: 2, status: "OPEN"
   };
   input.quote.instrument = "XAUUSD";
   input.quote.quote = 119;
