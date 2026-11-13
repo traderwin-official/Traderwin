@@ -110,16 +110,16 @@ async function processSession(db, session) {
   }
 
   if (decision.action === "CLOSE") {
-    const { data, error } = await db.rpc("close_demo_auto_trade", {
+    const { data, error } = await db.rpc("manage_demo_auto_trade_exit", {
       p_user_id: session.user_id,
       p_trade_id: decision.tradeId,
+      p_stage: "STOP_LOSS",
       p_exit_price: decision.exitPrice,
       p_quote_source: quote.source,
-      p_quote_as_of: quote.quoteAsOf,
-      p_close_reason: decision.reason
+      p_quote_as_of: quote.quoteAsOf
     });
-    if (error) return { sessionId: session.id, action: "ERROR", reason: "ATOMIC_CLOSE_FAILED", detail: safeError(error) };
-    return { sessionId: session.id, action: data?.closed ? "CLOSE" : "SKIP", reason: data?.close_reason || data?.reason || decision.reason, tradeId: decision.tradeId, pnl: data?.realized_pnl };
+    if (error) return { sessionId: session.id, action: "ERROR", reason: "ATOMIC_STOP_CLOSE_FAILED", detail: safeError(error) };
+    return { sessionId: session.id, action: data?.ok ? "CLOSE" : "SKIP", reason: data?.stage || data?.reason || decision.reason, tradeId: decision.tradeId, pnl: data?.realized_pnl_this_stage };
   }
 
   if (decision.action === "OPEN") {
