@@ -33,6 +33,14 @@ test("opens a virtual position only on a new confirmed BUY/SELL candle", () => {
   assert.ok(result.riskAmount <= 50.01);
 });
 
+test("Tiger Fibonacci Psychology is accepted by the DEMO decision engine", () => {
+  const input = structuredClone(base);
+  input.settings.strategy = "TIGER_FIBONACCI_PSYCHOLOGY_V1";
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.ok(["WAIT", "OPEN"].includes(result.action));
+  assert.notEqual(result.reason, "STRATEGY_NOT_VALIDATED");
+});
+
 test("does not process the same completed candle twice", () => {
   const input = structuredClone(base);
   input.session.worker_last_candle_as_of = input.market.latestCandleAsOf;
