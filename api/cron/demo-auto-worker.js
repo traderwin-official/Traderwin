@@ -24,7 +24,7 @@ async function processSession(db, session) {
     .eq("broker_account_ref", `DEMO:${session.user_id}`)
     .maybeSingle();
   const { data: openTrade, error: openError } = await db.from("demo_bot_trades")
-    .select("id,symbol,direction,entry_price,stop_loss,take_profit,virtual_units,status,trade_source")
+    .select("id,symbol,direction,entry_price,stop_loss,take_profit,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,virtual_units,status,trade_source")
     .eq("session_id", session.id)
     .eq("user_id", session.user_id)
     .eq("status", "OPEN")
@@ -92,6 +92,21 @@ async function processSession(db, session) {
     return error
       ? { sessionId: session.id, action: "ERROR", reason: "MARK_SAVE_FAILED" }
       : { sessionId: session.id, action: "MARK", tradeId: openTrade.id };
+  }
+
+  if (decision.action === "TAKE_PROFIT") {
+    const { data, error } = await db.rpc("manage_demo_auto_trade_exit", {
+      p_user_id: session.user_id,
+      p_trade_id: decision.tradeId,
+      p_stage: decision.stage,
+      p_exit_price: decision.exitPrice,
+      p_quote_source: quote.source,
+      p_quote_as_of: quote.quoteAsOf
+    });
+    if (error) return { sessionId: session.id, action: "ERROR", reason: "ATOMIC_TP_STAGE_FAILED", detail: safeError(error) };
+    return data?.ok
+      ? { sessionId: session.id, action: "TAKE_PROFIT", reason: decision.stage, tradeId: decision.tradeId, closed: data.closed, closedUnits: data.closed_units, remainingUnits: data.remaining_units, realizedPnl: data.realized_pnl_this_stage }
+      : { sessionId: session.id, action: "SKIP", reason: data?.reason || "TP_STAGE_NOT_APPLIED", tradeId: decision.tradeId };
   }
 
   if (decision.action === "CLOSE") {
