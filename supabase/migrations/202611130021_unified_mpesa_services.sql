@@ -38,7 +38,7 @@ grant all on public.service_entitlements to service_role;
 insert into public.service_catalog
  (service_code,service_name,description,price_kes,billing_period,active)
 values
- ('MEMBERSHIP','Free Traderwin Membership','Free account registration and member dashboard access.',0,'ONE_TIME',true),
+ ('MEMBERSHIP','Free Traderwin Membership','Free account registration and member dashboard access.',0,'ONE_TIME',false),
  ('ADVANCED_BOT','Advanced Trading Bot','Monthly access to Traderwin advanced bot features. DEMO access remains free.',2500,'MONTHLY',true),
  ('SIGNALS','Premium Signals & AI Analysis','Monthly access to premium reviewed signals and AI market analysis.',1000,'MONTHLY',true),
  ('EDUCATION','Trading Education','Access to a published Traderwin education course.',1500,'ONE_TIME',true)
