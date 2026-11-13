@@ -23,8 +23,10 @@ const base = {
   }
 };
 
-test("opens a virtual position only on a new confirmed BUY/SELL candle", () => {
-  const result = decideDemoAutoAction({ ...base, now });
+test("opens a virtual position when the combined strategy confirms BUY", () => {
+  const result = decideDemoAutoAction({ ...base, now, analysisFn: () => ({
+    direction: "BUY", indicators: { atr14: 1, stopLoss: null, takeProfit: null }
+  }) });
   assert.equal(result.action, "OPEN");
   assert.equal(result.direction, "BUY");
   assert.ok(result.stop < result.entry);
