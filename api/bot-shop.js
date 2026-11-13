@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { fetchUsdKesRate } from "../lib/service-pricing.js";
+import { buildCheckoutPrice, fetchUsdKesRate } from "../lib/service-pricing.js";
 
 const noStore=res=>{res.setHeader("Cache-Control","no-store");res.setHeader("Pragma","no-cache");};
 const clean=(v,n=160)=>String(v??"").trim().slice(0,n);
@@ -51,7 +51,8 @@ export default async function handler(req,res){
   if(!Number.isFinite(Number(product.price_usd))||Number(product.price_usd)<=0)return res.status(409).json({error:"This product does not have a valid USD price."});
   let fx;
   try{fx=await fetchUsdKesRate();}catch(error){return res.status(503).json({error:error.message||"A fresh USD/KES exchange rate is unavailable. No payment request was created."});}
-  const amountUsd=Number(product.price_usd),amountKes=Math.ceil(amountUsd*fx.rate);
+  const pricing=buildCheckoutPrice({service:product,priorPaidCount:0,fx});
+  const {amountUsd,amountKes}=pricing;
   if(product.broker==="MT5"&&((mt5Login&&!/^\d{4,20}$/.test(mt5Login))||(mt5Server&&mt5Server.length<2)))return res.status(400).json({error:"Check the optional MT5 account number and broker server."});
   const {data:order,error:oe}=await db.from("bot_license_orders").insert({
    product_code:product.product_code,customer_name:name,customer_email:email,customer_phone:phone,
