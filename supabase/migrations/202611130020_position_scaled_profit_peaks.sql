@@ -64,8 +64,8 @@ begin
    where jsonb_typeof(peak) <> 'object'
       or not (peak ? 'peakProfitPerUnitUsd')
       or not (peak ? 'units')
-      or (peak->>'peakProfitPerUnitUsd') !~ '^[0-9]+(\\.[0-9]+)?$'
-      or (peak->>'units') !~ '^[0-9]+(\\.[0-9]+)?$'
+      or (peak->>'peakProfitPerUnitUsd') !~ '^[0-9]+([.][0-9]+)?$'
+      or (peak->>'units') !~ '^[0-9]+([.][0-9]+)?$'
       or (peak->>'units')::numeric <= 0
  ) then
    raise exception 'Invalid per-position peak state';
