@@ -56,16 +56,21 @@ async function processSession(db, session) {
   }
 
   let market = null;
-  if (!openTrade) {
+  const strategy = settings.strategy || "MULTI_CONFIRMATION_V1";
+  if (strategy !== "MANUAL_REVIEW") {
     try {
-      const timeframe = settings.timeframe || "M15";
-      const selectedMarket = await getDerivCandles(settings.instrument, timeframe);
-      const trendMarket = (settings.strategy || "MULTI_CONFIRMATION_V1") === "TIGER_FIBONACCI_PSYCHOLOGY_V1" && timeframe !== "H1"
-        ? await getDerivCandles(settings.instrument, "H1")
+      const timeframe = String(settings.timeframe || "M15").toUpperCase();
+      const selectedMarket = await getDerivCandles(managedInstrument, timeframe);
+      const trendMarket = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "MULTI_CONFIRMATION_V1"].includes(strategy) && timeframe !== "H1"
+        ? await getDerivCandles(managedInstrument, "H1")
         : selectedMarket;
       market = { ...selectedMarket, trendCandles: trendMarket.candles };
     } catch (error) {
-      return { sessionId: session.id, action: "BLOCK", reason: "CANDLE_HISTORY_UNAVAILABLE", detail: safeError(error) };
+      // If a position is already open, still process its verified quote against
+      // broker-independent DEMO stop/target levels even when candle history fails.
+      if (!openTrade) {
+        return { sessionId: session.id, action: "BLOCK", reason: "CANDLE_HISTORY_UNAVAILABLE", detail: safeError(error) };
+      }
     }
   }
 

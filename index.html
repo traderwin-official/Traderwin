@@ -162,10 +162,10 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <p class="muted">Analyses completed Deriv OHLC candles using EMA, RSI, ATR, momentum and breakout confirmation. This is a rule-based research tool, not an AI guarantee and not an order-execution bot.</p>
   <div class="grid">
    <div class="field"><label for="smartInstrument">Instrument</label><input id="smartInstrument" value="XAUUSD" maxlength="24"></div>
-   <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
-   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology + Support &amp; Resistance</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
+   <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M1</option><option>M5</option><option>M15</option><option>H1</option><option>H4</option></select></div>
+   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Tiger Scheme AI Bot — Combined Multi-Strategy</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (Standalone Analysis)</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
   </div>
-  <p class="muted">The Tiger indicator checks H1 trend direction, confirmed swing Fibonacci 50% / 61.8% / 78.6%, psychological round numbers, support and resistance, rejection or liquidity sweep, and selected-timeframe structure. It is analysis only in both DEMO and REAL profiles.</p>
+  <p class="muted">Automated Tiger mode combines trend, momentum, breakout, H1 direction, Fibonacci 50% / 61.8% / 78.6%, psychological levels, support/resistance, heuristic order-block zones, liquidity sweeps, rejection candles and BOS/CHOCH structure. Conflicting or incomplete confirmations mean NO TRADE. This analyst is not itself a broker execution service.</p>
   <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
   <p id="smartAnalysisStatus" class="muted" role="status" aria-live="polite">Ready to analyse fresh Deriv market data.</p>
   <div id="smartAnalysisResult" class="notice" hidden></div>
@@ -221,12 +221,12 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
     </div>
     <div class="field">
      <label for="botTimeframe">Analysis timeframe</label>
-     <select id="botTimeframe"><option value="M15">M15</option><option value="M5">M5</option><option value="H1">H1</option><option value="H4">H4</option></select>
+     <select id="botTimeframe"><option value="M1">M1</option><option value="M5">M5</option><option value="M15">M15</option><option value="H1">H1</option><option value="H4">H4</option></select>
     </div>
    </div>
    <div class="field">
     <label for="botStrategy">Automated strategy</label>
-    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation (EMA + RSI + ATR + Breakout)</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (H1 trend + Fibonacci + S/R + liquidity)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
+    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Tiger Scheme AI Bot — Combined Multi-Strategy</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (H1 trend + Fibonacci + S/R + order blocks + BOS/CHOCH)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
    </div>
 
    <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
@@ -239,7 +239,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <p class="muted">Keep separate preferences for both account modes. REAL settings are saved as preferences only; live execution remains locked until broker verification, server authorization and full safety testing are complete.</p>
   <div class="grid">
    <div class="field"><label for="profileMode">Profile to edit</label><select id="profileMode"><option value="DEMO">DEMO profile</option><option value="REAL">REAL profile (locked)</option></select></div>
-   <div class="field"><label for="profileStrategy">Strategy for this mode</label><select id="profileStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
+   <div class="field"><label for="profileStrategy">Strategy for this mode</label><select id="profileStrategy"><option value="MULTI_CONFIRMATION_V1">Tiger Scheme AI Bot</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
    <div class="field"><label for="profileBroker">Broker</label><select id="profileBroker"><option>Deriv</option><option>MetaTrader 5</option><option>FxPro</option><option>Exness</option><option>Other</option></select></div>
    <div class="field"><label for="profileInstrument">Instrument</label><input id="profileInstrument" value="XAUUSD" maxlength="80"></div>
   </div>
@@ -358,26 +358,31 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <div class="grid">
   <div class="card"><h3>Free Member</h3><p class="muted">Explore the dashboard, market information and education. DEMO practice remains free.</p></div>
   <div class="card"><h3>REAL Trading Subscription</h3><p class="muted">USD 75 for the first month, then USD 175 per month. Payment is only one eligibility step; broker verification, risk checks and explicit REAL-trading authorization are still required. Payment never starts live trading automatically.</p></div>
-  <div class="card"><h3>Traderwin Course</h3><p class="muted">Education is a separate service with its own price and delivery. Course pricing will be published before checkout is enabled.</p></div>
+  <div class="card"><h3>Traderwin Course</h3><p class="muted">Education is a separately paid service, starting at KSh 1,500 per published course.</p></div>
  </div>
  <p class="muted">Renewal is manual by default. Automatic renewal will only be enabled after explicit consent and a supported recurring-payment arrangement are configured. M-Pesa checkout also requires verified merchant credentials.</p>
  <p class="status" id="realSubscriptionStatus">Checking your REAL subscription status...</p>
 </section>
 
 <section id="payments">
- <h2 class="section-title">Secure <span>M-Pesa Checkout</span></h2>
+ <h2 class="section-title">Secure <span>Payments</span></h2>
  <div class="card">
-  <p class="muted">Choose a published Traderwin service. The amount is loaded from the protected service catalogue; you cannot change it here.</p>
+  <p class="muted">Choose a paid service and your preferred payment method. Pay by Kenyan M-Pesa or use Flutterwave hosted checkout for supported cards and mobile-money methods. DEMO trading remains free; the amount is calculated by Traderwin.</p>
   <div class="field">
    <label for="paymentService">Service</label>
    <select id="paymentService"><option value="">Loading services...</option></select>
   </div>
   <p class="result" id="paymentAmount">Price not loaded</p>
   <div class="field">
+   <label for="paymentMethod">Payment method</label>
+   <select id="paymentMethod"><option value="MPESA">M-Pesa (Kenya)</option><option value="FLUTTERWAVE">Flutterwave (cards / supported methods)</option></select>
+  </div>
+  <div class="field" id="paymentPhoneField">
    <label for="paymentPhone">M-Pesa phone number</label>
    <input id="paymentPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="07XXXXXXXX" required>
   </div>
   <button id="startMpesaPayment" type="button" disabled>Pay with M-Pesa</button>
+  <button id="startFlutterwavePayment" type="button" class="secondary" disabled>Continue to Flutterwave</button>
   <button id="checkMpesaPayment" type="button" class="secondary" disabled>Check payment status</button>
   <p id="mpesaPaymentMessage" class="muted" role="status" aria-live="polite">Payment services are loading.</p>
  </div>
@@ -734,6 +739,9 @@ calculateRisk();
   const paymentService=document.getElementById("paymentService");
   const paymentAmount=document.getElementById("paymentAmount");
   const paymentPhone=document.getElementById("paymentPhone");
+  const paymentMethod=document.getElementById("paymentMethod");
+  const paymentPhoneField=document.getElementById("paymentPhoneField");
+  const startFlutterwavePayment=document.getElementById("startFlutterwavePayment");
   const startPayment=document.getElementById("startMpesaPayment");
   const checkPayment=document.getElementById("checkMpesaPayment");
   const paymentMessage=document.getElementById("mpesaPaymentMessage");
@@ -766,6 +774,7 @@ calculateRisk();
    if(!service){
     paymentAmount.textContent="Select a service";
     startPayment.disabled=true;
+    startFlutterwavePayment.disabled=true;
     return;
    }
    const usd=Number(service.price_usd);
@@ -773,12 +782,14 @@ calculateRisk();
     const renewal=Number(service.renewal_price_usd);
     paymentAmount.textContent="USD "+usd.toFixed(2)+" first purchase · USD "+(Number.isFinite(renewal)?renewal.toFixed(2):usd.toFixed(2))+" renewal. KES amount confirmed at checkout.";
     startPayment.disabled=false;
+    startFlutterwavePayment.disabled=false;
     if(!activePaymentOrderId) paymentMessage.textContent="Traderwin calculates the live KES equivalent on the server immediately before requesting your M-Pesa prompt.";
     return;
    }
    const price=Number(service.price_kes);
    paymentAmount.textContent=Number.isFinite(price)?"KES "+price.toLocaleString("en-KE"):"Price unavailable";
    startPayment.disabled=!Number.isSafeInteger(price)||price<1;
+   startFlutterwavePayment.disabled=!Number.isSafeInteger(price)||price<1;
    if(!activePaymentOrderId) paymentMessage.textContent=price<1
     ?"Pricing for this service has not been published yet."
     :"The final amount will be confirmed by Traderwin's server before the M-Pesa prompt is sent.";
@@ -805,6 +816,50 @@ calculateRisk();
    paymentMessage.textContent="Could not load the service catalogue. Please try again later.";
   }
   paymentService.addEventListener("change",renderPaymentPrice);
+  function renderPaymentMethod(){
+   const useMpesa=paymentMethod.value==="MPESA";
+   paymentPhoneField.style.display=useMpesa?"":"none";
+   startPayment.style.display=useMpesa?"":"none";
+   startFlutterwavePayment.style.display=useMpesa?"none":"";
+   startFlutterwavePayment.disabled=!selectedPaymentService();
+   if(!activePaymentOrderId) paymentMessage.textContent=useMpesa
+    ?"The final M-Pesa amount is confirmed by Traderwin before the phone prompt."
+    :"Flutterwave checkout opens on Flutterwave's secure hosted payment page. The initial integration charges in KES; your card issuer may convert it.";
+  }
+  paymentMethod.addEventListener("change",renderPaymentMethod);
+  const paymentReturn=new URLSearchParams(window.location.search);
+  if(paymentReturn.get("provider")==="flutterwave"){
+   paymentMessage.textContent=paymentReturn.get("payment")==="success"
+    ?"Flutterwave payment verified. Your service access is being activated."
+    :"Flutterwave returned to Traderwin. Payment confirmation is pending; do not pay again until status is checked.";
+   if(paymentReturn.get("payment")==="success") refreshRealSubscriptionStatus();
+   window.history.replaceState({},document.title,window.location.pathname+window.location.hash);
+  }
+  renderPaymentMethod();
+
+  startFlutterwavePayment.addEventListener("click",async()=>{
+   const service=selectedPaymentService();
+   if(!service) return;
+   startFlutterwavePayment.disabled=true;
+   paymentMessage.textContent="Creating a secure Flutterwave checkout...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/payments/flutterwave/create",{
+     method:"POST",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+     body:JSON.stringify({serviceCode:service.service_code}),
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.checkoutUrl) throw new Error(result.error||"Flutterwave checkout could not start.");
+    paymentMessage.textContent="Opening Flutterwave's secure checkout...";
+    window.location.assign(result.checkoutUrl);
+   }catch(error){
+    paymentMessage.textContent=error.message||"Flutterwave checkout failed.";
+    startFlutterwavePayment.disabled=false;
+   }
+  });
 
   startPayment.addEventListener("click",async()=>{
    const service=selectedPaymentService();
