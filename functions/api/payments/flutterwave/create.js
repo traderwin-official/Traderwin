@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { buildCheckoutPrice, fetchUsdKesRate } from "../../../lib/service-pricing.js";
+import { buildCheckoutPrice, fetchUsdKesRate } from "../../../../lib/service-pricing.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
