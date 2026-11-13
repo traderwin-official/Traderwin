@@ -3,7 +3,7 @@ import {
   verifyFlutterwaveTransaction,
   validateFlutterwavePayment,
   verifyFlutterwaveWebhookSignature
-} from "../../../lib/flutterwave.js";
+} from "../../../../lib/flutterwave.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
