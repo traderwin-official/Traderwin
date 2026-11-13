@@ -123,5 +123,32 @@ $$;
 revoke all on function public.fulfill_traderwin_service_payment(uuid,text,numeric,text) from public,anon,authenticated;
 grant execute on function public.fulfill_traderwin_service_payment(uuid,text,numeric,text) to service_role;
 
+-- Premium signals and AI-generated trade ideas require an active SIGNALS subscription.
+drop policy if exists "Anyone reads active unexpired signals" on public.trading_signals;
+drop policy if exists "Paid subscribers read active unexpired signals" on public.trading_signals;
+create policy "Paid subscribers read active unexpired signals"
+  on public.trading_signals for select to authenticated
+  using (
+    status='ACTIVE' and (expires_at is null or expires_at>now())
+    and exists (
+      select 1 from public.user_subscriptions us
+      where us.user_id=auth.uid() and us.service_code='SIGNALS'
+        and us.status='ACTIVE' and us.ends_at>now()
+    )
+  );
+
+drop policy if exists "Users read approved fresh AI ideas" on public.ai_trade_ideas;
+drop policy if exists "Paid subscribers read approved fresh AI ideas" on public.ai_trade_ideas;
+create policy "Paid subscribers read approved fresh AI ideas"
+  on public.ai_trade_ideas for select to authenticated
+  using (
+    review_status='APPROVED' and (stale_after is null or stale_after>now())
+    and exists (
+      select 1 from public.user_subscriptions us
+      where us.user_id=auth.uid() and us.service_code='SIGNALS'
+        and us.status='ACTIVE' and us.ends_at>now()
+    )
+  );
+
 comment on table public.service_entitlements is
   'One-time paid service access. Membership and DEMO remain free; monthly services are tracked in user_subscriptions.';
