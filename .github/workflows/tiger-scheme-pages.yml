@@ -32,6 +32,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Run existing test suite
         run: npm test
+      - name: Check Cloudflare Pages Functions syntax
+        run: find functions lib -type f -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Build Cloudflare Pages static site
         run: npm run build
       - name: Verify public bundle
@@ -43,6 +45,8 @@ jobs:
           test ! -d dist/api
           test ! -d dist/supabase
           test ! -d dist/lib
+          test -f functions/api/payments/flutterwave/create.js
+          test -f functions/api/payments/flutterwave/complete.js
           echo "Static Pages bundle verified."
       - name: Upload preview bundle
         uses: actions/upload-artifact@v4
