@@ -65,10 +65,10 @@ declare
   v_daily_limit numeric(14,2);
   v_locked boolean := false;
 begin
-  if p_user_id is null or p_trade_id is null
+  if p_user_id is null or p_trade_id is null or p_stage is null
      or p_stage not in ('STOP_LOSS','TP1','TP2','TP3')
      or p_exit_price is null or p_exit_price <= 0
-     or p_quote_source <> 'DERIV'
+     or p_quote_source is null or p_quote_source <> 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now()
      or p_quote_as_of < now() - interval '30 seconds' then
     raise exception 'Invalid or stale DEMO trade-exit request';
