@@ -34,7 +34,7 @@ export default async function handler(req,res){
    const emergencyBroker=String(s.broker||"").toUpperCase()==="DERIV"?"DERIV":String(s.broker||"").toUpperCase()==="MT5"?"MT5":null;
    if(!emergencyBroker)return res.status(403).json({error:"Unsupported broker for emergency control."});
    if(emergencyBroker!=="DERIV")return res.status(403).json({error:"The unattended DEMO auto worker currently supports Deriv only. MT5 setup can be saved, but cannot be started yet."});
-   if(s.strategy!=="MULTI_CONFIRMATION_V1")return res.status(409).json({error:"Select the validated Multi-Confirmation strategy before starting Smart Auto DEMO."});
+   if(!["MULTI_CONFIRMATION_V1","TIGER_FIBONACCI_PSYCHOLOGY_V1"].includes(s.strategy))return res.status(409).json({error:"Choose a validated automated strategy. Manual review cannot start auto trading."});
    if(!["M5","M15","H1","H4"].includes(String(s.timeframe||"M15").toUpperCase()))return res.status(409).json({error:"Choose M5, M15, H1 or H4 for the Smart Auto DEMO worker."});
    const {data:emergencyControl,error:emergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker",emergencyBroker).eq("broker_account_ref",`DEMO:${uid}`).maybeSingle();
    if(emergencyError)return res.status(503).json({error:"Emergency control status is unavailable. Apply the emergency-controls migration before starting the bot."});
