@@ -60,7 +60,7 @@ export default async function handler(req,res){
   if(order.status==="FULFILLED"||order.status==="PAID")return res.status(200).json({ResultCode:0,ResultDesc:"Already processed"});
   if(Number(callback.ResultCode)!==0){
    const table=botOrder?"bot_license_orders":"payment_orders";
-   await db.from(table).update({status:"FAILED"}).eq("id",order.id).in("status",["PENDING","PENDING_PAYMENT","PAYMENT_PROCESSING","PAYMENT_REVIEW"]);
+   await db.from(table).update({status:botOrder?"PAYMENT_FAILED":"FAILED"}).eq("id",order.id).in("status",["PENDING","PENDING_PAYMENT","PAYMENT_PROCESSING","PAYMENT_REVIEW"]);
    return res.status(200).json({ResultCode:0,ResultDesc:"Failed payment recorded"});
   }
   const meta=metadataItems(callback),amount=Number(meta.Amount),receipt=String(meta.MpesaReceiptNumber||"").trim();
