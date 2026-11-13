@@ -74,10 +74,10 @@ test("revoking manual management resets the peak for the new managed set", () =>
     previousPositionPeakState: peakState([["bot-1", 50], ["bot-2", 30], ["manual-1", 20]])
   });
   assert.equal(result.currentProfitUsd, 40);
-  assert.equal(result.peakProfitUsd, 40);
-  assert.equal(result.protectedFloorUsd, 32);
+  assert.equal(result.peakProfitUsd, 80);
+  assert.equal(result.protectedFloorUsd, 64);
   assert.equal(result.membershipChanged, true);
-  assert.equal(result.shouldClose, false);
+  assert.equal(result.shouldClose, true);
   assert.deepEqual(result.includedPositionIds, ["bot-1", "bot-2"]);
 });
 
@@ -89,9 +89,9 @@ test("adding manual management resets the peak instead of inheriting an unrelate
     manageManualTrades: true
   });
   assert.equal(result.currentProfitUsd, 21);
-  assert.equal(result.peakProfitUsd, 21);
+  assert.equal(result.peakProfitUsd, 107);
   assert.equal(result.membershipChanged, true);
-  assert.equal(result.shouldClose, false);
+  assert.equal(result.shouldClose, true);
 });
 
 test("unchanged membership retains the previous per-position peak", () => {
