@@ -1008,9 +1008,10 @@ calculateRisk();
      : await client.from("bot_mode_profiles").insert({user_id:auth.user.id,account_mode:profileMode.value,...profileValues});
     if(result.error)throw result.error;
     if(profileMode.value==="DEMO"){
-     const {error:botSettingsError}=await client.from("bot_settings").update({
-      broker:profileBroker.value,instrument,strategy:profileStrategy.value,account_mode:"DEMO"
-     }).eq("user_id",auth.user.id);
+     const {error:botSettingsError}=await client.from("bot_settings").upsert({
+      user_id:auth.user.id,broker:profileBroker.value,instrument,strategy:profileStrategy.value,
+      account_mode:"DEMO",max_risk_per_trade_pct:risk
+     },{onConflict:"user_id"});
      if(botSettingsError)throw botSettingsError;
     }
     profileMessage.textContent=profileMode.value+" profile saved with "+profileStrategy.selectedOptions[0].text+". "+(profileMode.value==="REAL"?"Live execution is still locked; this saves preferences only.":"The DEMO bot setting now uses this strategy, subject to existing safety controls.");
