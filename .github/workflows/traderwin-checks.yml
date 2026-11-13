@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main, upgrade/full-platform-build]
   push:
-    branches: [main, upgrade/full-platform-build, feature/unified-mpesa-services]
+    branches: [main, upgrade/full-platform-build]
 permissions:
   contents: read
 jobs:
