@@ -499,7 +499,7 @@ smartButton.addEventListener("click",async()=>{
   if(!response.ok) throw new Error(result.error||"Market analysis failed.");
   const r=result.result,ind=r.indicators||{};
   const fmt=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):"Unavailable";
-  const sr="Support: "+fmt(ind.support?.price)+" ("+(ind.support?.strength||"n/a")+") · Resistance: "+fmt(ind.resistance?.price)+" ("+(ind.resistance?.strength||"n/a")+")";
+  const sr="Support: "+fmt(ind.support?.price)+" ("+(ind.support?.strength||"n/a")+") · Resistance: "+fmt(ind.resistance?.price)+" ("+(ind.resistance?.strength||"n/a")+")"+(typeof ind.nearSupport==="boolean"?" · Near support: "+(ind.nearSupport?"YES":"NO")+" · Near resistance: "+(ind.nearResistance?"YES":"NO")+" · S/R confluence: "+(ind.supportResistanceConfluence?"YES":"NO"):"");
   const fib=ind.fibonacci? " · Fib 50% "+fmt(ind.fibonacci["50"])+", 61.8% "+fmt(ind.fibonacci["61.8"])+", 78.6% "+fmt(ind.fibonacci["78.6"]):"";
   const extra=r.strategy==="TIGER_FIBONACCI_PSYCHOLOGY_V1"
    ?" · H1 trend "+(ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+" · SL "+fmt(ind.stopLoss)+" · TP "+fmt(ind.takeProfit)+fib
