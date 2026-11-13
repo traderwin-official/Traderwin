@@ -51,5 +51,5 @@ The endpoint checks the webhook `verif-hash`, then independently calls Flutterwa
 
 - Checkout amount is KES only. A card issuer may convert for an overseas cardholder; the customer must see the KES total before paying.
 - No recurring automatic card charge is configured; subscription renewals remain manual.
-- The payment button is not yet connected to the website UI.
+- The website now offers M-Pesa and Flutterwave as selectable payment methods. The Flutterwave button calls the authenticated server route and redirects to hosted checkout.
 - No merchant KYC, credentials, Supabase migration, sandbox payment, or live payment has been completed by this code change.
