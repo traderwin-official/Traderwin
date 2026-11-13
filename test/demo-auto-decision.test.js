@@ -29,6 +29,7 @@ test("opens a virtual position only on a new confirmed BUY/SELL candle", () => {
   assert.equal(result.direction, "BUY");
   assert.ok(result.stop < result.entry);
   assert.ok(result.target > result.entry);
+  assert.ok(Math.abs((result.target - result.entry) - 3 * (result.entry - result.stop)) < 1e-9);
   assert.ok(result.units > 0);
   assert.ok(result.riskAmount <= 50.01);
 });
