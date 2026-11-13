@@ -60,7 +60,7 @@ async function processSession(db, session) {
     try {
       const timeframe = settings.timeframe || "M15";
       const selectedMarket = await getDerivCandles(settings.instrument, timeframe);
-      const trendMarket = (settings.strategy || "MULTI_CONFIRMATION_V1") === "TIGER_FIBONACCI_PSYCHOLOGY_V1" && timeframe !== "H1"
+      const trendMarket = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "MULTI_CONFIRMATION_V1"].includes(settings.strategy || "MULTI_CONFIRMATION_V1") && timeframe !== "H1"
         ? await getDerivCandles(settings.instrument, "H1")
         : selectedMarket;
       market = { ...selectedMarket, trendCandles: trendMarket.candles };
