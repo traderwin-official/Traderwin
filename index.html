@@ -4,8 +4,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRADERWIN | Trade Smarter</title>
-<meta name="description" content="Traderwin trading dashboard, market analysis, risk management and trading education.">
+<title>YOUNG TIGER FX | AI Trading Technology</title>
+<meta name="keywords" content="Young Tiger FX, Tiger AI, forex analysis, automated trading tools, trading education, risk management">
+<meta name="description" content="Young Tiger FX — AI-assisted market analysis, trading education, automated strategy tools and risk management.">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://s3.tradingview.com/tv.js"></script>
@@ -73,7 +74,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 <div class="hero">
  <div class="tag">YOUR TRADING JOURNEY STARTS HERE</div>
  <h1>TRADE SMARTER.<br><span>WIN WITH STRATEGY.</span></h1>
- <p>Explore financial markets, study price movements, manage risk and practise your trading strategies with Traderwin.</p>
+ <p>Explore financial markets, study price movements, manage risk and practise your trading strategies with Young Tiger FX.</p>
  <a href="#markets"><button>Explore Markets</button></a>
  <a href="#analysis"><button class="secondary">Open Dashboard</button></a>
 </div>
@@ -148,10 +149,10 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <h2 class="section-title">Meet <span>Tiger AI</span></h2>
  <div class="tiger-hero">
   <div>
-   <span class="tiger-chip">THE SIGNATURE INTELLIGENCE SYSTEM OF TRADERWIN</span>
+   <span class="tiger-chip">THE SIGNATURE INTELLIGENCE SYSTEM OF YOUNG TIGER FX</span>
    <h2 style="font-size:clamp(30px,5vw,46px);margin:16px 0 10px">TIGER AI</h2>
    <p style="font-size:18px;color:#f4d58b;font-weight:bold">The Intelligence Behind Every Move.</p>
-   <p class="muted">A planned AI-powered suite inside Traderwin for market research, trade planning, automated strategy testing and disciplined risk management.</p>
+   <p class="muted">A planned AI-powered suite inside Young Tiger FX for market research, trade planning, automated strategy testing and disciplined risk management.</p>
    <a href="#bots"><button>Explore Bot Centre</button></a>
   </div>
   <div class="tiger-mark" aria-label="Tiger AI mascot">🐅</div>
@@ -166,7 +167,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 </section>
 
 <section id="bots">
- <h2 class="section-title">Traderwin <span>Automation Centre</span></h2>
+ <h2 class="section-title">Young Tiger FX <span>Automation Centre</span></h2>
 
  <div class="notice" id="botModeSafetyNotice">
   Your selected account mode is being checked. Saving bot preferences does not connect to a broker or place trades. Automation remains OFF until a separate, tested broker integration is authorized.
@@ -279,7 +280,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 </section>
 
 <section id="academy">
- <h2 class="section-title">Traderwin <span>Academy</span></h2>
+ <h2 class="section-title">Young Tiger FX <span>Academy</span></h2>
  <div class="grid">
   <div class="card"><h3>Forex Basics</h3><p class="muted">Learn currency pairs, pips, spreads, leverage and market sessions.</p></div>
   <div class="card"><h3>Gold Trading</h3><p class="muted">Study XAUUSD, volatility, technical analysis and risk management.</p></div>
@@ -289,19 +290,19 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 </section>
 
 <section id="membership">
- <h2 class="section-title">Traderwin <span>Membership</span></h2>
+ <h2 class="section-title">Young Tiger FX <span>Membership</span></h2>
  <div class="grid">
   <div class="card"><h3>Free Member</h3><p class="muted">Explore the public dashboard and educational resources.</p></div>
   <div class="card"><h3>Premium Member</h3><p class="muted">Premium education, advanced tools and other services can be introduced after secure membership and payment integration.</p></div>
-  <div class="card"><h3>Traderwin Course</h3><p class="muted">A planned learning programme for beginner traders. Course purchasing and delivery are not yet connected.</p></div>
+  <div class="card"><h3>Young Tiger FX Course</h3><p class="muted">A planned learning programme for beginner traders. Course purchasing and delivery are not yet connected.</p></div>
  </div>
  <p class="muted">No payments are collected by this page at present. M-Pesa integration must be completed securely before accepting payments.</p>
 </section>
 
 <section id="about">
- <h2 class="section-title">About <span>Traderwin</span></h2>
+ <h2 class="section-title">About <span>Young Tiger FX</span></h2>
  <div class="card">
-  <p>Traderwin is designed to bring market information, trading education, risk management and future trading integrations into one platform.</p>
+  <p>Young Tiger FX is designed to bring market information, trading education, risk management and future trading integrations into one platform.</p>
   <p class="muted">Trading involves risk. You may lose some or all of your invested capital. This website provides educational information and is not financial advice.</p>
  </div>
 </section>
@@ -311,7 +312,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 <footer>
  <div class="logo">TRADER<span>WIN</span></div>
  <p>Trade with knowledge. Manage risk. Stay disciplined.</p>
- <p>© <span id="year"></span> Traderwin. All rights reserved.</p>
+ <p>© <span id="year"></span> Young Tiger FX. All rights reserved.</p>
  <p>Trading involves substantial risk. No profits are guaranteed.</p>
 </footer>
 
@@ -460,7 +461,7 @@ calculateRisk();
    .maybeSingle();
 
   if(profileError){
-   throw new Error("Traderwin account settings are not ready. Apply the core upgrade SQL migration in Supabase. "+profileError.message);
+   throw new Error("Young Tiger FX account settings are not ready. Apply the core upgrade SQL migration in Supabase. "+profileError.message);
   }
   if(!profile){
    window.location.replace("/onboarding.html");
@@ -620,9 +621,9 @@ calculateRisk();
   document.body.appendChild(logout);
 
  }catch(error){
-  console.error("Traderwin authentication error:",error);
+  console.error("Young Tiger FX authentication error:",error);
   document.body.style.visibility="visible";
-  document.body.innerHTML="<main><div class='card'><h2>Traderwin setup needs attention</h2><p id='setupError'></p><a href='/auth.html'>Return to login</a></div></main>";
+  document.body.innerHTML="<main><div class='card'><h2>Young Tiger FX setup needs attention</h2><p id='setupError'></p><a href='/auth.html'>Return to login</a></div></main>";
   const setupError=document.getElementById("setupError");
   if(setupError) setupError.textContent=error.message||"Please check your connection and try again.";
  }

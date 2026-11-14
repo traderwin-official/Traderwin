@@ -1,6 +1,6 @@
-# Traderwin core upgrade
+# Young Tiger FX core upgrade
 
-This branch is isolated from the live `main` branch.
+This document describes the existing main-branch foundation; verify deployment state before applying database changes.
 
 ## Verified current baseline
 - Supabase email/password authentication exists.
