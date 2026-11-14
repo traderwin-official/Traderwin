@@ -486,7 +486,7 @@ calculateRisk();
   // Surface the OAuth callback result instead of silently returning to the dashboard.
   const derivResult = new URLSearchParams(window.location.search).get("deriv");
   if (derivResult === "connected") {
-   derivStatus.textContent = "Deriv authorization completed. Broker account details were verified and saved.";
+   derivStatus.textContent = "Deriv authorization completed and the secure connection was saved. Account listing remains pending because the trade permission is disabled.";
    connectButton.textContent = "Deriv Authorized";
    connectButton.disabled = true;
   } else if (derivResult === "error") {
