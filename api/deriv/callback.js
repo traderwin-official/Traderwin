@@ -128,28 +128,12 @@ export default async function handler(req, res) {
       return finish("error");
     }
 
-    // Verify the delegated token against Deriv before reporting a connection.
-    const accountsResponse = await fetch(
-      "https://api.derivws.com/trading/v1/options/accounts",
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-          Accept: "application/json"
-        }
-      }
-    );
-    const accountsPayload = await accountsResponse.json().catch(() => ({}));
-    if (!accountsResponse.ok) {
-      console.error("Deriv account verification failed:", accountsResponse.status);
-      return finish("error");
-    }
-
-    const accounts = safeAccounts(accountsPayload);
-    if (accounts.length === 0) {
-      console.error("Deriv returned no verifiable Options accounts.");
-      return finish("error");
-    }
+    // This phase intentionally requests account_manage only.
+    // Listing existing Options accounts uses GET /options/accounts and requires
+    // the separate trade scope, so do not call it while trade is disabled.
+    // Persist the securely encrypted OAuth token and mark account discovery
+    // as pending until the user explicitly enables the required read/trading scope.
+    const accounts = [];
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false }
