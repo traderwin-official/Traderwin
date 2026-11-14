@@ -33,13 +33,13 @@ jobs:
       - name: Run test suite
         run: npm test
 
-      - name: Check Pages Functions syntax
-        run: find functions lib -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Check Pages Functions and rate limiter worker syntax
+        run: find functions lib workers/mpesa-rate-limiter -type f -name '*.js' -print0 | xargs -0 -n1 node --check
 
       - name: Build public site
         run: npm run build
 
-      - name: Verify public bundle
+      - name: Verify public bundle and M-Pesa routes
         run: |
           test -f dist/index.html
           test -f dist/auth.html
@@ -48,11 +48,15 @@ jobs:
           test ! -d dist/api
           test ! -d dist/supabase
           test ! -d dist/lib
+          test -f functions/api/payments/mpesa/stk-push.js
+          test -f functions/api/payments/mpesa/bot-shop-callback.js
+          test -f functions/api/bot-shop.js
+          test -f workers/mpesa-rate-limiter/index.js
 
       - name: Verify Cloudflare credentials are configured
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add CLOUDFLARE_API_TOKEN to the tiger-scheme-preview GitHub environment."; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Add CLOUDFLARE_ACCOUNT_ID to the tiger-scheme-preview GitHub environment."; exit 1; }
@@ -60,6 +64,6 @@ jobs:
       - name: Deploy preview to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=tiger-scheme --branch=feature/tiger-scheme-cloudflare
