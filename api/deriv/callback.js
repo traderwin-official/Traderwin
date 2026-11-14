@@ -168,7 +168,7 @@ export default async function handler(req, res) {
         encrypted_access_token: encryptToken(tokenData.access_token),
         token_expires_at: tokenExpiresAt,
         token_type: typeof tokenData.token_type === "string" ? tokenData.token_type : "Bearer",
-        requested_scopes: ["trade", "account_manage"],
+        requested_scopes: ["account_manage"],
         accounts,
         connected_at: now.toISOString(),
         updated_at: now.toISOString()
