@@ -95,7 +95,15 @@ export async function onRequestPost({ request, env }) {
     }
 
     const order = botOrder || serviceOrder;
-    if (!order) return json({ ResultCode: 0, ResultDesc: "Unknown checkout acknowledged" });
+    if (!order) {
+      // Daraja may call back before the checkout reference update is committed.
+      // Ask it to retry rather than silently acknowledging an order we cannot yet match.
+      return json(
+        { ResultCode: 1, ResultDesc: "Checkout reference is not available yet; retry later" },
+        503,
+        { "Retry-After": "5" }
+      );
+    }
     if (order.status === "FULFILLED" || order.status === "PAID") {
       return json({ ResultCode: 0, ResultDesc: "Already processed" });
     }

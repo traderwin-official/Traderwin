@@ -35,8 +35,9 @@ export async function onRequestPost({ request, env }) {
   let callbackUrl;
   try { callbackUrl = new URL(env.DARAJA_CALLBACK_URL); }
   catch { return json({ error: "A secure HTTPS M-Pesa callback URL is required." }, 503); }
-  if (callbackUrl.protocol !== "https:") {
-    return json({ error: "A secure HTTPS M-Pesa callback URL is required." }, 503);
+  if (callbackUrl.protocol !== "https:" ||
+      callbackUrl.pathname !== "/api/payments/mpesa/bot-shop-callback") {
+    return json({ error: "The secure M-Pesa callback URL must point to the Tiger Scheme unified callback." }, 503);
   }
 
   const accessToken = bearerToken(request);
