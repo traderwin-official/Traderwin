@@ -32,3 +32,10 @@ This document describes the existing main-branch foundation; verify deployment s
 
 ## Safety
 Selecting REAL is a preference and risk acknowledgement only. It does not connect a broker, activate a bot or place an order. Live execution remains disabled until a trusted server-side approval and safety workflow is implemented and tested.
+
+
+## 2026-11-14 follow-up
+- Corrected remaining legacy Traderwin logo text in the public dashboard to Young Tiger FX.
+- Deriv OAuth now requests the documented `trade` and `account_manage` scopes. The Deriv OAuth app must have both scopes enabled or authorization will fail with `invalid_scope`.
+- Added an idempotent database foundation migration for the previously identified platform tables. It creates missing tables without dropping or replacing existing user data; it does not automatically reconcile unknown pre-existing columns.
+- This is not a claim that broker execution is production-ready. The current repository still lacks a completed Deriv account selection/OTP/WebSocket order lifecycle, MT5 bridge, persistent bot worker, and verified payment processing.

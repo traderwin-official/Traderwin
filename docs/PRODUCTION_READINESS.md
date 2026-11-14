@@ -44,3 +44,10 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 
 ## Current release decision
 **Not approved for live automated trading.** Keep all bots OFF by default and demo-only until the above controls and broker-specific approvals are implemented and independently tested. Marketing must not claim guaranteed profits, universal broker compatibility, regulatory approval or completed AI execution.
+
+
+## 2026-11-14 implementation update
+- Public dashboard header/footer legacy logo text corrected to Young Tiger FX.
+- Deriv OAuth request now asks for `trade account_manage` scopes. The registered Deriv OAuth application must permit these scopes.
+- Added migration `202611140001_platform_foundation.sql` for missing platform data structures using `CREATE TABLE IF NOT EXISTS`, indexes and row-level security. Existing tables are not dropped or overwritten.
+- Live execution remains blocked. This update does not create a working bot worker, Deriv OTP/WebSocket order lifecycle, MT5 bridge, or verified payment settlement.
