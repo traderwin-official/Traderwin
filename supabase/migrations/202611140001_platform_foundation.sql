@@ -268,3 +268,15 @@ comment on table public.demo_bot_trades is
   'Virtual paper trades only. Never represents broker-executed orders.';
 comment on table public.portfolio_profit_protection_state is
   'Per-broker-account and per-mode trailing giveback state; manual trade monitoring is opt-in.';
+
+
+-- Explicit table privileges; RLS policies above still restrict each row.
+grant select on public.market_instruments to anon, authenticated;
+grant select on public.ai_trade_ideas to authenticated;
+grant select on public.bot_activity, public.demo_bot_sessions, public.demo_bot_trades to authenticated;
+grant select, insert, update, delete on public.bot_mode_profiles to authenticated;
+grant select on public.real_execution_authorizations, public.portfolio_profit_protection_state to authenticated;
+grant select on public.bot_products to anon, authenticated;
+grant select on public.payment_orders, public.user_subscriptions, public.course_enrolments to authenticated;
+grant select on public.bot_license_orders, public.bot_licenses to authenticated;
+revoke all on public.bot_license_delivery_outbox from anon, authenticated;
