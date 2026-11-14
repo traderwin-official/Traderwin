@@ -1,0 +1,69 @@
+name: Tiger Scheme Cloudflare Pages build
+
+on:
+  pull_request:
+    branches:
+      - upgrade/full-platform-build
+    paths:
+      - "**.html"
+      - "functions/**"
+      - "lib/**"
+      - "workers/**"
+      - "test/**"
+      - "scripts/**"
+      - "docs/UNIFIED_MPESA_SETUP.md"
+      - "docs/CLOUDFLARE_ORACLE_MIGRATION.md"
+      - "package.json"
+      - "wrangler.toml"
+      - ".github/workflows/tiger-scheme-pages.yml"
+  push:
+    branches:
+      - feature/tiger-scheme-cloudflare
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run existing test suite
+        run: npm test
+      - name: Check Cloudflare Functions and worker syntax
+        run: find functions lib workers/mpesa-rate-limiter -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Build Cloudflare Pages static site
+        run: npm run build
+      - name: Verify public bundle and server routes
+        run: |
+          test -f dist/index.html
+          test -f dist/auth.html
+          test -f dist/onboarding.html
+          test -f dist/bot-shop.html
+          test ! -d dist/api
+          test ! -d dist/supabase
+          test ! -d dist/lib
+          test -f functions/api/payments/flutterwave/create.js
+          test -f functions/api/payments/flutterwave/complete.js
+          test -f functions/api/payments/mpesa/stk-push.js
+          test -f functions/api/payments/mpesa/status.js
+          test -f functions/api/payments/mpesa/bot-shop-callback.js
+          test -f functions/api/bot-shop.js
+          test -f functions/api/bot-shop-status.js
+          test -f workers/mpesa-rate-limiter/index.js
+          test -f workers/mpesa-rate-limiter/wrangler.toml
+          echo "Tiger Scheme static bundle and staged server routes verified."
+      - name: Upload preview bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiger-scheme-pages-dist
+          path: dist/
+          if-no-files-found: error

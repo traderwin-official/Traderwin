@@ -3,10 +3,10 @@ import { normalizeKenyanPhone, darajaBaseUrl, createNairobiTimestamp, buildStkPa
 import { buildCheckoutPrice, fetchUsdKesRate } from "../../../lib/service-pricing.js";
 
 async function getAccessToken() {
-  const { MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET } = process.env;
-  if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET) throw new Error("M-Pesa credentials are not configured.");
+  const { DARAJA_CONSUMER_KEY, DARAJA_CONSUMER_SECRET } = process.env;
+  if (!DARAJA_CONSUMER_KEY || !DARAJA_CONSUMER_SECRET) throw new Error("M-Pesa credentials are not configured.");
   const response = await fetch(darajaBaseUrl() + "/oauth/v1/generate?grant_type=client_credentials", {
-    headers: { Authorization: "Basic " + Buffer.from(MPESA_CONSUMER_KEY + ":" + MPESA_CONSUMER_SECRET).toString("base64") },
+    headers: { Authorization: "Basic " + Buffer.from(DARAJA_CONSUMER_KEY + ":" + DARAJA_CONSUMER_SECRET).toString("base64") },
     signal: AbortSignal.timeout(12000)
   });
   const data = await response.json().catch(() => ({}));
@@ -16,11 +16,11 @@ async function getAccessToken() {
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "Method not allowed." }); }
-  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MPESA_SHORTCODE, MPESA_PASSKEY, MPESA_CALLBACK_URL } = process.env;
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !MPESA_SHORTCODE || !MPESA_PASSKEY || !MPESA_CALLBACK_URL) {
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DARAJA_SHORTCODE, DARAJA_PASSKEY, DARAJA_CALLBACK_URL } = process.env;
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !DARAJA_SHORTCODE || !DARAJA_PASSKEY || !DARAJA_CALLBACK_URL) {
     return res.status(503).json({ error: "M-Pesa checkout is not configured yet." });
   }
-  if (!MPESA_CALLBACK_URL.startsWith("https://")) return res.status(503).json({ error: "A secure HTTPS M-Pesa callback URL is required." });
+  if (!DARAJA_CALLBACK_URL.startsWith("https://")) return res.status(503).json({ error: "A secure HTTPS M-Pesa callback URL is required." });
   const authHeader = req.headers.authorization || "";
   if (!authHeader.startsWith("Bearer ")) return res.status(401).json({ error: "Sign in is required." });
   try {
@@ -65,16 +65,16 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: "Could not create the payment order." });
     }
     const timestamp = createNairobiTimestamp();
-    const password = buildStkPassword(MPESA_SHORTCODE, MPESA_PASSKEY, timestamp);
+    const password = buildStkPassword(DARAJA_SHORTCODE, DARAJA_PASSKEY, timestamp);
     const token = await getAccessToken();
     const stkResponse = await fetch(darajaBaseUrl() + "/mpesa/stkpush/v1/processrequest", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
       body: JSON.stringify({
-        BusinessShortCode: MPESA_SHORTCODE, Password: password, Timestamp: timestamp,
-        TransactionType: process.env.MPESA_TRANSACTION_TYPE || "CustomerPayBillOnline",
-        Amount: amount, PartyA: phone, PartyB: MPESA_SHORTCODE, PhoneNumber: phone,
-        CallBackURL: MPESA_CALLBACK_URL, AccountReference: "Traderwin",
+        BusinessShortCode: DARAJA_SHORTCODE, Password: password, Timestamp: timestamp,
+        TransactionType: process.env.DARAJA_TRANSACTION_TYPE || "CustomerPayBillOnline",
+        Amount: amount, PartyA: phone, PartyB: DARAJA_SHORTCODE, PhoneNumber: phone,
+        CallBackURL: DARAJA_CALLBACK_URL, AccountReference: "TW"+order.id.replace(/-/g,"").slice(0,10).toUpperCase(),
         TransactionDesc: service.service_name.slice(0, 50)
       }),
       signal: AbortSignal.timeout(20000)
