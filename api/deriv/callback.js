@@ -56,6 +56,7 @@ export default async function handler(req, res) {
     return res.redirect(303, "/?deriv=" + status);
   };
 
+  let stage = "configuration";
   try {
     if (
       !DERIV_CLIENT_ID ||
@@ -69,8 +70,13 @@ export default async function handler(req, res) {
       return finish("error");
     }
 
-    if (!match) return finish("error");
+    stage = "cookie";
+    if (!match) {
+      console.error("Deriv callback failed: OAuth cookie missing.");
+      return finish("error");
+    }
 
+    stage = "cookie_validation";
     const cookieValue = decodeURIComponent(match[1]);
     const separator = cookieValue.lastIndexOf(".");
     if (separator === -1) return finish("error");
@@ -88,6 +94,7 @@ export default async function handler(req, res) {
       !crypto.timingSafeEqual(received, expected)
     ) return finish("error");
 
+    stage = "session_validation";
     const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     if (
       !session.userId ||
@@ -97,6 +104,7 @@ export default async function handler(req, res) {
       session.expires < Date.now()
     ) return finish("error");
 
+    stage = "callback_parameters";
     const { code, state, error } = req.query;
     if (error) return finish("cancelled");
     if (
@@ -105,6 +113,7 @@ export default async function handler(req, res) {
       state !== session.state
     ) return finish("error");
 
+    stage = "deriv_token_exchange";
     const tokenResponse = await fetch("https://auth.deriv.com/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -124,7 +133,7 @@ export default async function handler(req, res) {
       !Number.isFinite(Number(tokenData.expires_in)) ||
       Number(tokenData.expires_in) <= 0
     ) {
-      console.error("Deriv token exchange failed or omitted expiry.");
+      console.error("Deriv token exchange failed:", { http_status: tokenResponse.status, error: tokenData.error || null, error_description: tokenData.error_description || null, has_access_token: typeof tokenData.access_token === "string", has_expiry: Number.isFinite(Number(tokenData.expires_in)) });
       return finish("error");
     }
 
@@ -135,6 +144,7 @@ export default async function handler(req, res) {
     // as pending until the user explicitly enables the required read/trading scope.
     const accounts = [];
 
+    stage = "supabase_save";
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false }
     });
@@ -159,13 +169,13 @@ export default async function handler(req, res) {
       }, { onConflict: "user_id" });
 
     if (saveError) {
-      console.error("Deriv connection save failed:", saveError.code || "database_error");
+      console.error("Deriv connection save failed:", { code: saveError.code || null, message: saveError.message || null, details: saveError.details || null, hint: saveError.hint || null });
       return finish("error");
     }
 
     return finish("connected");
   } catch (error) {
-    console.error("Deriv callback processing failed:", error.message);
+    console.error("Deriv callback processing failed:", { stage, name: error?.name || null, message: error?.message || "unknown_error" });
     return finish("error");
   }
 }
