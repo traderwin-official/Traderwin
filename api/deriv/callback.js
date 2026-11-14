@@ -41,7 +41,7 @@ export default async function handler(req, res) {
   } = process.env;
 
   const cookie = req.headers.cookie || "";
-  const match = cookie.match(/(?:^|;\\s*)deriv_oauth=([^;]+)/);
+  const match = cookie.match(/(?:^|;\s*)deriv_oauth=([^;]+)/);
 
   const clearCookie = () => {
     res.setHeader(
