@@ -20,6 +20,7 @@ header{background:#101a29;border-bottom:1px solid #26364b;padding:16px 5%;displa
 nav{display:flex;gap:15px;flex-wrap:wrap}
 nav a{color:#dbe3ef;text-decoration:none;font-size:13px}
 nav a:hover{color:var(--gold)}
+.tiger-hero{background:radial-gradient(circle at 20% 35%,#49300b 0,#172238 38%,#090f1b 78%);border:1px solid #77571e;border-radius:18px;padding:24px;display:grid;grid-template-columns: minmax(0,1.15fr) minmax(220px,.85fr);gap:20px;align-items:center;overflow:hidden}.tiger-mark{font-size:clamp(90px,18vw,170px);text-align:center;filter:drop-shadow(0 0 22px #f5bd45)}.tiger-chip{display:inline-block;border:1px solid #8b6826;color:#ffd46b;background:#261d10;border-radius:30px;padding:7px 12px;font-size:12px;font-weight:bold}.tiger-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:14px}.tiger-card{background:linear-gradient(145deg,#182337,#101722);border:1px solid #5b4825;border-radius:12px;padding:16px}.tiger-card .symbol{font-size:25px}.tiger-card h3{color:#ffd36a}.tiger-status{color:#ffd36a;font-size:12px;font-weight:bold}@media(max-width:650px){.tiger-hero{grid-template-columns:1fr}.tiger-mark{font-size:100px}}
 .hero{padding:55px 6%;background:linear-gradient(120deg,#101b2d,#17243a)}
 .hero h1{font-size:clamp(30px,6vw,48px);margin:0 0 12px}
 .hero h1 span{color:var(--gold)}
@@ -62,6 +63,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <nav>
   <a href="#markets">Markets</a>
   <a href="#analysis">Analysis</a>
+  <a href="#tiger-ai">Tiger AI</a>
   <a href="#bots">Bots</a>
   <a href="#risk">Risk</a>
   <a href="#academy">Academy</a>
@@ -139,6 +141,28 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <button onclick="analyseLevels()">Analyse Levels</button>
   <p id="levelResult" class="muted"></p>
  </div>
+</section>
+
+
+<section id="tiger-ai">
+ <h2 class="section-title">Meet <span>Tiger AI</span></h2>
+ <div class="tiger-hero">
+  <div>
+   <span class="tiger-chip">THE SIGNATURE INTELLIGENCE SYSTEM OF TRADERWIN</span>
+   <h2 style="font-size:clamp(30px,5vw,46px);margin:16px 0 10px">TIGER AI</h2>
+   <p style="font-size:18px;color:#f4d58b;font-weight:bold">The Intelligence Behind Every Move.</p>
+   <p class="muted">A planned AI-powered suite inside Traderwin for market research, trade planning, automated strategy testing and disciplined risk management.</p>
+   <a href="#bots"><button>Explore Bot Centre</button></a>
+  </div>
+  <div class="tiger-mark" aria-label="Tiger AI mascot">🐅</div>
+ </div>
+ <div class="tiger-grid">
+  <div class="tiger-card"><div class="symbol">🤖</div><h3>Tiger Bot</h3><p class="muted">A future automated trading assistant for supported broker connections, starting with controlled demo testing.</p><span class="tiger-status">IN DEVELOPMENT</span></div>
+  <div class="tiger-card"><div class="symbol">🧠</div><h3>Tiger Analyst</h3><p class="muted">Market analysis and trade ideas with clear reasoning, entry zones, invalidation and risk context when verified data is connected.</p><span class="tiger-status">PLANNED</span></div>
+  <div class="tiger-card"><div class="symbol">🛡️</div><h3>Tiger Guard</h3><p class="muted">Risk limits, loss controls and portfolio profit-protection rules designed to help traders manage exposure.</p><span class="tiger-status">SAFETY DESIGN</span></div>
+  <div class="tiger-card"><div class="symbol">📊</div><h3>Tiger Insights</h3><p class="muted">A market watch and learning workspace covering supported forex, gold, crypto, indices and other instruments.</p><span class="tiger-status">PLANNED</span></div>
+ </div>
+ <p class="muted" style="margin-top:12px">Important: Tiger AI features are being built and tested. This page does not claim that an AI model is currently generating live signals or placing trades. Demo and real execution remain separate; real trading requires verified broker connectivity and explicit authorization. No profits are guaranteed.</p>
 </section>
 
 <section id="bots">
