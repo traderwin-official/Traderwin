@@ -483,6 +483,18 @@ calculateRisk();
   const connectButton=document.getElementById("connectDerivButton");
   const derivStatus=document.getElementById("derivConnectionStatus");
 
+  // Surface the OAuth callback result instead of silently returning to the dashboard.
+  const derivResult = new URLSearchParams(window.location.search).get("deriv");
+  if (derivResult === "connected") {
+   derivStatus.textContent = "Deriv authorization completed. Broker account details were verified and saved.";
+   connectButton.textContent = "Deriv Authorized";
+   connectButton.disabled = true;
+  } else if (derivResult === "error") {
+   derivStatus.textContent = "Deriv connection failed during authorization or account verification. Check Vercel Function Logs for the exact server-side reason, then retry.";
+  } else if (derivResult === "cancelled") {
+   derivStatus.textContent = "Deriv authorization was cancelled. You can try again.";
+  }
+
   connectButton.addEventListener("click",async function(){
 
    connectButton.disabled=true;
