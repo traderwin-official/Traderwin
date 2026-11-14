@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
     res.setHeader(
       "Set-Cookie",
-      `deriv_oauth=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/api/deriv; Max-Age=600`
+      `deriv_oauth=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`
     );
 
     const url = new URL("https://auth.deriv.com/oauth2/auth");
