@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { buildCheckoutPrice, fetchUsdKesRate } from "../lib/service-pricing.js";
 
 const noStore=res=>{res.setHeader("Cache-Control","no-store");res.setHeader("Pragma","no-cache");};
 const clean=(v,n=160)=>String(v??"").trim().slice(0,n);
@@ -31,7 +32,7 @@ export default async function handler(req,res){
  const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
  try{
   if(req.method==="GET"){
-   const {data,error}=await db.from("bot_products").select("product_code,product_name,broker,license_type,price_kes,currency,description").eq("active",true).not("price_kes","is",null).order("broker").order("price_kes");
+   const {data,error}=await db.from("bot_products").select("product_code,product_name,broker,license_type,price_usd,currency,description").eq("active",true).not("price_usd","is",null).order("broker").order("price_usd");
    if(error)throw error;
    return res.status(200).json({products:data||[],checkoutMode:"MPESA_STK_PUSH",message:"Standalone purchases do not require a Traderwin member account."});
   }
@@ -45,26 +46,30 @@ export default async function handler(req,res){
   if(missing.length)return res.status(503).json({error:"Automatic M-Pesa checkout is not configured yet."});
   if(!/^[a-fA-F0-9]{64}$/.test(process.env.BOT_LICENSE_ENCRYPTION_KEY))return res.status(503).json({error:"Secure license delivery is not configured yet."});
   if(!/^https:\/\//.test(process.env.DARAJA_CALLBACK_URL))return res.status(503).json({error:"The secure M-Pesa callback URL is not configured."});
-  const {data:product,error:pe}=await db.from("bot_products").select("product_code,product_name,broker,license_type,price_kes,currency").eq("product_code",productCode).eq("active",true).not("price_kes","is",null).maybeSingle();
+  const {data:product,error:pe}=await db.from("bot_products").select("product_code,product_name,broker,license_type,price_usd,currency,active").eq("product_code",productCode).eq("active",true).not("price_usd","is",null).maybeSingle();
   if(pe)throw pe;if(!product)return res.status(404).json({error:"This bot is not available for purchase yet."});
-  if(!Number.isInteger(Number(product.price_kes))||Number(product.price_kes)<1)return res.status(409).json({error:"This product price must be a whole number of KSh."});
+  if(!Number.isFinite(Number(product.price_usd))||Number(product.price_usd)<=0)return res.status(409).json({error:"This product does not have a valid USD price."});
+  let fx;
+  try{fx=await fetchUsdKesRate();}catch(error){return res.status(503).json({error:error.message||"A fresh USD/KES exchange rate is unavailable. No payment request was created."});}
+  const pricing=buildCheckoutPrice({service:product,priorPaidCount:0,fx});
+  const {amountUsd,amountKes}=pricing;
   if(product.broker==="MT5"&&((mt5Login&&!/^\d{4,20}$/.test(mt5Login))||(mt5Server&&mt5Server.length<2)))return res.status(400).json({error:"Check the optional MT5 account number and broker server."});
   const {data:order,error:oe}=await db.from("bot_license_orders").insert({
    product_code:product.product_code,customer_name:name,customer_email:email,customer_phone:phone,
-   mt5_login:mt5Login||null,mt5_server:mt5Server||null,amount_kes:Number(product.price_kes),status:"PENDING_PAYMENT",payment_phone:phone
+   mt5_login:mt5Login||null,mt5_server:mt5Server||null,amount_kes:amountKes,amount_usd:amountUsd,fx_rate_kes:fx.rate,fx_source:fx.source,fx_as_of:fx.asOf,status:"PENDING_PAYMENT",payment_phone:phone
   }).select("id,amount_kes,status,created_at").single();
   if(oe)throw oe;
   try{
    const {base,token}=await darajaToken(),timestamp=eatTimestamp(),shortcode=process.env.DARAJA_SHORTCODE,passkey=process.env.DARAJA_PASSKEY;
    const password=Buffer.from(shortcode+passkey+timestamp).toString("base64");
    const transactionType=process.env.DARAJA_TRANSACTION_TYPE==="CustomerBuyGoodsOnline"?"CustomerBuyGoodsOnline":"CustomerPayBillOnline";
-   const payload={BusinessShortCode:shortcode,Password:password,Timestamp:timestamp,TransactionType:transactionType,Amount:Number(product.price_kes),PartyA:phone,PartyB:shortcode,PhoneNumber:phone,CallBackURL:process.env.DARAJA_CALLBACK_URL,AccountReference:"TW"+order.id.replace(/-/g,"").slice(0,10).toUpperCase(),TransactionDesc:"Traderwin "+product.product_code};
+   const payload={BusinessShortCode:shortcode,Password:password,Timestamp:timestamp,TransactionType:transactionType,Amount:amountKes,PartyA:phone,PartyB:shortcode,PhoneNumber:phone,CallBackURL:process.env.DARAJA_CALLBACK_URL,AccountReference:"TW"+order.id.replace(/-/g,"").slice(0,10).toUpperCase(),TransactionDesc:"Traderwin "+product.product_code};
    const response=await fetch(base+"/mpesa/stkpush/v1/processrequest",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)});
    const result=await response.json();
    if(!response.ok||String(result.ResponseCode)!=="0"||!result.CheckoutRequestID)throw new Error(result.errorMessage||result.ResponseDescription||"STK push was not accepted");
    const {error:ue}=await db.from("bot_license_orders").update({status:"PAYMENT_PROCESSING",mpesa_checkout_request_id:result.CheckoutRequestID,mpesa_merchant_request_id:result.MerchantRequestID||null}).eq("id",order.id);
    if(ue)throw ue;
-   return res.status(202).json({ok:true,orderId:order.id,status:"PAYMENT_PROCESSING",message:"M-Pesa prompt sent. Enter your M-Pesa PIN to complete payment. Your license will be emailed automatically after payment is confirmed."});
+   return res.status(202).json({ok:true,orderId:order.id,status:"PAYMENT_PROCESSING",amountUsd,amountKes,fxRateKes:fx.rate,message:"M-Pesa prompt sent. Enter your M-Pesa PIN to complete payment. Your license will be emailed automatically after payment is confirmed."});
   }catch(paymentError){
    await db.from("bot_license_orders").update({status:"PAYMENT_REVIEW",admin_note:"STK initiation failed: "+String(paymentError.message||"unknown").slice(0,250)}).eq("id",order.id);
    console.error("Daraja STK initiation error:",paymentError?.message||"unknown");

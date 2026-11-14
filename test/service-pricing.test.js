@@ -66,3 +66,21 @@ test("USD/KES quote accepts a fresh valid exchange rate", async () => {
   assert.equal(fx.rate, 130.5);
   assert.equal(fx.source, "open.er-api.com");
 });
+
+
+test("standalone TIGER SCHEME lifetime bot converts USD 350 to a fixed KES checkout snapshot", () => {
+  const bot = {
+    product_code: "MT5_GOLD_LIFETIME",
+    active: true,
+    price_usd: 350,
+    price_kes: null
+  };
+  const quote = buildCheckoutPrice({
+    service: bot,
+    priorPaidCount: 0,
+    fx: { rate: 130.25, source: "test", asOf: "2026-11-13T00:00:00.000Z" }
+  });
+  assert.equal(quote.amountUsd, 350);
+  assert.equal(quote.amountKes, Math.ceil(350 * 130.25));
+  assert.equal(quote.priceBasis, "FIRST_MONTH");
+});
