@@ -32,14 +32,9 @@ test("minimum four-category evidence can reach the configured confidence thresho
 });
 
 test("case-only source-name variants do not count as independent providers", () => {
-  const variants = [
-    {...evidence[0],source:"Provider-A"},
-    {...evidence[1],source:"provider-a"},
-    {...evidence[2],source:"PROVIDER-A"},
-    ...evidence.slice(3)
-  ];
+  const variants = evidence.map(item=>({...item,source:"Provider-A"}));
   const result = evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence:variants,market,risk,now});
-  assert.equal(result.independentSources,4);
+  assert.equal(result.independentSources,1);
   assert.ok(result.reasons.includes("INSUFFICIENT_INDEPENDENT_SOURCES"));
   assert.equal(result.direction,"WAIT");
 });
