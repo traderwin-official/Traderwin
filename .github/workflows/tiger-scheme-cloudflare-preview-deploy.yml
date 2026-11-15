@@ -55,6 +55,7 @@ jobs:
           test -f functions/api/deriv/callback.js
           test -f functions/api/deriv/status.js
           test -f functions/api/deriv/disconnect.js
+          test -f functions/api/analysis/market.js
           test -f workers/mpesa-rate-limiter/index.js
 
       - name: Verify Cloudflare credentials are configured
