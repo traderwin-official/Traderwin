@@ -22,11 +22,29 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "Young Tiger Forex Platform",
-  "alternateName": "Young Tiger FX",
-  "url": "https://traderwin-naq2.vercel.app/",
-  "inLanguage": "en"
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://traderwin-naq2.vercel.app/#organization",
+      "name": "Young Tiger Forex Platform",
+      "url": "https://traderwin-naq2.vercel.app/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://traderwin-naq2.vercel.app/favicon.svg"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://traderwin-naq2.vercel.app/#website",
+      "name": "Young Tiger Forex Platform",
+      "alternateName": "Young Tiger FX",
+      "url": "https://traderwin-naq2.vercel.app/",
+      "publisher": {
+        "@id": "https://traderwin-naq2.vercel.app/#organization"
+      },
+      "inLanguage": "en"
+    }
+  ]
 }
 </script>
 <style>
