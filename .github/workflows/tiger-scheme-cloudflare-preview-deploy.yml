@@ -39,7 +39,7 @@ jobs:
       - name: Build public site
         run: npm run build
 
-      - name: Verify public bundle and M-Pesa routes
+      - name: Verify public bundle and staged API routes
         run: |
           test -f dist/index.html
           test -f dist/auth.html
@@ -51,12 +51,16 @@ jobs:
           test -f functions/api/payments/mpesa/stk-push.js
           test -f functions/api/payments/mpesa/bot-shop-callback.js
           test -f functions/api/bot-shop.js
+          test -f functions/api/deriv/start.js
+          test -f functions/api/deriv/callback.js
+          test -f functions/api/deriv/status.js
+          test -f functions/api/deriv/disconnect.js
           test -f workers/mpesa-rate-limiter/index.js
 
       - name: Verify Cloudflare credentials are configured
         env:
-          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add CLOUDFLARE_API_TOKEN to the tiger-scheme-preview GitHub environment."; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Add CLOUDFLARE_ACCOUNT_ID to the tiger-scheme-preview GitHub environment."; exit 1; }
@@ -64,6 +68,6 @@ jobs:
       - name: Deploy preview to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=tiger-scheme --branch=feature/tiger-scheme-cloudflare
