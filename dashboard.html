@@ -1,0 +1,648 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Young Tiger Forex Platform | Member Dashboard</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="keywords" content="Young Tiger Forex Platform, Tiger AI, forex analysis, automated trading tools, trading education, risk management">
+<meta name="description" content="Young Tiger Forex Platform — AI-assisted market analysis, trading education, automated strategy tools and risk management.">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://s3.tradingview.com/tv.js"></script>
+
+<style>
+:root{--bg:#080d17;--panel:#111b2b;--gold:#f5bd45;--muted:#9eabc0;--green:#25c58a;--red:#f16c75}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#f4f6fa;font-family:Arial,sans-serif;visibility:hidden}
+header{background:#101a29;border-bottom:1px solid #26364b;padding:16px 5%;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:clamp(15px,3vw,23px);font-weight:900;color:var(--gold);letter-spacing:1px}
+.logo span{color:white}
+nav{display:flex;gap:15px;flex-wrap:wrap}
+nav a{color:#dbe3ef;text-decoration:none;font-size:13px}
+nav a:hover{color:var(--gold)}
+.tiger-hero{background:radial-gradient(circle at 20% 35%,#49300b 0,#172238 38%,#090f1b 78%);border:1px solid #77571e;border-radius:18px;padding:24px;display:grid;grid-template-columns: minmax(0,1.15fr) minmax(220px,.85fr);gap:20px;align-items:center;overflow:hidden}.tiger-mark{font-size:clamp(90px,18vw,170px);text-align:center;filter:drop-shadow(0 0 22px #f5bd45)}.tiger-chip{display:inline-block;border:1px solid #8b6826;color:#ffd46b;background:#261d10;border-radius:30px;padding:7px 12px;font-size:12px;font-weight:bold}.tiger-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:14px}.tiger-card{background:linear-gradient(145deg,#182337,#101722);border:1px solid #5b4825;border-radius:12px;padding:16px}.tiger-card .symbol{font-size:25px}.tiger-card h3{color:#ffd36a}.tiger-status{color:#ffd36a;font-size:12px;font-weight:bold}@media(max-width:650px){.tiger-hero{grid-template-columns:1fr}.tiger-mark{font-size:100px}}
+.hero{padding:55px 6%;background:linear-gradient(120deg,#101b2d,#17243a)}
+.hero h1{font-size:clamp(30px,6vw,48px);margin:0 0 12px}
+.hero h1 span{color:var(--gold)}
+.hero p{color:var(--muted);max-width:650px;line-height:1.7}
+.tag{display:inline-block;background:#302716;color:var(--gold);padding:7px 12px;border-radius:20px;font-size:12px;margin-bottom:15px}
+button,select,input{font:inherit}
+button{background:var(--gold);border:0;border-radius:7px;padding:11px 16px;font-weight:bold;cursor:pointer;color:#151515}
+button.secondary{background:#26364b;color:white}
+button:disabled{opacity:.5;cursor:not-allowed}
+main{padding:25px 5%;max-width:1500px;margin:auto}
+section{margin:28px 0}
+.section-title{font-size:23px;margin-bottom:15px}
+.section-title span{color:var(--gold)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid #25364b;border-radius:12px;padding:18px}
+.card h3{margin:0 0 10px}
+.muted{color:var(--muted);font-size:13px;line-height:1.6}
+.price{font-size:23px;font-weight:bold;margin:10px 0}
+.green{color:var(--green)}.red{color:var(--red)}.gold{color:var(--gold)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.tabs button{background:#25364b;color:white}
+.tabs button.active{background:var(--gold);color:#111}
+.chart{height:510px;width:100%;border-radius:10px;overflow:hidden;background:#111b2b}
+.field{display:flex;flex-direction:column;gap:7px;margin:10px 0}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select{background:#0a1220;border:1px solid #34445a;color:white;padding:12px;border-radius:7px;width:100%}
+.result{font-size:24px;font-weight:bold;color:var(--gold);margin-top:12px}
+.notice{background:#2b2415;border:1px solid #725820;padding:14px;border-radius:9px;color:#f5d58b;font-size:13px;line-height:1.6}
+.status{font-size:12px;color:var(--green)}
+footer{text-align:center;padding:30px 15px;background:#101a29;color:var(--muted);font-size:13px}
+ul{padding-left:20px;color:#dce4ee;line-height:1.8}
+@media(max-width:600px){header{padding:14px}nav{gap:10px}.hero{padding:38px 5%}main{padding:18px 4%}.chart{height:420px}}
+</style>
+</head>
+
+<body>
+
+<header>
+ <div class="logo">YOUNG TIGER <span>FX</span></div>
+ <nav>
+  <a href="#markets">Markets</a>
+  <a href="#analysis">Analysis</a>
+  <a href="#tiger-ai">Tiger AI</a>
+  <a href="#bots">Bots</a>
+  <a href="#risk">Risk</a>
+  <a href="#academy">Academy</a>
+ </nav>
+</header>
+
+<div class="hero">
+ <div class="tag">YOUR TRADING JOURNEY STARTS HERE</div>
+ <h1>TRADE SMARTER.<br><span>WIN WITH STRATEGY.</span></h1>
+ <p>Explore financial markets, study price movements, manage risk and practise your trading strategies with Young Tiger Forex Platform.</p>
+ <a href="#markets"><button>Explore Markets</button></a>
+ <a href="#analysis"><button class="secondary">Open Dashboard</button></a>
+</div>
+
+<main>
+
+<section id="markets">
+ <h2 class="section-title">Market <span>Overview</span></h2>
+ <p class="muted">Displayed prices and charts may be indicative and are not executable broker quotes.</p>
+ <div class="tabs" id="marketTabs">
+  <button class="active" data-market="Forex">Forex</button>
+  <button data-market="Gold">Gold</button>
+  <button data-market="Crypto">Crypto</button>
+  <button data-market="Commodities">Commodities</button>
+  <button data-market="Indices">Indices</button>
+  <button data-market="Stocks">Stocks</button>
+  <button data-market="Binary Options">Binary Options</button>
+ </div>
+ <div class="grid" id="marketCards"></div>
+</section>
+
+<section id="analysis">
+ <h2 class="section-title">Live Market <span>Chart</span></h2>
+ <div class="card">
+  <div class="field">
+   <label>Select trading instrument</label>
+   <select id="symbol">
+    <option value="OANDA:XAUUSD">Gold / USD (XAUUSD)</option>
+    <option value="OANDA:EURUSD">EUR / USD</option>
+    <option value="OANDA:GBPUSD">GBP / USD</option>
+    <option value="OANDA:USDJPY">USD / JPY</option>
+    <option value="BITSTAMP:BTCUSD">Bitcoin / USD</option>
+    <option value="BINANCE:ETHUSDT">Ethereum / USDT</option>
+    <option value="NASDAQ:AAPL">Apple</option>
+    <option value="NASDAQ:TSLA">Tesla</option>
+    <option value="SP:SPX">S&P 500</option>
+   </select>
+  </div>
+  <div class="tabs" id="timeTabs">
+   <button data-time="15" class="active">M15</button>
+   <button data-time="60">H1</button>
+   <button data-time="240">H4</button>
+   <button data-time="D">Daily</button>
+   <button data-time="W">Weekly</button>
+  </div>
+  <div id="tradingview_chart" class="chart"></div>
+  <p class="muted">Chart supplied by TradingView. Confirm prices, spreads and execution on your broker platform before trading.</p>
+ </div>
+</section>
+
+<section>
+ <h2 class="section-title">Gold Analysis <span>Centre</span></h2>
+ <div class="grid">
+  <div class="card"><h3>15-Minute (M15)</h3><p class="muted">Study entry setups, candle patterns and short-term momentum.</p></div>
+  <div class="card"><h3>1-Hour (H1)</h3><p class="muted">Study the intraday trend and important price levels.</p></div>
+  <div class="card"><h3>4-Hour (H4)</h3><p class="muted">Study the broader market direction and major support and resistance.</p></div>
+ </div>
+ <div class="card">
+  <h3>Support & Resistance Planner</h3>
+  <div class="grid">
+   <div class="field"><label>Support price</label><input id="support" type="number" step="any" placeholder="Enter support"></div>
+   <div class="field"><label>Resistance price</label><input id="resistance" type="number" step="any" placeholder="Enter resistance"></div>
+   <div class="field"><label>Current price</label><input id="current" type="number" step="any" placeholder="Enter current price"></div>
+  </div>
+  <button onclick="analyseLevels()">Analyse Levels</button>
+  <p id="levelResult" class="muted"></p>
+ </div>
+</section>
+
+
+<section id="tiger-ai">
+ <h2 class="section-title">Meet <span>Tiger AI</span></h2>
+ <div class="tiger-hero">
+  <div>
+   <span class="tiger-chip">THE SIGNATURE INTELLIGENCE SYSTEM OF YOUNG TIGER FOREX PLATFORM</span>
+   <h2 style="font-size:clamp(30px,5vw,46px);margin:16px 0 10px">TIGER AI</h2>
+   <p style="font-size:18px;color:#f4d58b;font-weight:bold">The Intelligence Behind Every Move.</p>
+   <p class="muted">A planned AI-powered suite inside Young Tiger Forex Platform for market research, trade planning, automated strategy testing and disciplined risk management.</p>
+   <a href="#bots"><button>Explore Bot Centre</button></a>
+  </div>
+  <div class="tiger-mark" aria-label="Tiger AI mascot">🐅</div>
+ </div>
+ <div class="tiger-grid">
+  <div class="tiger-card"><div class="symbol">🤖</div><h3>Tiger Bot</h3><p class="muted">A future automated trading assistant for supported broker connections, starting with controlled demo testing.</p><span class="tiger-status">IN DEVELOPMENT</span></div>
+  <div class="tiger-card"><div class="symbol">🧠</div><h3>Tiger Analyst</h3><p class="muted">Market analysis and trade ideas with clear reasoning, entry zones, invalidation and risk context when verified data is connected.</p><span class="tiger-status">PLANNED</span></div>
+  <div class="tiger-card"><div class="symbol">🛡️</div><h3>Tiger Guard</h3><p class="muted">Risk limits, loss controls and portfolio profit-protection rules designed to help traders manage exposure.</p><span class="tiger-status">SAFETY DESIGN</span></div>
+  <div class="tiger-card"><div class="symbol">📊</div><h3>Tiger Insights</h3><p class="muted">A market watch and learning workspace covering supported forex, gold, crypto, indices and other instruments.</p><span class="tiger-status">PLANNED</span></div>
+ </div>
+ <p class="muted" style="margin-top:12px">Important: Tiger AI features are being built and tested. This page does not claim that an AI model is currently generating live signals or placing trades. Demo and real execution remain separate; real trading requires verified broker connectivity and explicit authorization. No profits are guaranteed.</p>
+</section>
+
+<section id="bots">
+ <h2 class="section-title">Young Tiger Forex Platform <span>Automation Centre</span></h2>
+
+ <div class="notice" id="botModeSafetyNotice">
+  Your selected account mode is being checked. Broker authorization is separate from order execution. Bots remain OFF until the selected broker adapter passes demo testing and the account owner enables it.
+ </div>
+
+ <div class="card" style="margin-top:15px">
+  <h3>⚙️ Personal Bot Setup</h3>
+  <p class="muted">Choose your preferred broker and trading instrument. These settings belong to your signed-in account.</p>
+
+  <form id="botSetupForm">
+   <div class="field">
+    <label for="botBroker">Choose or enter your broker</label>
+    <input id="botBroker" list="brokerOptions" placeholder="Choose or type a broker" required maxlength="80">
+    <datalist id="brokerOptions">
+     <option value="Deriv">
+     <option value="MetaTrader 5">
+     <option value="Exness">
+     <option value="FxPro">
+     <option value="JustMarkets">
+     <option value="Other">
+    </datalist>
+   </div>
+
+   <div class="field">
+    <label for="botInstrument">Choose or enter your instrument</label>
+    <input id="botInstrument" list="instrumentOptions" placeholder="Example: XAUUSD" required maxlength="80">
+    <datalist id="instrumentOptions">
+     <option value="XAUUSD">
+     <option value="EURUSD">
+     <option value="GBPUSD">
+     <option value="USDJPY">
+     <option value="BTCUSD">
+     <option value="ETHUSD">
+     <option value="Volatility 75 Index">
+     <option value="US30">
+     <option value="NAS100">
+     <option value="US500">
+    </datalist>
+   </div>
+
+   <div class="grid">
+    <div class="field">
+     <label>Account mode</label>
+     <input id="botAccountMode" value="DEMO" readonly>
+    </div>
+    <div class="field">
+     <label>Automation status</label>
+     <input value="OFF" readonly>
+    </div>
+   </div>
+
+   <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
+   <p id="botSetupMessage" class="muted" role="status" aria-live="polite"></p>
+  </form>
+ </div>
+
+ <div class="grid" style="margin-top:15px">
+
+  <div class="card" id="derivCard">
+   <h3>Deriv Account Connection</h3>
+   <p class="muted">Securely authorize your own Deriv account. Each signed-in user connects their own account.</p>
+   <p class="status" id="derivConnectionStatus">Connection: Not connected</p>
+   <button id="connectDerivButton" type="button">Connect Deriv Account</button>
+   <p class="muted">Authorization is separate from bot activation. No trades will be placed by connecting.</p>
+  </div>
+
+  <div class="card">
+   <h3>MT5 Demo Bot</h3>
+   <p class="muted">MetaTrader 5 bridge is not yet connected. Use only a broker-authorized terminal bridge or official API.</p>
+   <p class="status">Connection: Not connected</p>
+   <button class="secondary" disabled>MT5 integration pending</button>
+  </div>
+
+ </div>
+
+ <div class="card" style="margin-top:15px">
+  <h3>Bot Safety Rules</h3>
+  <ul>
+   <li>Start with a demo account.</li>
+   <li>Set a maximum risk per trade.</li>
+   <li>Use stop-loss protection where supported.</li>
+   <li>Set daily loss limits before live deployment.</li>
+   <li>Never assume a bot guarantees profits.</li>
+  </ul>
+ </div>
+</section>
+
+<section id="risk">
+ <h2 class="section-title">Risk <span>Calculator</span></h2>
+ <div class="card">
+  <p class="muted">Estimate the amount you are willing to risk on one trade. This is an educational calculator, not broker lot-size advice.</p>
+  <div class="grid">
+   <div class="field"><label>Account balance ($)</label><input type="number" id="balance" value="100" min="0"></div>
+   <div class="field"><label>Risk percentage (%)</label><input type="number" id="riskPercent" value="1" min="0" max="100" step="0.1"></div>
+  </div>
+  <button onclick="calculateRisk()">Calculate Risk</button>
+  <div id="riskResult" class="result">$1.00</div>
+  <p class="muted">The amount shown is the planned maximum loss based on your inputs. Actual losses may differ due to slippage, gaps and execution conditions.</p>
+ </div>
+</section>
+
+<section id="signals">
+ <h2 class="section-title">Trading <span>Signals</span></h2>
+ <div class="card">
+  <h3>Signal Centre</h3>
+  <p class="muted">No verified live signals are currently connected. This section is ready for an authorized signal feed.</p>
+  <p class="status">Signal feed: Not connected</p>
+  <div class="notice">Do not treat sample signals, website demonstrations or educational examples as instructions to buy or sell.</div>
+ </div>
+</section>
+
+<section id="academy">
+ <h2 class="section-title">Young Tiger Forex Platform <span>Academy</span></h2>
+ <div class="grid">
+  <div class="card"><h3>Forex Basics</h3><p class="muted">Learn currency pairs, pips, spreads, leverage and market sessions.</p></div>
+  <div class="card"><h3>Gold Trading</h3><p class="muted">Study XAUUSD, volatility, technical analysis and risk management.</p></div>
+  <div class="card"><h3>Technical Analysis</h3><p class="muted">Learn trends, support, resistance, candlesticks and indicators.</p></div>
+  <div class="card"><h3>Trading Psychology</h3><p class="muted">Build discipline, patience and a consistent trading journal.</p></div>
+ </div>
+</section>
+
+<section id="membership">
+ <h2 class="section-title">Young Tiger Forex Platform <span>Membership</span></h2>
+ <div class="grid">
+  <div class="card"><h3>Free Member</h3><p class="muted">Explore the public dashboard and educational resources.</p></div>
+  <div class="card"><h3>Premium Member</h3><p class="muted">Premium education, advanced tools and other services can be introduced after secure membership and payment integration.</p></div>
+  <div class="card"><h3>Young Tiger Forex Platform Course</h3><p class="muted">A planned learning programme for beginner traders. Course purchasing and delivery are not yet connected.</p></div>
+ </div>
+ <p class="muted">No payments are collected by this page at present. M-Pesa integration must be completed securely before accepting payments.</p>
+</section>
+
+<section id="about">
+ <h2 class="section-title">About <span>Young Tiger Forex Platform</span></h2>
+ <div class="card">
+  <p>Young Tiger Forex Platform is designed to bring market information, trading education, risk management and future trading integrations into one platform.</p>
+  <p class="muted">Trading involves risk. You may lose some or all of your invested capital. This website provides educational information and is not financial advice.</p>
+ </div>
+</section>
+
+</main>
+
+<footer>
+ <div class="logo">YOUNG TIGER <span>FX</span></div>
+ <p>Trade with knowledge. Manage risk. Stay disciplined.</p>
+ <p>© <span id="year"></span> Young Tiger Forex Platform. All rights reserved.</p>
+ <p>Trading involves substantial risk. No profits are guaranteed.</p>
+</footer>
+
+<script>
+const marketData={
+ "Forex":[["EUR/USD","Euro / US Dollar"],["GBP/USD","British Pound / US Dollar"],["USD/JPY","US Dollar / Japanese Yen"],["AUD/USD","Australian Dollar / US Dollar"]],
+ "Gold":[["XAU/USD","Gold / US Dollar"],["XAG/USD","Silver / US Dollar"]],
+ "Crypto":[["BTC/USD","Bitcoin"],["ETH/USD","Ethereum"],["SOL/USD","Solana"]],
+ "Commodities":[["USOIL","Crude Oil"],["UKOIL","Brent Oil"],["NATGAS","Natural Gas"]],
+ "Indices":[["US500","S&P 500"],["NAS100","Nasdaq 100"],["US30","Dow Jones"]],
+ "Stocks":[["AAPL","Apple"],["TSLA","Tesla"],["MSFT","Microsoft"]],
+ "Binary Options":[["Rise/Fall","Directional contracts"],["Higher/Lower","Price direction contracts"],["Touch/No Touch","Price level contracts"]]
+};
+
+function showMarkets(category){
+ const container=document.getElementById("marketCards");
+ container.innerHTML="";
+ (marketData[category]||[]).forEach(item=>{
+  const card=document.createElement("div");
+  card.className="card";
+  const heading=document.createElement("h3");
+  heading.textContent=item[0];
+  const description=document.createElement("p");
+  description.className="muted";
+  description.textContent=item[1];
+  const note=document.createElement("p");
+  note.className="muted";
+  note.textContent="Select this instrument in the chart above to view available chart data.";
+  card.append(heading,description,note);
+  container.appendChild(card);
+ });
+}
+
+document.querySelectorAll("#marketTabs button").forEach(button=>{
+ button.addEventListener("click",()=>{
+  document.querySelectorAll("#marketTabs button").forEach(b=>b.classList.remove("active"));
+  button.classList.add("active");
+  showMarkets(button.dataset.market);
+ });
+});
+showMarkets("Forex");
+
+let selectedTime="15";
+
+function loadChart(){
+ const symbol=document.getElementById("symbol").value;
+ const target=document.getElementById("tradingview_chart");
+ target.innerHTML="";
+ if(typeof TradingView==="undefined"){
+  target.textContent="Chart service is currently unavailable. Please refresh the page.";
+  return;
+ }
+ new TradingView.widget({
+  autosize:true,
+  symbol:symbol,
+  interval:selectedTime,
+  timezone:"Africa/Nairobi",
+  theme:"dark",
+  style:"1",
+  locale:"en",
+  enable_publishing:false,
+  allow_symbol_change:true,
+  container_id:"tradingview_chart"
+ });
+}
+
+document.getElementById("symbol").addEventListener("change",loadChart);
+
+document.querySelectorAll("#timeTabs button").forEach(button=>{
+ button.addEventListener("click",()=>{
+  document.querySelectorAll("#timeTabs button").forEach(b=>b.classList.remove("active"));
+  button.classList.add("active");
+  selectedTime=button.dataset.time;
+  loadChart();
+ });
+});
+
+function calculateRisk(){
+ const balance=Number(document.getElementById("balance").value);
+ const percent=Number(document.getElementById("riskPercent").value);
+ const output=document.getElementById("riskResult");
+
+ if(!Number.isFinite(balance)||!Number.isFinite(percent)||balance<=0||percent<=0||percent>100){
+  output.textContent="Enter valid positive values. Risk must be 100% or less.";
+  return;
+ }
+ output.textContent="$"+(balance*percent/100).toFixed(2);
+}
+
+function analyseLevels(){
+ const support=Number(document.getElementById("support").value);
+ const resistance=Number(document.getElementById("resistance").value);
+ const current=Number(document.getElementById("current").value);
+ const result=document.getElementById("levelResult");
+
+ if(!Number.isFinite(support)||!Number.isFinite(resistance)||!Number.isFinite(current)||
+    document.getElementById("support").value===""||
+    document.getElementById("resistance").value===""||
+    document.getElementById("current").value===""||
+    resistance<=support){
+  result.textContent="Enter valid support, resistance and current prices.";
+  return;
+ }
+
+ if(current<=support) result.textContent="Price is at or below the support level. Watch for confirmation.";
+ else if(current>=resistance) result.textContent="Price is at or above the resistance level. Watch for confirmation.";
+ else result.textContent="Price is between support and resistance. Monitor price action.";
+}
+
+document.getElementById("year").textContent=new Date().getFullYear();
+calculateRisk();
+</script>
+
+<!-- SUPABASE AUTHENTICATION, BOT SETTINGS AND DERIV CONNECTION -->
+<script>
+(async function(){
+
+ const SUPABASE_URL="https://whcmrzdvaiqfmgvlfqxo.supabase.co";
+ const SUPABASE_KEY="sb_publishable_EsWQFeqMpYC6ZVexRkCV7Q_qC1tvKJI";
+
+ try{
+
+  if(!window.supabase){
+   throw new Error("Supabase library did not load.");
+  }
+
+  const client=window.supabase.createClient(
+   SUPABASE_URL,
+   SUPABASE_KEY
+  );
+
+  window.traderwinAuth=client;
+  let selectedAccountMode = "DEMO";
+
+  const {data,error}=await client.auth.getSession();
+
+  if(error||!data.session){
+   window.location.replace("/auth.html");
+   return;
+  }
+
+  const {data:profile,error:profileError}=await client
+   .from("trader_profiles")
+   .select("account_mode,real_trading_enabled,max_risk_per_trade_pct,max_daily_loss_pct")
+   .eq("user_id",data.session.user.id)
+   .maybeSingle();
+
+  if(profileError){
+   throw new Error("Young Tiger Forex Platform account settings are not ready. Apply the core upgrade SQL migration in Supabase. "+profileError.message);
+  }
+  if(!profile){
+   window.location.replace("/onboarding.html");
+   return;
+  }
+
+  selectedAccountMode=profile.account_mode;
+  document.getElementById("botAccountMode").value=selectedAccountMode;
+  document.getElementById("botModeSafetyNotice").textContent=
+   selectedAccountMode==="REAL"
+    ? "REAL MODE SELECTED. Live trading remains LOCKED; no broker orders can be placed from this setting. Broker verification, explicit live authorization and risk controls are still required."
+    : "DEMO MODE SELECTED. Use demo funds for testing. Automation remains OFF until a separate, tested broker integration is authorized.";
+
+  document.body.style.visibility="visible";
+
+  loadChart();
+
+  // DERIV SECURE ACCOUNT CONNECTION
+  const connectButton=document.getElementById("connectDerivButton");
+  const derivStatus=document.getElementById("derivConnectionStatus");
+
+  // Surface the OAuth callback result instead of silently returning to the dashboard.
+  const derivResult = new URLSearchParams(window.location.search).get("deriv");
+  if (derivResult === "connected") {
+   derivStatus.textContent = "Deriv authorization completed and the secure connection was saved. Account listing remains pending because the trade permission is disabled.";
+   connectButton.textContent = "Deriv Authorized";
+   connectButton.disabled = true;
+  } else if (derivResult === "error") {
+   derivStatus.textContent = "Deriv connection failed during authorization or account verification. Check Vercel Function Logs for the exact server-side reason, then retry.";
+  } else if (derivResult === "cancelled") {
+   derivStatus.textContent = "Deriv authorization was cancelled. You can try again.";
+  }
+
+  connectButton.addEventListener("click",async function(){
+
+   connectButton.disabled=true;
+   connectButton.textContent="Preparing secure connection...";
+   derivStatus.textContent="Checking your login session...";
+
+   try{
+
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+
+    if(sessionError||!sessionData.session){
+     throw new Error("Your login session has expired. Please sign in again.");
+    }
+
+    const response=await fetch("/api/deriv/start",{
+     method:"POST",
+     headers:{
+      "Authorization":"Bearer "+sessionData.session.access_token
+     },
+     credentials:"same-origin",
+     cache:"no-store"
+    });
+
+    const result=await response.json().catch(()=>({}));
+
+    if(!response.ok||!result.authorizationUrl){
+     throw new Error(result.error||"Could not start Deriv authorization.");
+    }
+
+    derivStatus.textContent="Opening secure Deriv authorization...";
+    window.location.assign(result.authorizationUrl);
+
+   }catch(error){
+
+    console.error("Deriv connection error:",error);
+    derivStatus.textContent=error.message||"Deriv connection could not start.";
+    connectButton.disabled=false;
+    connectButton.textContent="Try Connecting Again";
+
+   }
+
+  });
+
+  // PERSONAL BOT SETTINGS: SAVE FOR THE SIGNED-IN USER
+  const botForm=document.getElementById("botSetupForm");
+  const saveButton=document.getElementById("saveBotSettings");
+  const botMessage=document.getElementById("botSetupMessage");
+
+  botForm.addEventListener("submit",async function(event){
+
+   event.preventDefault();
+
+   const broker=document.getElementById("botBroker").value.trim();
+   const instrument=document.getElementById("botInstrument").value.trim();
+
+   if(!broker||!instrument){
+    botMessage.textContent="Please enter both your broker and instrument.";
+    return;
+   }
+
+   if(broker.length>80||instrument.length>80){
+    botMessage.textContent="Please keep each entry within 80 characters.";
+    return;
+   }
+
+   saveButton.disabled=true;
+   saveButton.textContent="Saving...";
+   botMessage.textContent="Saving your personal settings...";
+
+   try{
+
+    const {data:authData,error:authError}=await client.auth.getUser();
+
+    if(authError||!authData.user){
+     throw new Error("Your login session could not be verified. Please sign in again.");
+    }
+
+    const user=authData.user;
+
+    const {error:saveError}=await client
+     .from("bot_settings")
+     .insert({
+      user_id:user.id,
+      broker:broker,
+      instrument:instrument,
+      account_mode:"DEMO",
+      enabled:false
+     });
+
+    if(saveError){
+
+     if(saveError.code==="23505"){
+      botMessage.textContent="You already have bot settings saved. Editing existing settings will be enabled after the update policy is verified.";
+     }else if(saveError.code==="42501"){
+      botMessage.textContent="Supabase denied this save under its security policies. Your settings were not changed. We need to check the INSERT policy.";
+     }else{
+      console.error("Bot settings save error:",saveError);
+      botMessage.textContent="Could not save settings: "+saveError.message;
+     }
+
+     return;
+    }
+
+    botMessage.textContent="Success! Your bot preferences have been saved. Your selected account preference is "+selectedAccountMode+". Bot configuration remains DEMO and automation stays OFF until broker verification and a separate live-trading safety workflow are completed.";
+    botForm.reset();
+
+   }catch(error){
+    console.error("Bot setup error:",error);
+    botMessage.textContent=error.message||"Something went wrong. Please try again.";
+   }finally{
+    saveButton.disabled=false;
+    saveButton.textContent="Save My Bot Settings";
+   }
+
+  });
+
+  // SIGN OUT BUTTON
+  const logout=document.createElement("button");
+  logout.textContent="Sign Out";
+  logout.style.cssText="position:fixed;top:12px;right:12px;z-index:99999;padding:10px 16px;background:#d7a83c;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer";
+
+  logout.onclick=async()=>{
+   logout.disabled=true;
+
+   const {error}=await client.auth.signOut();
+
+   if(error){
+    alert("Sign out failed. Please try again.");
+    logout.disabled=false;
+    return;
+   }
+
+   window.location.replace("/auth.html");
+  };
+
+  document.body.appendChild(logout);
+
+ }catch(error){
+  console.error("Young Tiger Forex Platform authentication error:",error);
+  document.body.style.visibility="visible";
+  document.body.innerHTML="<main><div class='card'><h2>Young Tiger Forex Platform setup needs attention</h2><p id='setupError'></p><a href='/auth.html'>Return to login</a></div></main>";
+  const setupError=document.getElementById("setupError");
+  if(setupError) setupError.textContent=error.message||"Please check your connection and try again.";
+ }
+
+})();
+</script>
+
+</body>
+</html>
