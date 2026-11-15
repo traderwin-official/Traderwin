@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://traderwin-naq2.vercel.app/sitemap.xml
