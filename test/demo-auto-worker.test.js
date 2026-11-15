@@ -24,7 +24,7 @@ test("DEMO worker only queries running DEMO sessions and Deriv broker settings",
   assert.match(source, /kill_switch_active/);
   assert.match(source, /emergency\?\.kill_switch_active && !openTrade/);
   assert.match(source, /SESSION_PAUSED_NO_OPEN_POSITION/);
-  assert.match(source, /\.in\("status", \["RUNNING", "PAUSED"\]\)/);
+  assert.match(source, /\.in\("status", \["RUNNING", "PAUSED", "RISK_LOCKED"\]\)/);
 });
 
 test("worker migration adds atomic lease, open and close functions", async () => {
@@ -54,4 +54,22 @@ test("Supabase Cron schedule stores the worker secret in Vault and calls the end
   assert.match(setup, /\* \* \* \* \*/);
   assert.match(setup, /net\.http_get/);
   assert.match(setup, /Authorization/);
+});
+
+test("risk-locked sessions remain in the DEMO worker queue for open-position protection", async () => {
+  const source = await readFile(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
+  const decision = await readFile(new URL("../lib/demo-auto-decision.js", import.meta.url), "utf8");
+  assert.match(source, /\["PAUSED", "RISK_LOCKED"\]\.includes\(session\.status\) && !openTrade/);
+  assert.match(source, /\.in\("status", \["RUNNING", "PAUSED", "RISK_LOCKED"\]\)/);
+  assert.match(decision, /session\.status === "RISK_LOCKED" && !openTrade/);
+});
+
+test("daily-loss migration counts partial realizations and keeps risk-locked open positions manageable", async () => {
+  const sql = await readFile(new URL("../supabase/migrations/202611160001_demo_daily_loss_partial_realizations.sql", import.meta.url), "utf8");
+  assert.match(sql, /demo_daily_realized_loss/);
+  assert.match(sql, /realized_pnl_this_stage/);
+  assert.match(sql, /p_exclude_trade_id/);
+  assert.match(sql, /'TP1','TP2','TP3','STOP_LOSS','AUTO_CLOSE'/);
+  assert.match(sql, /status in \('RUNNING','PAUSED'\)/);
+  assert.match(sql, /to service_role/);
 });
