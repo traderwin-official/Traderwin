@@ -172,3 +172,11 @@ test("blocks management when a quote does not identify the open position instrum
   input.quote.instrument = "EURUSD";
   assert.equal(decideDemoAutoAction({ ...input, now }).reason, "OPEN_TRADE_SCOPE_INVALID");
 });
+
+test("blocks missing instrument identity instead of treating two empty symbols as equal", () => {
+  const input = structuredClone(base);
+  input.settings.instrument = "";
+  input.market.instrument = "";
+  input.quote.instrument = "";
+  assert.equal(decideDemoAutoAction({ ...input, now }).reason, "MARKET_DATA_SCOPE_INVALID");
+});
