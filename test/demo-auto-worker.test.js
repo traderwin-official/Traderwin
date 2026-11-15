@@ -69,7 +69,7 @@ test("daily-loss migration counts partial realizations and keeps risk-locked ope
   assert.match(sql, /demo_daily_realized_loss/);
   assert.match(sql, /realized_pnl_this_stage/);
   assert.match(sql, /p_exclude_trade_id/);
-  assert.match(sql, /'TP1','TP2','TP3','STOP_LOSS','AUTO_CLOSE'/);
+  assert.match(sql, /'TP1','TP2','TP3','STOP_LOSS','AUTO_CLOSE','MANUAL_CLOSE'/);
   assert.match(sql, /status in \('RUNNING','PAUSED'\)/);
   assert.match(sql, /to service_role/);
 });
