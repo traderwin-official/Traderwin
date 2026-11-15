@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { validatePaperSetup, calculatePaperPosition } from "../../../lib/demo-risk.js";
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
+import { getDerivQuoteToUsd } from "../../../lib/usd-conversion.js";
 
 const num = value => {
   const parsed = Number(value);
@@ -99,6 +100,13 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: "The verified quote does not match the selected instrument. No paper trade was recorded." });
     }
 
+    let conversion;
+    try {
+      conversion = await getDerivQuoteToUsd(symbol, quote);
+    } catch (error) {
+      return res.status(503).json({ error: error.message || "A fresh USD conversion quote is unavailable. No paper trade was recorded." });
+    }
+
     const entry = quote.quote;
     const setupError = validatePaperSetup({ direction, entry, stop, target });
     if (setupError) return res.status(400).json({ error: setupError });
@@ -118,7 +126,7 @@ export default async function handler(req, res) {
     let sizing;
     try {
       sizing = calculatePaperPosition({
-        balance: Number(session.current_balance), riskPct, entry, stop
+        balance: Number(session.current_balance), riskPct, entry, stop, quoteToUsd: conversion.rate
       });
     } catch {
       return res.status(400).json({ error: "Could not calculate safe paper position size." });
@@ -138,6 +146,7 @@ export default async function handler(req, res) {
       p_virtual_units: sizing.units,
       p_risk_amount: sizing.riskAmount,
       p_risk_pct: riskPct,
+      p_quote_to_usd: conversion.rate,
       p_profit_giveback_pct: givebackPct,
       p_quote_source: quote.source,
       p_quote_as_of: quote.quoteAsOf
@@ -150,6 +159,7 @@ export default async function handler(req, res) {
       const messages = {
         SESSION_NOT_RUNNING: "Your DEMO session is no longer running.",
         INSTRUMENT_MISMATCH: "The trade instrument no longer matches your saved settings.",
+        UNSUPPORTED_BROKER: "This broker's USD conversion and DEMO adapter are not verified yet.",
         KILL_SWITCH_ACTIVE: "Emergency stop is active. New paper trades are blocked.",
         DAILY_LOSS_LIMIT: "Your daily DEMO loss limit has been reached. The session is locked.",
         OPEN_POSITION_EXISTS: "Close your existing open paper position before opening another."
