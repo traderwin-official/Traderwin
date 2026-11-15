@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { calculatePaperPnl } from "../../../lib/demo-risk.js";
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
+import { getDerivQuoteToUsd } from "../../../lib/usd-conversion.js";
 
 const normalise = value => String(value || "").trim().toUpperCase().replace(/[\s/.-]/g, "");
 
@@ -51,13 +52,20 @@ export default async function handler(req, res) {
         typeof quote.providerSymbol !== "string" || !quote.providerSymbol.trim()) {
       return res.status(503).json({ error: "The verified quote does not match this paper trade instrument." });
     }
+    let conversion;
+    try {
+      conversion = await getDerivQuoteToUsd(trade.symbol, quote);
+    } catch (error) {
+      return res.status(503).json({ error: error.message || "A fresh USD conversion quote is unavailable." });
+    }
     const currentPrice = quote.quote;
 
     const unrealizedPnl = calculatePaperPnl({
       direction: trade.direction,
       entry: Number(trade.entry_price),
       exit: currentPrice,
-      units: Number(trade.virtual_units)
+      units: Number(trade.virtual_units),
+      quoteToUsd: conversion.rate
     });
     const markedAt = new Date().toISOString();
     const { error: updateError } = await db.from("demo_bot_trades")
