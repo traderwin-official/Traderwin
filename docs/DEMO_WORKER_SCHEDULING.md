@@ -121,3 +121,10 @@ A session marked `RISK_LOCKED` must not open another position. If it still has a
 Daily realized loss includes each partial TP/stop realization on the Nairobi calendar date when that stage is recorded. A manual DEMO close is committed through one atomic database function so the trade status, cumulative realized P&L, virtual balance and daily risk lock cannot drift apart.
 
 The supporting migration `202611160001_demo_daily_loss_partial_realizations.sql` is part of the pending quality pull request. Do not assume it is installed until the migration has been reviewed and applied to the correct Supabase project.
+
+
+## USD-normalized DEMO P&L
+
+The paper ledger is denominated in USD. Instruments whose quote currency is not USD require a fresh Deriv conversion quote (for example, USDJPY uses the inverse USDJPY rate, while EURGBP uses GBPUSD). If the conversion quote is missing, stale, mismatched or unsupported, the entry/mark/close operation fails closed rather than labelling raw quote-currency P&L as USD. Synthetic indices and other instruments without verified USD contract valuation are not eligible for USD-risk DEMO trading until their contract valuation is verified.
+
+The entry conversion factor is retained for audit. Realized P&L is converted using the fresh quote-currency-to-USD rate at each exit stage.
