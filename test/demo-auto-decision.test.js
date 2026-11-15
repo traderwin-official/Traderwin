@@ -180,3 +180,21 @@ test("blocks missing instrument identity instead of treating two empty symbols a
   input.quote.instrument = "";
   assert.equal(decideDemoAutoAction({ ...input, now }).reason, "MARKET_DATA_SCOPE_INVALID");
 });
+
+test("risk-locked DEMO sessions may manage an existing position but cannot open a new one", () => {
+  const lockedWithTrade = structuredClone(base);
+  lockedWithTrade.session.status = "RISK_LOCKED";
+  lockedWithTrade.market = null;
+  lockedWithTrade.openTrade = {
+    id: "risk-locked-open-trade", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, stop_loss: 118, take_profit: 126, tp1_price: 122,
+    tp2_price: 124, tp3_price: 126, tp1_done: false, tp2_done: false,
+    tp3_done: false, virtual_units: 2, status: "OPEN"
+  };
+  lockedWithTrade.quote.quote = 119;
+  assert.equal(decideDemoAutoAction({ ...lockedWithTrade, now }).action, "MARK");
+
+  const lockedWithoutTrade = structuredClone(base);
+  lockedWithoutTrade.session.status = "RISK_LOCKED";
+  assert.equal(decideDemoAutoAction({ ...lockedWithoutTrade, now }).reason, "SESSION_NOT_RUNNING_DEMO");
+});
