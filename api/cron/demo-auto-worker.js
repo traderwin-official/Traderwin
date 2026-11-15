@@ -34,7 +34,7 @@ async function processSession(db, session) {
   if (openTrade && openTrade.trade_source !== "BOT") {
     return { sessionId: session.id, action: "SKIP", reason: "MANUAL_POSITION_NOT_MANAGED" };
   }
-  if (session.status === "PAUSED" && !openTrade) {
+  if (["PAUSED", "RISK_LOCKED"].includes(session.status) && !openTrade) {
     return { sessionId: session.id, action: "SKIP", reason: "SESSION_PAUSED_NO_OPEN_POSITION" };
   }
   // A kill switch blocks new entries, but an existing BOT position must still
@@ -189,7 +189,7 @@ export default async function handler(req, res) {
     try {
       const { data: sessions, error } = await db.from("demo_bot_sessions")
         .select("id,user_id,bot_setting_id,status,account_mode,current_balance,starting_balance,max_risk_per_trade_pct,max_daily_loss_pct,worker_last_candle_as_of")
-        .in("status", ["RUNNING", "PAUSED"])
+        .in("status", ["RUNNING", "PAUSED", "RISK_LOCKED"])
         .eq("account_mode", "DEMO")
         .order("updated_at", { ascending: true })
         .limit(MAX_SESSIONS_PER_TICK);
@@ -225,7 +225,7 @@ export default async function handler(req, res) {
         const { error: touchError } = await db.from("demo_bot_sessions")
           .update({ updated_at: tickAt })
           .eq("id", session.id)
-          .in("status", ["RUNNING", "PAUSED"]);
+          .in("status", ["RUNNING", "PAUSED", "RISK_LOCKED"]);
         if (touchError) console.error("DEMO session scheduler timestamp failed:", touchError.message);
       }));
     } finally {
