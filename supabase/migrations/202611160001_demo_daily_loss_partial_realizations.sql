@@ -511,3 +511,155 @@ grant execute on function public.close_demo_paper_trade(uuid,uuid,text,numeric,t
 
 comment on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) is
 'Atomically closes a user-requested DEMO paper position, preserves cumulative P&L from partial exits, updates virtual balance and enforces daily loss lock.';
+
+
+-- Atomic manual DEMO paper entry. Rechecks account, emergency and daily-loss gates under a session row lock.
+create or replace function public.open_demo_manual_trade(
+  p_user_id uuid,
+  p_session_id uuid,
+  p_symbol text,
+  p_direction text,
+  p_entry_price numeric,
+  p_stop_loss numeric,
+  p_take_profit numeric,
+  p_virtual_units numeric,
+  p_risk_amount numeric,
+  p_risk_pct numeric,
+  p_profit_giveback_pct numeric,
+  p_quote_source text,
+  p_quote_as_of timestamptz
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_session public.demo_bot_sessions%rowtype;
+  v_instrument text;
+  v_daily_loss numeric(14,2);
+  v_daily_limit numeric(14,2);
+  v_day_start timestamptz;
+  v_trade public.demo_bot_trades%rowtype;
+begin
+  if p_user_id is null or p_session_id is null
+     or nullif(trim(p_symbol),'') is null
+     or p_direction is null or p_direction not in ('BUY','SELL')
+     or p_entry_price is null or p_entry_price <= 0
+     or p_stop_loss is null or p_stop_loss <= 0
+     or p_take_profit is null or p_take_profit <= 0
+     or p_virtual_units is null or p_virtual_units <= 0
+     or p_risk_amount is null or p_risk_amount <= 0
+     or p_risk_pct is null or p_risk_pct <= 0 or p_risk_pct > 2
+     or p_profit_giveback_pct is null or p_profit_giveback_pct < 1 or p_profit_giveback_pct > 50
+     or p_quote_source is distinct from 'DERIV'
+     or p_quote_as_of is null or p_quote_as_of > now()
+     or p_quote_as_of < now() - interval '30 seconds' then
+    raise exception 'Invalid or stale manual DEMO entry request';
+  end if;
+  if not ((p_direction='BUY' and p_stop_loss<p_entry_price and p_take_profit>p_entry_price)
+       or (p_direction='SELL' and p_stop_loss>p_entry_price and p_take_profit<p_entry_price)) then
+    raise exception 'Invalid manual DEMO stop-loss or take-profit placement';
+  end if;
+
+  select * into v_session
+    from public.demo_bot_sessions
+   where id=p_session_id and user_id=p_user_id and account_mode='DEMO'
+   for update;
+  if not found or v_session.status <> 'RUNNING' then
+    return jsonb_build_object('ok',false,'reason','SESSION_NOT_RUNNING');
+  end if;
+
+  select instrument into v_instrument
+    from public.bot_settings
+   where id=v_session.bot_setting_id and user_id=p_user_id and account_mode='DEMO';
+  if v_instrument is null or upper(trim(v_instrument)) <> upper(trim(p_symbol)) then
+    return jsonb_build_object('ok',false,'reason','INSTRUMENT_MISMATCH');
+  end if;
+
+  if exists (
+    select 1 from public.bot_emergency_controls
+     where user_id=p_user_id and account_mode='DEMO'
+       and broker='DERIV' and broker_account_ref='DEMO:' || p_user_id::text
+       and kill_switch_active=true
+  ) then
+    insert into public.bot_activity(user_id,bot_setting_id,event_type,account_mode,details)
+    values(p_user_id,v_session.bot_setting_id,'RISK_BLOCK','DEMO',
+      jsonb_build_object('reason','KILL_SWITCH_ACTIVE','action','MANUAL_ENTRY_BLOCKED'));
+    return jsonb_build_object('ok',false,'reason','KILL_SWITCH_ACTIVE');
+  end if;
+
+  v_day_start := date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
+  v_daily_loss := public.demo_daily_realized_loss(p_user_id,v_day_start,null);
+  v_daily_limit := v_session.starting_balance*v_session.max_daily_loss_pct/100;
+  if abs(v_daily_loss) >= v_daily_limit then
+    update public.demo_bot_sessions
+       set status='RISK_LOCKED',stopped_at=now(),updated_at=now()
+     where id=v_session.id and status='RUNNING';
+    insert into public.bot_activity(user_id,bot_setting_id,event_type,account_mode,details)
+    values(p_user_id,v_session.bot_setting_id,'RISK_BLOCK','DEMO',
+      jsonb_build_object('reason','DAILY_LOSS_LIMIT','daily_loss',abs(v_daily_loss),'limit',v_daily_limit));
+    return jsonb_build_object('ok',false,'reason','DAILY_LOSS_LIMIT','daily_loss',abs(v_daily_loss),'limit',v_daily_limit);
+  end if;
+
+  if p_risk_pct > v_session.max_risk_per_trade_pct
+     or p_risk_amount > v_session.current_balance*v_session.max_risk_per_trade_pct/100
+     or abs(p_risk_amount - v_session.current_balance*p_risk_pct/100) > 0.02 then
+    raise exception 'Manual DEMO risk limit exceeded';
+  end if;
+
+  if exists (
+    select 1 from public.demo_bot_trades
+     where user_id=p_user_id and status='OPEN'
+  ) then
+    return jsonb_build_object('ok',false,'reason','OPEN_POSITION_EXISTS');
+  end if;
+
+  insert into public.demo_bot_trades(
+    session_id,user_id,symbol,direction,entry_price,stop_loss,take_profit,
+    virtual_units,risk_amount,risk_pct,profit_giveback_pct,
+    quote_source,quote_as_of,trade_source
+  ) values (
+    p_session_id,p_user_id,p_symbol,p_direction,p_entry_price,p_stop_loss,p_take_profit,
+    p_virtual_units,p_risk_amount,p_risk_pct,p_profit_giveback_pct,
+    p_quote_source,p_quote_as_of,'MANUAL'
+  ) returning * into v_trade;
+
+  insert into public.bot_activity(user_id,bot_setting_id,event_type,account_mode,details)
+  values(p_user_id,v_session.bot_setting_id,'DEMO_ORDER','DEMO',
+    jsonb_build_object(
+      'trade_id',v_trade.id,
+      'action','MANUAL_OPEN',
+      'symbol',p_symbol,
+      'direction',p_direction,
+      'entry_price',p_entry_price,
+      'stop_loss',p_stop_loss,
+      'take_profit',p_take_profit,
+      'risk_amount',p_risk_amount,
+      'risk_pct',p_risk_pct,
+      'quote_source',p_quote_source,
+      'quote_as_of',p_quote_as_of
+    ));
+
+  return jsonb_build_object(
+    'ok',true,
+    'trade_id',v_trade.id,
+    'symbol',v_trade.symbol,
+    'direction',v_trade.direction,
+    'entry_price',v_trade.entry_price,
+    'stop_loss',v_trade.stop_loss,
+    'take_profit',v_trade.take_profit,
+    'virtual_units',v_trade.virtual_units,
+    'risk_amount',v_trade.risk_amount,
+    'risk_pct',v_trade.risk_pct,
+    'profit_giveback_pct',v_trade.profit_giveback_pct,
+    'status',v_trade.status,
+    'opened_at',v_trade.opened_at
+  );
+end;
+$$;
+
+revoke all on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) to service_role;
+
+comment on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) is
+'Atomically opens one user-requested DEMO paper position with server-verified quote provenance, per-trade risk, emergency-stop, daily-loss and one-open-position checks.';
