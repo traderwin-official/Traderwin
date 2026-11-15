@@ -8,6 +8,9 @@ test("DEMO entry obtains its entry price from the server-side Deriv quote adapte
   assert.match(source, /const entry = quote\.quote/);
   assert.match(source, /p_quote_source: quote\.source/);
   assert.match(source, /rpc\("open_demo_manual_trade"/);
+  assert.match(source, /getDerivQuoteToUsd/);
+  assert.match(source, /quoteToUsd: conversion\.rate/);
+  assert.match(source, /p_quote_to_usd: conversion\.rate/);
   assert.doesNotMatch(source, /from\("demo_bot_trades"\)\s*\.insert/);
   assert.doesNotMatch(source, /num\(b\.entryPrice\)/);
   assert.doesNotMatch(source, /USER_SUPPLIED_DEMO_PRICE|UNVERIFIED/);
@@ -19,10 +22,14 @@ test("DEMO mark and close use fresh server-side quotes rather than browser price
   assert.match(mark, /getDerivPublicQuote\(trade\.symbol\)/);
   assert.match(mark, /const currentPrice = quote\.quote/);
   assert.match(mark, /last_mark_at: quote\.quoteAsOf/);
+  assert.match(mark, /getDerivQuoteToUsd/);
+  assert.match(mark, /quoteToUsd: conversion\.rate/);
   assert.match(mark, /normalise\(quote\.instrument\).*normalise\(trade\.symbol\)/s);
   assert.doesNotMatch(mark, /Number\(body\.currentPrice\)/);
   assert.match(close, /getDerivPublicQuote\(trade\.symbol\)/);
   assert.match(close, /p_exit_price: quote\.quote/);
+  assert.match(close, /getDerivQuoteToUsd/);
+  assert.match(close, /p_quote_to_usd: conversion\.rate/);
   assert.doesNotMatch(close, /Number\(b\.exitPrice\)/);
 });
 
