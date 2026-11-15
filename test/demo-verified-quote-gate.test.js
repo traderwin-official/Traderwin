@@ -17,8 +17,8 @@ test("DEMO mark and close use fresh server-side quotes rather than browser price
   assert.match(mark, /getDerivPublicQuote\(trade\.symbol\)/);
   assert.match(mark, /const currentPrice = quote\.quote/);
   assert.doesNotMatch(mark, /Number\(body\.currentPrice\)/);
-  assert.match(close, /getDerivPublicQuote\(t\.symbol\)/);
-  assert.match(close, /const exit=quote\.quote/);
+  assert.match(close, /getDerivPublicQuote\(trade\.symbol\)/);
+  assert.match(close, /p_exit_price: quote\.quote/);
   assert.doesNotMatch(close, /Number\(b\.exitPrice\)/);
 });
 
