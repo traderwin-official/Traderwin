@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getDerivPublicQuote } from "../../lib/deriv-public-quote.js";
 import { getDerivCandles } from "../../lib/deriv-candles.js";
+import { getDerivQuoteToUsd } from "../../lib/usd-conversion.js";
 import { decideDemoAutoAction } from "../../lib/demo-auto-decision.js";
 
 export const config = { maxDuration: 25 };
@@ -54,6 +55,14 @@ async function processSession(db, session) {
   } catch (error) {
     return { sessionId: session.id, action: "BLOCK", reason: "QUOTE_UNAVAILABLE", detail: safeError(error) };
   }
+  try {
+    const conversion = await getDerivQuoteToUsd(managedInstrument, quote);
+    quote.quoteToUsd = conversion.rate;
+    quote.conversionSource = conversion.source;
+    quote.conversionAsOf = conversion.asOf;
+  } catch (error) {
+    return { sessionId: session.id, action: "BLOCK", reason: "USD_CONVERSION_UNAVAILABLE", detail: safeError(error) };
+  }
 
   let market = null;
   if (!openTrade) {
@@ -100,6 +109,7 @@ async function processSession(db, session) {
       p_trade_id: decision.tradeId,
       p_stage: decision.stage,
       p_exit_price: decision.exitPrice,
+      p_quote_to_usd: quote.quoteToUsd,
       p_quote_source: quote.source,
       p_quote_as_of: quote.quoteAsOf
     });
@@ -134,6 +144,7 @@ async function processSession(db, session) {
       p_virtual_units: decision.units,
       p_risk_amount: decision.riskAmount,
       p_risk_pct: decision.riskPct,
+      p_quote_to_usd: quote.quoteToUsd,
       p_quote_source: quote.source,
       p_quote_as_of: quote.quoteAsOf,
       p_candle_as_of: decision.candleAsOf
