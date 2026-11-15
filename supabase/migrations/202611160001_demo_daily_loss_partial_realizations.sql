@@ -50,6 +50,15 @@ revoke all on function public.demo_daily_realized_loss(uuid,timestamptz,uuid) fr
 grant execute on function public.demo_daily_realized_loss(uuid,timestamptz,uuid) to service_role;
 
 
+-- Replace the earlier DEMO RPC signatures with USD-normalized versions.
+drop function if exists public.open_demo_auto_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,timestamptz);
+drop function if exists public.close_demo_auto_trade(uuid,uuid,numeric,text,timestamptz,text);
+drop function if exists public.manage_demo_auto_trade_exit(uuid,uuid,text,numeric,text,timestamptz);
+
+alter table public.demo_bot_trades
+  add column if not exists entry_quote_to_usd numeric(20,10) not null default 1
+  check (entry_quote_to_usd > 0 and entry_quote_to_usd <= 1000000);
+
 create or replace function public.open_demo_auto_trade(
   p_user_id uuid,
   p_session_id uuid,
@@ -61,6 +70,7 @@ create or replace function public.open_demo_auto_trade(
   p_virtual_units numeric,
   p_risk_amount numeric,
   p_risk_pct numeric,
+  p_quote_to_usd numeric,
   p_quote_source text,
   p_quote_as_of timestamptz,
   p_candle_as_of timestamptz
@@ -68,7 +78,7 @@ create or replace function public.open_demo_auto_trade(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $$
+as $
 declare
   v_session public.demo_bot_sessions%rowtype;
   v_instrument text;
@@ -86,6 +96,7 @@ begin
      or p_virtual_units is null or p_virtual_units <= 0
      or p_risk_amount is null or p_risk_amount <= 0
      or p_risk_pct is null or p_risk_pct <= 0 or p_risk_pct > 2
+     or p_quote_to_usd is null or p_quote_to_usd <= 0 or p_quote_to_usd > 1000000
      or p_quote_source is null or p_quote_source <> 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now() or p_quote_as_of < now() - interval '30 seconds'
      or p_candle_as_of is null or p_candle_as_of > now() then
@@ -125,7 +136,8 @@ begin
     return null;
   end if;
   if p_risk_pct > v_session.max_risk_per_trade_pct
-     or p_risk_amount > v_session.current_balance * v_session.max_risk_per_trade_pct / 100 then
+     or p_risk_amount > v_session.current_balance * v_session.max_risk_per_trade_pct / 100
+     or abs(p_risk_amount - abs(p_entry_price-p_stop_loss)*p_virtual_units*p_quote_to_usd) > 0.02 then
     raise exception 'DEMO risk limit exceeded';
   end if;
   select instrument into v_instrument
@@ -144,10 +156,10 @@ begin
 
   insert into public.demo_bot_trades(
     session_id,user_id,symbol,direction,entry_price,stop_loss,take_profit,
-    virtual_units,risk_amount,risk_pct,quote_source,quote_as_of,trade_source
+    virtual_units,risk_amount,risk_pct,entry_quote_to_usd,quote_source,quote_as_of,trade_source
   ) values (
     p_session_id,p_user_id,p_symbol,p_direction,p_entry_price,p_stop_loss,p_take_profit,
-    p_virtual_units,p_risk_amount,p_risk_pct,p_quote_source,p_quote_as_of,'BOT'
+    p_virtual_units,p_risk_amount,p_risk_pct,p_quote_to_usd,p_quote_source,p_quote_as_of,'BOT'
   ) returning id into v_trade_id;
 
   update public.demo_bot_sessions
@@ -158,17 +170,18 @@ begin
     jsonb_build_object('trade_id',v_trade_id,'action','AUTO_OPEN',
       'symbol',p_symbol,'direction',p_direction,'entry_price',p_entry_price,
       'stop_loss',p_stop_loss,'take_profit',p_take_profit,
-      'risk_amount',p_risk_amount,'risk_pct',p_risk_pct,
+      'risk_amount',p_risk_amount,'risk_pct',p_risk_pct,'quote_to_usd',p_quote_to_usd,
       'quote_source',p_quote_source,'quote_as_of',p_quote_as_of,
       'candle_as_of',p_candle_as_of));
   return v_trade_id;
 end;
-$$;
+$;
 
 create or replace function public.close_demo_auto_trade(
   p_user_id uuid,
   p_trade_id uuid,
   p_exit_price numeric,
+  p_quote_to_usd numeric,
   p_quote_source text,
   p_quote_as_of timestamptz,
   p_close_reason text
@@ -176,7 +189,7 @@ create or replace function public.close_demo_auto_trade(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $$
+as $
 declare
   v_trade public.demo_bot_trades%rowtype;
   v_session public.demo_bot_sessions%rowtype;
@@ -189,6 +202,7 @@ declare
 begin
   if p_user_id is null or p_trade_id is null
      or p_exit_price is null or p_exit_price <= 0
+     or p_quote_to_usd is null or p_quote_to_usd <= 0 or p_quote_to_usd > 1000000
      or p_quote_source is null or p_quote_source <> 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now() or p_quote_as_of < now() - interval '30 seconds'
      or p_close_reason is null or p_close_reason not in ('STOP_LOSS','TAKE_PROFIT','MANUAL_STOP') then
@@ -226,7 +240,7 @@ begin
   v_pnl := round(
     (case when v_trade.direction = 'BUY'
       then p_exit_price - v_trade.entry_price
-      else v_trade.entry_price - p_exit_price end) * v_trade.virtual_units, 2
+      else v_trade.entry_price - p_exit_price end) * v_trade.virtual_units * p_quote_to_usd, 2
   );
   update public.demo_bot_trades
      set exit_price = p_exit_price, realized_pnl = v_pnl,
@@ -256,27 +270,28 @@ begin
     jsonb_build_object('trade_id',p_trade_id,'action','AUTO_CLOSE',
       'reason',p_close_reason,'exit_price',p_exit_price,'realized_pnl',v_pnl,
       'daily_loss',abs(v_daily_loss),'daily_loss_limit',v_daily_limit,
-      'quote_source',p_quote_source,'quote_as_of',p_quote_as_of));
+      'quote_source',p_quote_source,'quote_as_of',p_quote_as_of,'quote_to_usd',p_quote_to_usd));
 
   return jsonb_build_object('closed', true, 'trade_id', p_trade_id,
     'exit_price', p_exit_price, 'realized_pnl', v_pnl,
     'current_balance', v_next_balance, 'risk_locked', v_locked,
     'close_reason', p_close_reason);
 end;
-$$;
+$;
 
 create or replace function public.manage_demo_auto_trade_exit(
   p_user_id uuid,
   p_trade_id uuid,
   p_stage text,
   p_exit_price numeric,
+  p_quote_to_usd numeric,
   p_quote_source text,
   p_quote_as_of timestamptz
 ) returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $$
+as $
 declare
   v_trade public.demo_bot_trades%rowtype;
   v_session public.demo_bot_sessions%rowtype;
@@ -294,6 +309,7 @@ begin
   if p_user_id is null or p_trade_id is null or p_stage is null
      or p_stage not in ('STOP_LOSS','TP1','TP2','TP3')
      or p_exit_price is null or p_exit_price <= 0
+     or p_quote_to_usd is null or p_quote_to_usd <= 0 or p_quote_to_usd > 1000000
      or p_quote_source is null or p_quote_source <> 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now()
      or p_quote_as_of < now() - interval '30 seconds' then
@@ -346,7 +362,7 @@ begin
   end if;
   v_remaining := greatest(0, v_trade.virtual_units-v_close_units);
   v_pnl := round((case when v_trade.direction='BUY'
-    then p_exit_price-v_trade.entry_price else v_trade.entry_price-p_exit_price end)*v_close_units,2);
+    then p_exit_price-v_trade.entry_price else v_trade.entry_price-p_exit_price end)*v_close_units*p_quote_to_usd,2);
   v_cumulative := coalesce(v_trade.realized_pnl,0)+v_pnl;
   v_next_balance := greatest(0,v_session.current_balance+v_pnl);
 
@@ -382,14 +398,14 @@ begin
       'closed_units',v_close_units,'remaining_units',v_remaining,
       'exit_price',p_exit_price,'realized_pnl_this_stage',v_pnl,
       'realized_pnl_total',v_cumulative,'quote_source',p_quote_source,
-      'quote_as_of',p_quote_as_of,'risk_locked',v_locked));
+      'quote_as_of',p_quote_as_of,'quote_to_usd',p_quote_to_usd,'risk_locked',v_locked));
 
   return jsonb_build_object('ok',true,'stage',p_stage,'closed',v_final,
     'closed_units',v_close_units,'remaining_units',v_remaining,
     'realized_pnl_this_stage',v_pnl,'realized_pnl_total',v_cumulative,
     'current_balance',v_next_balance,'risk_locked',v_locked);
 end;
-$$;
+$;
 
 comment on function public.demo_daily_realized_loss(uuid,timestamptz,uuid) is
 'Returns the total negative DEMO realized P&L for the Nairobi trading day, counting each partial exit on its realization date and preserving legacy full-close records. Service-role only.';
@@ -401,13 +417,14 @@ create or replace function public.close_demo_paper_trade(
   p_trade_id uuid,
   p_instrument text,
   p_exit_price numeric,
+  p_quote_to_usd numeric,
   p_quote_source text,
   p_quote_as_of timestamptz
 ) returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $$
+as $
 declare
   v_trade public.demo_bot_trades%rowtype;
   v_session public.demo_bot_sessions%rowtype;
@@ -422,6 +439,7 @@ begin
   if p_user_id is null or p_trade_id is null
      or nullif(trim(p_instrument),'') is null
      or p_exit_price is null or p_exit_price <= 0
+     or p_quote_to_usd is null or p_quote_to_usd <= 0 or p_quote_to_usd > 1000000
      or p_quote_source is distinct from 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now()
      or p_quote_as_of < now() - interval '30 seconds' then
@@ -450,7 +468,7 @@ begin
   v_pnl := round(
     (case when v_trade.direction = 'BUY'
       then p_exit_price - v_trade.entry_price
-      else v_trade.entry_price - p_exit_price end) * v_trade.virtual_units,
+      else v_trade.entry_price - p_exit_price end) * v_trade.virtual_units * p_quote_to_usd,
     2
   );
   v_cumulative := coalesce(v_trade.realized_pnl,0) + v_pnl;
@@ -477,9 +495,11 @@ begin
       'instrument',v_trade.symbol,
       'exit_price',p_exit_price,
       'realized_pnl_this_stage',v_pnl,
+    'quote_to_usd',p_quote_to_usd,
       'realized_pnl_total',v_cumulative,
       'quote_source',p_quote_source,
-      'quote_as_of',p_quote_as_of
+      'quote_as_of',p_quote_as_of,
+      'quote_to_usd',p_quote_to_usd
     ));
 
   v_day_start := date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
@@ -504,7 +524,7 @@ begin
     'risk_locked',v_locked
   );
 end;
-$$;
+$;
 
 revoke all on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) from public, anon, authenticated;
 grant execute on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) to service_role;
@@ -525,6 +545,7 @@ create or replace function public.open_demo_manual_trade(
   p_virtual_units numeric,
   p_risk_amount numeric,
   p_risk_pct numeric,
+  p_quote_to_usd numeric,
   p_profit_giveback_pct numeric,
   p_quote_source text,
   p_quote_as_of timestamptz
@@ -532,7 +553,7 @@ create or replace function public.open_demo_manual_trade(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $$
+as $
 declare
   v_session public.demo_bot_sessions%rowtype;
   v_instrument text;
@@ -551,6 +572,7 @@ begin
      or p_virtual_units is null or p_virtual_units <= 0
      or p_risk_amount is null or p_risk_amount <= 0
      or p_risk_pct is null or p_risk_pct <= 0 or p_risk_pct > 2
+     or p_quote_to_usd is null or p_quote_to_usd <= 0 or p_quote_to_usd > 1000000
      or p_profit_giveback_pct is null or p_profit_giveback_pct < 1 or p_profit_giveback_pct > 50
      or p_quote_source is distinct from 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now()
@@ -607,7 +629,7 @@ begin
 
   if p_risk_pct > v_session.max_risk_per_trade_pct
      or p_risk_amount > v_session.current_balance*v_session.max_risk_per_trade_pct/100
-     or abs(p_risk_amount - v_session.current_balance*p_risk_pct/100) > 0.02 then
+     or abs(p_risk_amount - abs(p_entry_price-p_stop_loss)*p_virtual_units*p_quote_to_usd) > 0.02 then
     raise exception 'Manual DEMO risk limit exceeded';
   end if;
 
@@ -620,11 +642,11 @@ begin
 
   insert into public.demo_bot_trades(
     session_id,user_id,symbol,direction,entry_price,stop_loss,take_profit,
-    virtual_units,risk_amount,risk_pct,profit_giveback_pct,
+    virtual_units,risk_amount,risk_pct,entry_quote_to_usd,profit_giveback_pct,
     quote_source,quote_as_of,trade_source
   ) values (
     p_session_id,p_user_id,p_symbol,p_direction,p_entry_price,p_stop_loss,p_take_profit,
-    p_virtual_units,p_risk_amount,p_risk_pct,p_profit_giveback_pct,
+    p_virtual_units,p_risk_amount,p_risk_pct,p_quote_to_usd,p_profit_giveback_pct,
     p_quote_source,p_quote_as_of,'MANUAL'
   ) returning * into v_trade;
 
@@ -640,6 +662,7 @@ begin
       'take_profit',p_take_profit,
       'risk_amount',p_risk_amount,
       'risk_pct',p_risk_pct,
+      'quote_to_usd',p_quote_to_usd,
       'quote_source',p_quote_source,
       'quote_as_of',p_quote_as_of
     ));
@@ -655,15 +678,28 @@ begin
     'virtual_units',v_trade.virtual_units,
     'risk_amount',v_trade.risk_amount,
     'risk_pct',v_trade.risk_pct,
+    'entry_quote_to_usd',v_trade.entry_quote_to_usd,
     'profit_giveback_pct',v_trade.profit_giveback_pct,
     'status',v_trade.status,
     'opened_at',v_trade.opened_at
   );
 end;
-$$;
+$;
 
 revoke all on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) from public, anon, authenticated;
 grant execute on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) to service_role;
 
 comment on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) is
 'Atomically opens one user-requested DEMO paper position with server-verified quote provenance, per-trade risk, emergency-stop, daily-loss and one-open-position checks.';
+
+revoke all on function public.open_demo_auto_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,timestamptz) from public, anon, authenticated;
+grant execute on function public.open_demo_auto_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,timestamptz) to service_role;
+
+revoke all on function public.close_demo_auto_trade(uuid,uuid,numeric,numeric,text,timestamptz,text) from public, anon, authenticated;
+grant execute on function public.close_demo_auto_trade(uuid,uuid,numeric,numeric,text,timestamptz,text) to service_role;
+
+revoke all on function public.manage_demo_auto_trade_exit(uuid,uuid,text,numeric,numeric,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.manage_demo_auto_trade_exit(uuid,uuid,text,numeric,numeric,text,timestamptz) to service_role;
+
+revoke all on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) to service_role;
