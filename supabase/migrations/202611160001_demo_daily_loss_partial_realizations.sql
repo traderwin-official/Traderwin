@@ -536,6 +536,7 @@ as $$
 declare
   v_session public.demo_bot_sessions%rowtype;
   v_instrument text;
+  v_broker text;
   v_daily_loss numeric(14,2);
   v_daily_limit numeric(14,2);
   v_day_start timestamptz;
@@ -569,11 +570,14 @@ begin
     return jsonb_build_object('ok',false,'reason','SESSION_NOT_RUNNING');
   end if;
 
-  select instrument into v_instrument
+  select instrument,broker into v_instrument,v_broker
     from public.bot_settings
    where id=v_session.bot_setting_id and user_id=p_user_id and account_mode='DEMO';
   if v_instrument is null or upper(trim(v_instrument)) <> upper(trim(p_symbol)) then
     return jsonb_build_object('ok',false,'reason','INSTRUMENT_MISMATCH');
+  end if;
+  if upper(coalesce(v_broker,'')) <> 'DERIV' then
+    return jsonb_build_object('ok',false,'reason','UNSUPPORTED_BROKER');
   end if;
 
   if exists (
