@@ -12,6 +12,7 @@ on:
       - "test/**"
       - "scripts/**"
       - "docs/UNIFIED_MPESA_SETUP.md"
+      - "docs/DERIV_CLOUDFLARE_SETUP.md"
       - "docs/CLOUDFLARE_ORACLE_MIGRATION.md"
       - "package.json"
       - "wrangler.toml"
@@ -58,6 +59,12 @@ jobs:
           test -f functions/api/payments/mpesa/bot-shop-callback.js
           test -f functions/api/bot-shop.js
           test -f functions/api/bot-shop-status.js
+          test -f functions/api/deriv/start.js
+          test -f functions/api/deriv/callback.js
+          test -f functions/api/deriv/status.js
+          test -f functions/api/deriv/disconnect.js
+          test -f lib/cloudflare-deriv.js
+          test -f test/cloudflare-deriv.test.js
           test -f workers/mpesa-rate-limiter/index.js
           test -f workers/mpesa-rate-limiter/wrangler.toml
           echo "Tiger Scheme static bundle and staged server routes verified."
