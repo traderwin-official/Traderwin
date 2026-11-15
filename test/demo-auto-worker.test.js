@@ -73,3 +73,15 @@ test("daily-loss migration counts partial realizations and keeps risk-locked ope
   assert.match(sql, /status in \('RUNNING','PAUSED'\)/);
   assert.match(sql, /to service_role/);
 });
+
+test("manual DEMO close delegates balance, cumulative P&L and daily risk updates to one atomic RPC", async () => {
+  const route = await readFile(new URL("../api/bots/demo/close.js", import.meta.url), "utf8");
+  const sql = await readFile(new URL("../supabase/migrations/202611160001_demo_daily_loss_partial_realizations.sql", import.meta.url), "utf8");
+  assert.match(route, /rpc\("close_demo_paper_trade"/);
+  assert.match(route, /normalise\(quote\.instrument\).*normalise\(trade\.symbol\)/s);
+  assert.doesNotMatch(route, /from\("demo_bot_trades"\)\s*\.update/);
+  assert.match(sql, /create or replace function public\.close_demo_paper_trade/);
+  assert.match(sql, /'action','MANUAL_CLOSE'/);
+  assert.match(sql, /realized_pnl_total/);
+  assert.match(sql, /demo_daily_realized_loss\(p_user_id,v_day_start,null\)/);
+});
