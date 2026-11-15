@@ -5,8 +5,10 @@ import { readFile } from "node:fs/promises";
 test("DEMO entry obtains its entry price from the server-side Deriv quote adapter", async () => {
   const source = await readFile(new URL("../api/bots/demo/trade.js", import.meta.url), "utf8");
   assert.match(source, /getDerivPublicQuote\(symbol\)/);
-  assert.match(source, /const entry=quote\.quote/);
-  assert.match(source, /quote_source:quote\.source,quote_as_of:quote\.quoteAsOf/);
+  assert.match(source, /const entry = quote\.quote/);
+  assert.match(source, /p_quote_source: quote\.source/);
+  assert.match(source, /rpc\("open_demo_manual_trade"/);
+  assert.doesNotMatch(source, /from\("demo_bot_trades"\)\s*\.insert/);
   assert.doesNotMatch(source, /num\(b\.entryPrice\)/);
   assert.doesNotMatch(source, /USER_SUPPLIED_DEMO_PRICE|UNVERIFIED/);
 });
@@ -16,6 +18,8 @@ test("DEMO mark and close use fresh server-side quotes rather than browser price
   const close = await readFile(new URL("../api/bots/demo/close.js", import.meta.url), "utf8");
   assert.match(mark, /getDerivPublicQuote\(trade\.symbol\)/);
   assert.match(mark, /const currentPrice = quote\.quote/);
+  assert.match(mark, /last_mark_at: quote\.quoteAsOf/);
+  assert.match(mark, /normalise\(quote\.instrument\).*normalise\(trade\.symbol\)/s);
   assert.doesNotMatch(mark, /Number\(body\.currentPrice\)/);
   assert.match(close, /getDerivPublicQuote\(trade\.symbol\)/);
   assert.match(close, /p_exit_price: quote\.quote/);
