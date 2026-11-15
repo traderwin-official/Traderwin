@@ -26,7 +26,7 @@ as $$
         and a.account_mode = 'DEMO'
         and a.created_at >= p_day_start
         and a.event_type in ('DEMO_ORDER','RISK_BLOCK')
-        and a.details->>'action' in ('TP1','TP2','TP3','STOP_LOSS','AUTO_CLOSE')
+        and a.details->>'action' in ('TP1','TP2','TP3','STOP_LOSS','AUTO_CLOSE','MANUAL_CLOSE')
     ), 0)
     +
     coalesce((
@@ -41,7 +41,7 @@ as $$
           from public.bot_activity a
           where a.user_id = t.user_id
             and a.details->>'trade_id' = t.id::text
-            and a.details->>'action' in ('TP1','TP2','TP3','STOP_LOSS','AUTO_CLOSE')
+            and a.details->>'action' in ('TP1','TP2','TP3','STOP_LOSS','AUTO_CLOSE','MANUAL_CLOSE')
         )
     ), 0);
 $$;
@@ -393,3 +393,121 @@ $$;
 
 comment on function public.demo_daily_realized_loss(uuid,timestamptz,uuid) is
 'Returns the total negative DEMO realized P&L for the Nairobi trading day, counting each partial exit on its realization date and preserving legacy full-close records. Service-role only.';
+
+
+-- Close a user-requested DEMO paper position atomically, including any earlier partial exits.
+create or replace function public.close_demo_paper_trade(
+  p_user_id uuid,
+  p_trade_id uuid,
+  p_instrument text,
+  p_exit_price numeric,
+  p_quote_source text,
+  p_quote_as_of timestamptz
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_trade public.demo_bot_trades%rowtype;
+  v_session public.demo_bot_sessions%rowtype;
+  v_pnl numeric(14,2);
+  v_cumulative numeric(14,2);
+  v_next_balance numeric(14,2);
+  v_day_start timestamptz;
+  v_daily_loss numeric(14,2);
+  v_daily_limit numeric(14,2);
+  v_locked boolean := false;
+begin
+  if p_user_id is null or p_trade_id is null
+     or nullif(trim(p_instrument),'') is null
+     or p_exit_price is null or p_exit_price <= 0
+     or p_quote_source is distinct from 'DERIV'
+     or p_quote_as_of is null or p_quote_as_of > now()
+     or p_quote_as_of < now() - interval '30 seconds' then
+    raise exception 'Invalid or stale DEMO paper-close request';
+  end if;
+
+  select * into v_trade
+    from public.demo_bot_trades
+   where id = p_trade_id and user_id = p_user_id and status = 'OPEN'
+   for update;
+  if not found then
+    return jsonb_build_object('ok',false,'reason','TRADE_NOT_OPEN');
+  end if;
+  if upper(trim(v_trade.symbol)) <> upper(trim(p_instrument)) then
+    raise exception 'Paper-close instrument does not match the open trade';
+  end if;
+
+  select * into v_session
+    from public.demo_bot_sessions
+   where id = v_trade.session_id and user_id = p_user_id
+   for update;
+  if not found or v_session.account_mode <> 'DEMO' then
+    raise exception 'DEMO session not found';
+  end if;
+
+  v_pnl := round(
+    (case when v_trade.direction = 'BUY'
+      then p_exit_price - v_trade.entry_price
+      else v_trade.entry_price - p_exit_price end) * v_trade.virtual_units,
+    2
+  );
+  v_cumulative := coalesce(v_trade.realized_pnl,0) + v_pnl;
+  v_next_balance := greatest(0,v_session.current_balance + v_pnl);
+
+  update public.demo_bot_trades
+     set exit_price = p_exit_price,
+         realized_pnl = v_cumulative,
+         status = 'CLOSED',
+         closed_at = now(),
+         last_mark_price = p_exit_price,
+         last_mark_at = p_quote_as_of
+   where id = p_trade_id and user_id = p_user_id and status = 'OPEN';
+
+  update public.demo_bot_sessions
+     set current_balance = v_next_balance, updated_at = now()
+   where id = v_session.id;
+
+  insert into public.bot_activity(user_id,bot_setting_id,event_type,account_mode,details)
+  values (p_user_id,v_session.bot_setting_id,'DEMO_ORDER','DEMO',
+    jsonb_build_object(
+      'trade_id',p_trade_id,
+      'action','MANUAL_CLOSE',
+      'instrument',v_trade.symbol,
+      'exit_price',p_exit_price,
+      'realized_pnl_this_stage',v_pnl,
+      'realized_pnl_total',v_cumulative,
+      'quote_source',p_quote_source,
+      'quote_as_of',p_quote_as_of
+    ));
+
+  v_day_start := date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
+  v_daily_loss := public.demo_daily_realized_loss(p_user_id,v_day_start,null);
+  v_daily_limit := v_session.starting_balance*v_session.max_daily_loss_pct/100;
+  if abs(v_daily_loss) >= v_daily_limit then
+    update public.demo_bot_sessions
+       set status = 'RISK_LOCKED', stopped_at = now(), updated_at = now()
+     where id = v_session.id and status in ('RUNNING','PAUSED');
+    v_locked := true;
+  end if;
+
+  return jsonb_build_object(
+    'ok',true,
+    'trade_id',p_trade_id,
+    'exit_price',p_exit_price,
+    'realized_pnl_this_stage',v_pnl,
+    'realized_pnl_total',v_cumulative,
+    'current_balance',v_next_balance,
+    'daily_loss',abs(v_daily_loss),
+    'daily_loss_limit',v_daily_limit,
+    'risk_locked',v_locked
+  );
+end;
+$$;
+
+revoke all on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) to service_role;
+
+comment on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) is
+'Atomically closes a user-requested DEMO paper position, preserves cumulative P&L from partial exits, updates virtual balance and enforces daily loss lock.';
