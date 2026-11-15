@@ -78,7 +78,7 @@ create or replace function public.open_demo_auto_trade(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_session public.demo_bot_sessions%rowtype;
   v_instrument text;
@@ -124,7 +124,10 @@ begin
     return null;
   end if;
   v_day_start := date_trunc('day', now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
-  v_daily_loss := public.demo_daily_realized_loss(p_user_id, v_day_start, null);
+  select coalesce(sum(least(realized_pnl, 0)), 0)
+    into v_daily_loss
+    from public.demo_bot_trades
+   where user_id = p_user_id and status = 'CLOSED' and closed_at >= v_day_start;
   v_daily_limit := v_session.starting_balance * v_session.max_daily_loss_pct / 100;
   if abs(v_daily_loss) >= v_daily_limit then
     update public.demo_bot_sessions
@@ -175,7 +178,7 @@ begin
       'candle_as_of',p_candle_as_of));
   return v_trade_id;
 end;
-$;
+$$;
 
 create or replace function public.close_demo_auto_trade(
   p_user_id uuid,
@@ -189,7 +192,7 @@ create or replace function public.close_demo_auto_trade(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_trade public.demo_bot_trades%rowtype;
   v_session public.demo_bot_sessions%rowtype;
@@ -243,7 +246,7 @@ begin
       else v_trade.entry_price - p_exit_price end) * v_trade.virtual_units * p_quote_to_usd, 2
   );
   update public.demo_bot_trades
-     set exit_price = p_exit_price, realized_pnl = v_pnl,
+     set exit_price = p_exit_price, realized_pnl = coalesce(v_trade.realized_pnl,0) + v_pnl,
          status = 'CLOSED', closed_at = now(),
          last_mark_price = p_exit_price, last_mark_at = p_quote_as_of
    where id = p_trade_id and status = 'OPEN';
@@ -254,12 +257,15 @@ begin
    where id = v_session.id;
 
   v_day_start := date_trunc('day', now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
-  v_daily_loss := public.demo_daily_realized_loss(p_user_id, v_day_start, p_trade_id) + least(v_pnl, 0);
+  select coalesce(sum(least(realized_pnl, 0)), 0)
+    into v_daily_loss
+    from public.demo_bot_trades
+   where user_id = p_user_id and status = 'CLOSED' and closed_at >= v_day_start;
   v_daily_limit := v_session.starting_balance * v_session.max_daily_loss_pct / 100;
   if abs(v_daily_loss) >= v_daily_limit then
     update public.demo_bot_sessions
        set status = 'RISK_LOCKED', stopped_at = now(), updated_at = now()
-     where id = v_session.id and status in ('RUNNING','PAUSED');
+     where id = v_session.id and status = 'RUNNING';
     v_locked := true;
   end if;
 
@@ -277,7 +283,7 @@ begin
     'current_balance', v_next_balance, 'risk_locked', v_locked,
     'close_reason', p_close_reason);
 end;
-$;
+$$;
 
 create or replace function public.manage_demo_auto_trade_exit(
   p_user_id uuid,
@@ -291,7 +297,7 @@ create or replace function public.manage_demo_auto_trade_exit(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_trade public.demo_bot_trades%rowtype;
   v_session public.demo_bot_sessions%rowtype;
@@ -383,11 +389,12 @@ begin
    where id=v_session.id;
 
   v_day_start := date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
-  v_daily_loss := public.demo_daily_realized_loss(p_user_id, v_day_start, p_trade_id) + least(v_pnl, 0);
+  select coalesce(sum(least(realized_pnl,0)),0) into v_daily_loss
+   from public.demo_bot_trades where user_id=p_user_id and status='CLOSED' and closed_at>=v_day_start;
   v_daily_limit := v_session.starting_balance*v_session.max_daily_loss_pct/100;
   if abs(v_daily_loss)>=v_daily_limit then
     update public.demo_bot_sessions set status='RISK_LOCKED',stopped_at=now(),updated_at=now()
-     where id=v_session.id and status in ('RUNNING','PAUSED');
+     where id=v_session.id and status='RUNNING';
     v_locked := true;
   end if;
 
@@ -405,7 +412,7 @@ begin
     'realized_pnl_this_stage',v_pnl,'realized_pnl_total',v_cumulative,
     'current_balance',v_next_balance,'risk_locked',v_locked);
 end;
-$;
+$$;
 
 comment on function public.demo_daily_realized_loss(uuid,timestamptz,uuid) is
 'Returns the total negative DEMO realized P&L for the Nairobi trading day, counting each partial exit on its realization date and preserving legacy full-close records. Service-role only.';
@@ -424,7 +431,7 @@ create or replace function public.close_demo_paper_trade(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_trade public.demo_bot_trades%rowtype;
   v_session public.demo_bot_sessions%rowtype;
@@ -524,12 +531,12 @@ begin
     'risk_locked',v_locked
   );
 end;
-$;
+$$;
 
-revoke all on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) from public, anon, authenticated;
-grant execute on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) to service_role;
+revoke all on function public.close_demo_paper_trade(uuid,uuid,text,numeric,numeric,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.close_demo_paper_trade(uuid,uuid,text,numeric,numeric,text,timestamptz) to service_role;
 
-comment on function public.close_demo_paper_trade(uuid,uuid,text,numeric,text,timestamptz) is
+comment on function public.close_demo_paper_trade(uuid,uuid,text,numeric,numeric,text,timestamptz) is
 'Atomically closes a user-requested DEMO paper position, preserves cumulative P&L from partial exits, updates virtual balance and enforces daily loss lock.';
 
 
@@ -553,7 +560,7 @@ create or replace function public.open_demo_manual_trade(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_session public.demo_bot_sessions%rowtype;
   v_instrument text;
@@ -684,12 +691,12 @@ begin
     'opened_at',v_trade.opened_at
   );
 end;
-$;
+$$;
 
-revoke all on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) from public, anon, authenticated;
-grant execute on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) to service_role;
+revoke all on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) to service_role;
 
-comment on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) is
+comment on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) is
 'Atomically opens one user-requested DEMO paper position with server-verified quote provenance, per-trade risk, emergency-stop, daily-loss and one-open-position checks.';
 
 revoke all on function public.open_demo_auto_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,timestamptz) from public, anon, authenticated;
@@ -703,3 +710,10 @@ grant execute on function public.manage_demo_auto_trade_exit(uuid,uuid,text,nume
 
 revoke all on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) from public, anon, authenticated;
 grant execute on function public.open_demo_manual_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz) to service_role;
+
+revoke all on function public.open_demo_auto_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,timestamptz) from public, anon, authenticated;
+grant execute on function public.open_demo_auto_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,timestamptz) to service_role;
+revoke all on function public.close_demo_auto_trade(uuid,uuid,numeric,numeric,text,timestamptz,text) from public, anon, authenticated;
+grant execute on function public.close_demo_auto_trade(uuid,uuid,numeric,numeric,text,timestamptz,text) to service_role;
+revoke all on function public.manage_demo_auto_trade_exit(uuid,uuid,text,numeric,numeric,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.manage_demo_auto_trade_exit(uuid,uuid,text,numeric,numeric,text,timestamptz) to service_role;
