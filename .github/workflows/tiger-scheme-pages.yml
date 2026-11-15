@@ -64,6 +64,9 @@ jobs:
           test -f functions/api/deriv/status.js
           test -f functions/api/deriv/disconnect.js
           test -f functions/api/analysis/market.js
+          test -f functions/api/subscriptions/status.js
+          test -f lib/cloudflare-subscriptions.js
+          test -f test/cloudflare-subscriptions.test.js
           test -f lib/cloudflare-market-analysis.js
           test -f test/cloudflare-market-analysis.test.js
           test -f lib/cloudflare-deriv.js
