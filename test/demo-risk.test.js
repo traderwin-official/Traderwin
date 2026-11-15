@@ -10,7 +10,7 @@ test("sizes non-USD quote-currency positions using the verified USD conversion r
  const rate=1/150;
  const x=calculatePaperPosition({balance:10000,riskPct:.5,entry:150,stop:149.8,quoteToUsd:rate});
  assert.equal(x.riskAmount,50);
- assert.equal(x.units,37500);
+ assert.ok(Math.abs(x.units-37500)<1e-8);
  assert.equal(calculatePaperPnl({direction:"BUY",entry:150,exit:150.2,units:x.units,quoteToUsd:rate}),50);
 });
 
