@@ -20,12 +20,13 @@ The following Cloudflare Pages Function groups are now present on the migration 
 
 - Flutterwave member checkout and verified completion callback.
 - Unified M-Pesa member checkout, member payment status, shared Daraja callback, public standalone bot shop and standalone order status.
+- Deriv OAuth start/callback, authenticated connection status and user-scoped disconnect. These routes preserve the current OAuth scope, PKCE state cookie, token verification and AES-256-GCM storage; see `docs/DERIV_CLOUDFLARE_SETUP.md`.
 
 The original Vercel handlers remain unchanged as rollback references. These Functions have passed repository CI syntax/build/unit checks, but they are not deployed and have not passed live-provider sandbox or end-to-end Supabase verification.
 
 The M-Pesa group fails closed until a separate Durable Object rate-limiter Worker is deployed and bound to Pages as \`MPESA_RATE_LIMITER\`. The same high-entropy \`MPESA_RATE_LIMITER_TOKEN\` must be configured as an encrypted secret on both sides. Preview-only Daraja sandbox and Supabase secrets must be configured in Cloudflare; never copy them into source control or chat.
 
-Remaining API groups include Deriv OAuth/account management, market data, bot configuration, license verification and admin/operations routes. Inventory each route and port it separately, preserving authorization, ownership, idempotency and audit behavior.
+Remaining API groups include market data, bot configuration, license verification and admin/operations routes. Inventory each route and port it separately, preserving authorization, ownership, idempotency and audit behavior. Deriv OAuth has been ported, but still requires a configured Cloudflare preview and owner-authorized sandbox verification.
 
 Required end-to-end tests:
 - Supabase signup, login, logout, session refresh and account-mode onboarding.
