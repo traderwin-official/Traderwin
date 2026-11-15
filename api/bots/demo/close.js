@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
 
-const normalise = value => String(value || "").trim().toUpperCase().replace(/[\\s/.-]/g, "");
+const normalise = value => String(value || "").trim().toUpperCase().replace(/[\s/.-]/g, "");
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
