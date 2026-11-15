@@ -124,10 +124,7 @@ begin
     return null;
   end if;
   v_day_start := date_trunc('day', now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
-  select coalesce(sum(least(realized_pnl, 0)), 0)
-    into v_daily_loss
-    from public.demo_bot_trades
-   where user_id = p_user_id and status = 'CLOSED' and closed_at >= v_day_start;
+  v_daily_loss := public.demo_daily_realized_loss(p_user_id, v_day_start, null);
   v_daily_limit := v_session.starting_balance * v_session.max_daily_loss_pct / 100;
   if abs(v_daily_loss) >= v_daily_limit then
     update public.demo_bot_sessions
@@ -389,8 +386,8 @@ begin
    where id=v_session.id;
 
   v_day_start := date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
-  select coalesce(sum(least(realized_pnl,0)),0) into v_daily_loss
-   from public.demo_bot_trades where user_id=p_user_id and status='CLOSED' and closed_at>=v_day_start;
+  v_daily_loss := public.demo_daily_realized_loss(p_user_id, v_day_start, p_trade_id)
+    + least(v_pnl, 0);
   v_daily_limit := v_session.starting_balance*v_session.max_daily_loss_pct/100;
   if abs(v_daily_loss)>=v_daily_limit then
     update public.demo_bot_sessions set status='RISK_LOCKED',stopped_at=now(),updated_at=now()
