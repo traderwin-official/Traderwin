@@ -98,3 +98,15 @@ test("manual DEMO entries use the atomic service-role RPC and daily-loss helper"
   assert.match(sql, /demo_daily_realized_loss\(p_user_id,v_day_start,null\)/);
   assert.match(sql, /UNSUPPORTED_BROKER/);
 });
+
+test("automated DEMO worker and SQL ledger require USD-normalized risk and exit P&L", async () => {
+  const worker = await readFile(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
+  const sql = await readFile(new URL("../supabase/migrations/202611160001_demo_daily_loss_partial_realizations.sql", import.meta.url), "utf8");
+  assert.match(worker, /getDerivQuoteToUsd/);
+  assert.match(worker, /p_quote_to_usd: quote\.quoteToUsd/);
+  assert.match(sql, /entry_quote_to_usd/);
+  assert.match(sql, /p_quote_to_usd numeric/);
+  assert.match(sql, /v_close_units\*p_quote_to_usd/);
+  assert.match(sql, /v_trade\.virtual_units \* p_quote_to_usd/);
+  assert.match(sql, /abs\(p_risk_amount - abs\(p_entry_price-p_stop_loss\)\*p_virtual_units\*p_quote_to_usd\)/);
+});
