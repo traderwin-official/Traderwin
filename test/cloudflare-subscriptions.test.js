@@ -29,11 +29,16 @@ function fakeAdmin(subscription, authValid = true) {
           assert.equal(fields, 'service_code,status,starts_at,ends_at,payment_order_id');
           return {
             eq: (field, value) => {
-              assert.equal(field, field === 'user_id' ? 'user_id' : 'service_code');
-              if (field === 'user_id') assert.equal(value, 'user-subscription');
-              if (field === 'service_code') assert.equal(value, 'REAL_TRADING');
+              assert.equal(field, 'user_id');
+              assert.equal(value, 'user-subscription');
               return {
-                maybeSingle: async () => ({ data: subscription, error: null })
+                eq: (secondField, secondValue) => {
+                  assert.equal(secondField, 'service_code');
+                  assert.equal(secondValue, 'REAL_TRADING');
+                  return {
+                    maybeSingle: async () => ({ data: subscription, error: null })
+                  };
+                }
               };
             }
           };
