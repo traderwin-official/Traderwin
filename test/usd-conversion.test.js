@@ -60,3 +60,13 @@ test("a quote for the wrong instrument cannot be used for USD conversion", async
     /verified instrument quote/
   );
 });
+
+test("rejects a conversion response whose instrument identity does not match the requested pair", async () => {
+  await assert.rejects(
+    getDerivQuoteToUsd("EURGBP", quote("EURGBP", 0.85), {
+      now: () => now,
+      getQuote: async () => ({ ...quote("EURUSD", 1.08), providerSymbol: "frxGBPUSD" })
+    }),
+    /fresh, matching USD conversion/
+  );
+});
