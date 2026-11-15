@@ -85,3 +85,16 @@ test("manual DEMO close delegates balance, cumulative P&L and daily risk updates
   assert.match(sql, /realized_pnl_total/);
   assert.match(sql, /demo_daily_realized_loss\(p_user_id,v_day_start,null\)/);
 });
+
+test("manual DEMO entries use the atomic service-role RPC and daily-loss helper", async () => {
+  const route = await readFile(new URL("../api/bots/demo/trade.js", import.meta.url), "utf8");
+  const sql = await readFile(new URL("../supabase/migrations/202611160001_demo_daily_loss_partial_realizations.sql", import.meta.url), "utf8");
+  assert.match(route, /rpc\("open_demo_manual_trade"/);
+  assert.match(route, /p_quote_as_of: quote\.quoteAsOf/);
+  assert.match(route, /normalise\(quote\.instrument\).*normalise\(symbol\)/s);
+  assert.doesNotMatch(route, /from\("demo_bot_trades"\)\s*\.insert/);
+  assert.match(sql, /create or replace function public\.open_demo_manual_trade/);
+  assert.match(sql, /'action','MANUAL_OPEN'/);
+  assert.match(sql, /demo_daily_realized_loss\(p_user_id,v_day_start,null\)/);
+  assert.match(sql, /UNSUPPORTED_BROKER/);
+});
