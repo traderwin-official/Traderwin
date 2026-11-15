@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
+import { getDerivQuoteToUsd } from "../../../lib/usd-conversion.js";
 
 const normalise = value => String(value || "").trim().toUpperCase().replace(/[\s/.-]/g, "");
 
@@ -56,11 +57,19 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: "The verified quote does not match this paper trade instrument." });
     }
 
+    let conversion;
+    try {
+      conversion = await getDerivQuoteToUsd(trade.symbol, quote);
+    } catch (error) {
+      return res.status(503).json({ error: error.message || "A fresh USD conversion quote is unavailable. The paper trade was not closed." });
+    }
+
     const { data: result, error: closeError } = await db.rpc("close_demo_paper_trade", {
       p_user_id: auth.user.id,
       p_trade_id: trade.id,
       p_instrument: trade.symbol,
       p_exit_price: quote.quote,
+      p_quote_to_usd: conversion.rate,
       p_quote_source: quote.source,
       p_quote_as_of: quote.quoteAsOf
     });
