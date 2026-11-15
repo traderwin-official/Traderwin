@@ -12,7 +12,7 @@ const base = {
     broker: "DERIV", account_mode: "DEMO", instrument: "XAUUSD",
     timeframe: "M15", strategy: "MULTI_CONFIRMATION_V1"
   },
-  quote: { source: "DERIV", instrument: "XAUUSD", providerSymbol: "frxXAUUSD", quote: 120, quoteAsOf: new Date(now - 1000).toISOString() },
+  quote: { source: "DERIV", instrument: "XAUUSD", providerSymbol: "frxXAUUSD", quoteToUsd: 1, quote: 120, quoteAsOf: new Date(now - 1000).toISOString() },
   market: {
     source: "DERIV", instrument: "XAUUSD", providerSymbol: "frxXAUUSD", timeframe: "M15",
     latestCandleAsOf: new Date(now).toISOString(),
@@ -197,4 +197,10 @@ test("risk-locked DEMO sessions may manage an existing position but cannot open 
   const lockedWithoutTrade = structuredClone(base);
   lockedWithoutTrade.session.status = "RISK_LOCKED";
   assert.equal(decideDemoAutoAction({ ...lockedWithoutTrade, now }).reason, "SESSION_NOT_RUNNING_DEMO");
+});
+
+test("blocks DEMO entries and position management when USD conversion is unavailable", () => {
+  const input = structuredClone(base);
+  delete input.quote.quoteToUsd;
+  assert.equal(decideDemoAutoAction({ ...input, now }).reason, "USD_CONVERSION_UNAVAILABLE");
 });
