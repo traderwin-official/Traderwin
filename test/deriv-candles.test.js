@@ -25,15 +25,15 @@ test("loads completed Deriv OHLC candles for the requested symbol and timeframe"
   const now = 1_800_000_000_000;
   const nowSeconds = now / 1000;
   const candles = Array.from({ length: 40 }, (_, i) => {
-    const epoch = nowSeconds - (40 - i) * 900;
+    const epoch = nowSeconds - (40 - i) * 60;
     const open = 2300 + i;
     return { epoch, open, high: open + 3, low: open - 2, close: open + 1 };
   });
-  const result = await getDerivCandles("XAUUSD", "M15", {
+  const result = await getDerivCandles("XAUUSD", "M1", {
     WebSocketImpl: mockSocket({ candles }), now: () => now
   });
   assert.equal(result.providerSymbol, "frxXAUUSD");
-  assert.equal(result.timeframe, "M15");
+  assert.equal(result.timeframe, "M1");
   assert.equal(result.candles.length, 40);
   assert.equal(result.source, "DERIV");
 });
@@ -59,7 +59,7 @@ test("rejects unsupported instruments and timeframes", async () => {
     /not supported/
   );
   await assert.rejects(
-    getDerivCandles("XAUUSD", "M1", { WebSocketImpl: mockSocket() }),
-    /Choose M5/
+    getDerivCandles("XAUUSD", "M2", { WebSocketImpl: mockSocket() }),
+    /Choose M1/
   );
 });

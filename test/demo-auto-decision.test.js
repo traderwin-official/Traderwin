@@ -23,8 +23,10 @@ const base = {
   }
 };
 
-test("opens a virtual position only on a new confirmed BUY/SELL candle", () => {
-  const result = decideDemoAutoAction({ ...base, now });
+test("opens a virtual position when the combined strategy confirms BUY", () => {
+  const result = decideDemoAutoAction({ ...base, now, analysisFn: () => ({
+    direction: "BUY", indicators: { atr14: 1, stopLoss: null, takeProfit: null }
+  }) });
   assert.equal(result.action, "OPEN");
   assert.equal(result.direction, "BUY");
   assert.ok(result.stop < result.entry);
@@ -131,4 +133,36 @@ test("existing DEMO BOT position remains manageable after the member changes fut
   input.quote.instrument = "XAUUSD";
   input.quote.quote = 119;
   assert.equal(decideDemoAutoAction({ ...input, now }).action, "MARK");
+});
+
+
+test("accepts M1 scalping analysis on fresh completed candles", () => {
+  const input = structuredClone(base);
+  input.settings.timeframe = "M1";
+  input.market.timeframe = "M1";
+  input.market.latestCandleAsOf = new Date(now).toISOString();
+  input.market.candles = Array.from({ length: 40 }, (_, i) => {
+    const open = 100 + i * 0.02;
+    return { epoch: now / 1000 - (40 - i) * 60, open, high: open + 0.1, low: open - 0.1, close: open + 0.02 };
+  });
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.notEqual(result.reason, "MARKET_HISTORY_UNAVAILABLE");
+  assert.notEqual(result.reason, "CANDLE_HISTORY_STALE");
+  assert.ok(["WAIT", "OPEN"].includes(result.action));
+});
+
+
+test("closes a DEMO BUY when the combined strategy confirms an opposite SELL", () => {
+  const input = structuredClone(base);
+  input.openTrade = {
+    id: "reversal-trade", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, stop_loss: 118, take_profit: 124, virtual_units: 2, status: "OPEN"
+  };
+  const result = decideDemoAutoAction({
+    ...input, now,
+    analysisFn: () => ({ direction: "SELL", confidence: 80 })
+  });
+  assert.equal(result.action, "CLOSE");
+  assert.equal(result.reason, "STRATEGY_REVERSAL");
+  assert.equal(result.exitPrice, input.quote.quote);
 });

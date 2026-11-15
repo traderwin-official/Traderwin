@@ -27,8 +27,11 @@ test("subscription status never treats payment as live-trading authorization", a
   assert.match(source, /renewalMode: "MANUAL"/);
 });
 
-test("early manual renewal extends the existing subscription expiry", async () => {
-  const source = await readFile(new URL("../api/payments/mpesa/callback.js", import.meta.url), "utf8");
-  assert.match(source, /existingSubscription\.ends_at/);
-  assert.match(source, /const startsAt = existingEnd && existingEnd > now \? existingEnd : now/);
+test("unified callback activates paid service and extends early monthly renewals atomically", async () => {
+  const source = await readFile(new URL("../api/payments/mpesa/bot-shop-callback.js", import.meta.url), "utf8");
+  const sql = await readFile(new URL("../supabase/migrations/202611130022_unified_mpesa_services.sql", import.meta.url), "utf8");
+  assert.match(source, /fulfill_traderwin_service_payment/);
+  assert.ok(sql.includes("existing_end + case"));
+  assert.match(sql, /next_end/);
+  assert.ok(sql.includes("on conflict(user_id,service_code) do update"));
 });

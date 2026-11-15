@@ -1,0 +1,12 @@
+name = "tiger-scheme-rate-limiter"
+main = "index.js"
+compatibility_date = "2026-11-14"
+workers_dev = false
+
+[[durable_objects.bindings]]
+name = "LIMITERS"
+class_name = "MpesaRateLimiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MpesaRateLimiter"]

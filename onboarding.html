@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Traderwin | Account Mode</title>
+<title>Tiger Scheme | Account Mode</title>
 <style>
 :root{color-scheme:dark;--bg:#080d17;--panel:#111b2b;--gold:#f5bd45;--muted:#9eabc0}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:#f4f6fa;font:16px Arial,sans-serif;display:grid;place-items:center;padding:18px}
@@ -17,12 +17,12 @@ button:disabled{opacity:.5}
 #message{padding:12px;border-radius:8px;background:#202c3d;margin-top:14px;white-space:pre-wrap}
 a{color:var(--gold)}.small{font-size:12px}
 </style></head><body><main>
-<h1>Welcome to Traderwin</h1>
+<h1>Welcome to Tiger Scheme</h1>
 <p>Choose how you want your dashboard configured. You can change this preference later. Selecting REAL does not connect a broker or enable live orders.</p>
 <form id="modeForm">
 <label class="choice"><input type="radio" name="mode" value="DEMO" checked><strong>Demo account mode</strong><br><span class="small">Practise and test strategies without risking live funds. Automation remains OFF until separately configured.</span></label>
 <label class="choice"><input type="radio" name="mode" value="REAL"><strong>Real account mode</strong><br><span class="small">For traders who intend to connect a real broker account. Live trading remains locked until broker verification and safety checks are completed.</span></label>
-<div id="realAck" hidden><input id="ack" type="checkbox"><span>I understand that real trading can cause substantial financial loss, that no profits are guaranteed, and that choosing REAL here does not authorize Traderwin to place trades.</span></div>
+<div id="realAck" hidden><input id="ack" type="checkbox"><span>I understand that real trading can cause substantial financial loss, that no profits are guaranteed, and that choosing REAL here does not authorize Tiger Scheme to place trades.</span></div>
 <label for="risk">Maximum planned risk per trade (%)</label><input id="risk" type="number" min="0.1" max="2" step="0.1" value="0.5" required>
 <label for="daily">Maximum planned daily loss (%)</label><input id="daily" type="number" min="0.5" max="10" step="0.5" value="2" required>
 <button id="save" type="submit">Save account preference</button>
@@ -44,7 +44,7 @@ async function init(){
  if(error||!data.user){location.replace("/auth.html");return}
  currentUser=data.user;
  const {data:profile,error:profileError}=await client.from("trader_profiles").select("*").eq("user_id",currentUser.id).maybeSingle();
- if(profileError){message.textContent="Account-mode database is not ready. Apply the Traderwin core upgrade SQL migration in Supabase. "+profileError.message;save.disabled=true;return}
+ if(profileError){message.textContent="Account-mode database is not ready. Apply the Tiger Scheme core upgrade SQL migration in Supabase. "+profileError.message;save.disabled=true;return}
  existingProfile=profile;
  if(profile){modeInputs.forEach(x=>x.checked=x.value===profile.account_mode);document.getElementById("risk").value=profile.max_risk_per_trade_pct;document.getElementById("daily").value=profile.max_daily_loss_pct}
  updateAck();message.textContent="Signed in as "+(currentUser.email||"your account")+". Choose your account mode.";
