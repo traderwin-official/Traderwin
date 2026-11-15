@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { calculatePaperPnl } from "../../../lib/demo-risk.js";
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
 
+const normalise = value => String(value || "").trim().toUpperCase().replace(/[\\s/.-]/g, "");
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") {
@@ -45,6 +47,10 @@ export default async function handler(req, res) {
     let quote;
     try { quote = await getDerivPublicQuote(trade.symbol); }
     catch (error) { return res.status(503).json({ error: error.message || "Could not obtain a fresh Deriv quote." }); }
+    if (quote.source !== "DERIV" || normalise(quote.instrument) !== normalise(trade.symbol) ||
+        typeof quote.providerSymbol !== "string" || !quote.providerSymbol.trim()) {
+      return res.status(503).json({ error: "The verified quote does not match this paper trade instrument." });
+    }
     const currentPrice = quote.quote;
 
     const unrealizedPnl = calculatePaperPnl({
@@ -55,7 +61,7 @@ export default async function handler(req, res) {
     });
     const markedAt = new Date().toISOString();
     const { error: updateError } = await db.from("demo_bot_trades")
-      .update({ last_mark_price: currentPrice, last_mark_at: markedAt })
+      .update({ last_mark_price: currentPrice, last_mark_at: quote.quoteAsOf })
       .eq("id", trade.id)
       .eq("user_id", auth.user.id)
       .eq("status", "OPEN");
@@ -69,6 +75,7 @@ export default async function handler(req, res) {
       currentPrice,
       currentUnrealizedPnl: unrealizedPnl,
       markedAt,
+      quoteAsOf: quote.quoteAsOf,
       quote: { source: quote.source, asOf: quote.quoteAsOf, instrument: quote.providerSymbol },
       protection: {
         active: false,
