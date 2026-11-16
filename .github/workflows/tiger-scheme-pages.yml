@@ -15,6 +15,7 @@ on:
       - "docs/DERIV_CLOUDFLARE_SETUP.md"
       - "docs/CLOUDFLARE_EMERGENCY_CONTROL.md"
       - "docs/CLOUDFLARE_DEMO_CONTROL.md"
+      - "docs/CLOUDFLARE_DEMO_WORKER_PLAN.md"
       - "docs/CLOUDFLARE_ORACLE_MIGRATION.md"
       - "package.json"
       - "wrangler.toml"
