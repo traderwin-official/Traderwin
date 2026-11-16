@@ -58,7 +58,7 @@ test('DEMO control fails closed when server configuration is missing', async () 
 
 test('DEMO control requires POST and an authenticated Supabase bearer session', async () => {
   const handler = createDemoControlHandler({ createClientImpl: () => fakeDb().db });
-  assert.equal((await handler({ request: request({ action: 'STATUS' }, 'valid-session', 'GET'), env })).status, 405);
+  assert.equal((await handler({ request: new Request('https://preview.example.pages.dev/api/bots/demo/control', { method: 'GET' }), env })).status, 405);
   assert.equal((await handler({ request: request({ action: 'STATUS' }, null), env })).status, 401);
   assert.equal((await handler({ request: request({ action: 'STATUS' }, 'expired'), env })).status, 401);
 });
@@ -188,10 +188,9 @@ test('START is idempotent when a DEMO session is already running', async () => {
 
 test('STOP pauses a session with an open BOT position without closing it', async () => {
   const { db, calls } = fakeDb({ resolve: state => {
+    if (state.table === 'demo_bot_sessions' && state.operation === 'update') return { data: { id: 'session-1', status: 'PAUSED' }, error: null };
     if (state.table === 'demo_bot_sessions' && state.mode === 'maybeSingle') return { data: { id: 'session-1', bot_setting_id: 'setting-1' }, error: null };
     if (state.table === 'demo_bot_trades') return { data: { id: 'trade-1', trade_source: 'BOT' }, error: null };
-    if (state.table === 'demo_bot_sessions' && state.mode === 'maybeSingle' && state.operation === 'update') return { data: { id: 'session-1', status: 'PAUSED' }, error: null };
-    if (state.table === 'demo_bot_sessions' && state.mode === 'maybeSingle' && state.operation === 'update') return { data: { id: 'session-1', status: 'PAUSED' }, error: null };
     return { data: { id: 'session-1', status: 'PAUSED' }, error: null };
   } });
   const response = await createDemoControlHandler({ createClientImpl: () => db })({
