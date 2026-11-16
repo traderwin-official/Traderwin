@@ -113,7 +113,7 @@ test('emergency control requires a bearer session and validates the user', async
   assert.equal(missing.status, 401);
 
   const invalid = await handler({
-    request: request('/api/bots/emergency/control', 'GET', 'expired'),
+    request: request('/api/bots/emergency/control?' + new URLSearchParams(demoInput), 'GET', 'expired'),
     env
   });
   assert.equal(invalid.status, 401);
@@ -215,7 +215,7 @@ test('POST STOP_ENTRIES persists the latch and records an audit event', async ()
   assert.equal(write.upsert.kill_switch_active, true);
   assert.equal(write.upsert.reason, 'USER_EMERGENCY_STOP');
   assert.equal(write.config.onConflict, 'user_id,account_mode,broker,broker_account_ref');
-  assert.ok(calls.some(call => call.table === 'bot_activity' && call.insert.event_type === 'STOP_REQUESTED'));
+  assert.ok(calls.some(call => call.table === 'bot_activity' && call.insert?.event_type === 'STOP_REQUESTED'));
   assert.match(body.note, /Existing positions remain open/i);
 });
 
