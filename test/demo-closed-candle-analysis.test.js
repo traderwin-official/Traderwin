@@ -20,7 +20,7 @@ test("rejects invalid or duplicate candle history", () => {
   assert.equal(analyzeClosedCandles({ candles:data, symbol:"frxXAUUSD", nowEpoch:now }).reason, "INVALID_CLOSED_CANDLE_HISTORY");
 });
 
-test("blocks stale completed candles", () => {
+test("blocks stale completed candles using timeframe-aware default age", () => {
   const data = candles(Array.from({length:25},(_,i)=>100+i)).map(c=>({...c,bucket_epoch:c.bucket_epoch-3600}));
   assert.equal(analyzeClosedCandles({ candles:data, symbol:"frxXAUUSD", nowEpoch:now, maxAgeSeconds:30 }).reason, "CLOSED_CANDLE_DATA_STALE");
 });
@@ -30,11 +30,39 @@ test("ignores candles for a different symbol", () => {
   assert.equal(analyzeClosedCandles({ candles:data, symbol:"frxXAUUSD", nowEpoch:now }).reason, "INSUFFICIENT_CLOSED_CANDLES");
 });
 
-test("returns strategy analysis with closed-candle provenance", () => {
+test("returns strategy analysis with default 15-minute provenance", () => {
   const data = candles([100,97,94,94,91,90,93,92,94,96,98,100,102,104,106,108,110,112,114,116,118,120,122,124,126]);
   const result = analyzeClosedCandles({ candles:data, symbol:"frxXAUUSD", nowEpoch:now, fastPeriod:3, slowPeriod:5 });
   assert.equal(result.instrument, "frxXAUUSD");
   assert.equal(result.dataStatus, "CLOSED_CANDLES_ONLY");
   assert.equal(result.timeframeSeconds, 900);
   assert.ok(["SIGNAL","NO_SIGNAL"].includes(result.status));
+});
+
+test("supports aligned one-hour candles and derives a two-candle freshness window", () => {
+  const timeframeSeconds = 3600;
+  const closes = Array.from({length:25},(_,i)=>100+i);
+  const latestBucket = Math.floor((now - timeframeSeconds) / timeframeSeconds) * timeframeSeconds;
+  const data = closes.map((close, i) => {
+    const bucket = latestBucket - (closes.length - 1 - i) * timeframeSeconds;
+    return { symbol:"frxXAUUSD", bucket_epoch:bucket, open:close, high:close+1, low:close-1, close, complete:true };
+  });
+  const result = analyzeClosedCandles({
+    candles:data, symbol:"frxXAUUSD", nowEpoch:latestBucket + timeframeSeconds + 60,
+    timeframeSeconds, fastPeriod:3, slowPeriod:5
+  });
+  assert.equal(result.timeframeSeconds, 3600);
+  assert.equal(result.latestCandleAgeSeconds, 60);
+  assert.ok(["SIGNAL","NO_SIGNAL"].includes(result.status));
+});
+
+test("rejects candle buckets that are not aligned to the selected timeframe", () => {
+  const data = candles(Array.from({length:25},(_,i)=>100+i));
+  data[4] = { ...data[4], bucket_epoch: data[4].bucket_epoch + 30 };
+  assert.equal(analyzeClosedCandles({ candles:data, symbol:"frxXAUUSD", nowEpoch:now }).reason, "INVALID_CLOSED_CANDLE_HISTORY");
+});
+
+test("rejects invalid timeframe configuration", () => {
+  const result = analyzeClosedCandles({ candles:[], symbol:"frxXAUUSD", nowEpoch:now, timeframeSeconds:30 });
+  assert.equal(result.reason, "INVALID_ANALYSIS_INPUT");
 });
