@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateRiskAwareLotSize } from "../../lib/demo/risk-aware-lot-sizing.js";
+import { calculateRiskAwareLotSize } from "../lib/demo/risk-aware-lot-sizing.js";
 
 const base = {
   mode: "AUTO",
