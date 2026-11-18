@@ -366,7 +366,12 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   socket.send(JSON.stringify({ticks:symbol,subscribe:1,req_id:2}));
  }
  function populateSymbols(items){
-  activeSymbols=Array.isArray(items)?items.filter(item=>item&&typeof item.symbol==="string"&&typeof item.display_name==="string"):[];
+  activeSymbols=Array.isArray(items)?items.map(item=>({
+   ...item,
+   symbol:item?.symbol||item?.underlying_symbol,
+   display_name:item?.display_name||item?.underlying_symbol_name,
+   market_display_name:item?.market_display_name||item?.market||item?.submarket||"Market"
+  })).filter(item=>item&&typeof item.symbol==="string"&&typeof item.display_name==="string"):[];
   const sorted=activeSymbols.slice().sort((a,b)=>(a.market||"").localeCompare(b.market||"")||a.display_name.localeCompare(b.display_name));
   select.replaceChildren();
   sorted.forEach(item=>{
