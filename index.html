@@ -487,7 +487,7 @@ calculateRisk();
   // Surface the OAuth callback result instead of silently returning to the dashboard.
   const derivResult = new URLSearchParams(window.location.search).get("deriv");
   if (derivResult === "connected") {
-   derivStatus.textContent = "Deriv authorization completed. Account discovery was verified and your connection was securely saved. Choose an account before any trading setup.";
+   derivStatus.textContent = "Deriv authorization completed. Your account list was retrieved and saved securely. Account selection and trading features are not yet available.";
    connectButton.textContent = "Deriv Authorized";
    connectButton.disabled = true;
   } else if (derivResult === "error") {
