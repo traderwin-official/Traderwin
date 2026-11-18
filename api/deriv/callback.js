@@ -45,7 +45,11 @@ export default async function handler(req, res) {
   } = process.env;
 
   const cookie = req.headers.cookie || "";
-  const match = cookie.match(/(?:^|;\\s*)deriv_oauth=([^;]+)/);
+  const cookiePair = cookie.split(";").map((part) => part.trim())
+    .find((part) => part.startsWith("deriv_oauth="));
+  const cookieValueEncoded = cookiePair
+    ? cookiePair.slice("deriv_oauth=".length)
+    : null;
 
   const clearCookie = () => {
     res.setHeader(
@@ -75,13 +79,13 @@ export default async function handler(req, res) {
     }
 
     stage = "cookie";
-    if (!match) {
+    if (!cookieValueEncoded) {
       console.error("Deriv callback failed: OAuth cookie missing.");
       return finish("error");
     }
 
     stage = "cookie_validation";
-    const cookieValue = decodeURIComponent(match[1]);
+    const cookieValue = decodeURIComponent(cookieValueEncoded);
     const separator = cookieValue.lastIndexOf(".");
     if (separator === -1) return finish("error");
 
