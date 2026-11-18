@@ -1,4 +1,3 @@
-
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
@@ -96,7 +95,9 @@ export default async function handler(req, res) {
     url.searchParams.set("response_type", "code");
     url.searchParams.set("client_id", DERIV_CLIENT_ID);
     url.searchParams.set("redirect_uri", DERIV_REDIRECT_URI);
-    url.searchParams.set("scope", "account_manage");
+    // Request only scopes used by the platform: account discovery/management
+    // and trading. Payment-agent permissions are deliberately excluded.
+    url.searchParams.set("scope", "trade account_manage");
     url.searchParams.set("state", state);
     url.searchParams.set("code_challenge", challenge);
     url.searchParams.set("code_challenge_method", "S256");

@@ -5,9 +5,13 @@ import { encryptToken } from "../../lib/encryption.js";
 function safeAccounts(payload) {
   const raw = Array.isArray(payload?.data)
     ? payload.data
-    : payload?.data && typeof payload.data === "object"
-      ? [payload.data]
-      : [];
+    : Array.isArray(payload?.data?.accounts)
+      ? payload.data.accounts
+      : Array.isArray(payload?.accounts)
+        ? payload.accounts
+        : payload?.data && typeof payload.data === "object"
+          ? [payload.data]
+          : [];
 
   return raw
     .filter((account) =>
@@ -41,7 +45,11 @@ export default async function handler(req, res) {
   } = process.env;
 
   const cookie = req.headers.cookie || "";
-  const match = cookie.match(/(?:^|;\s*)deriv_oauth=([^;]+)/);
+  const cookiePair = cookie.split(";").map((part) => part.trim())
+    .find((part) => part.startsWith("deriv_oauth="));
+  const cookieValueEncoded = cookiePair
+    ? cookiePair.slice("deriv_oauth=".length)
+    : null;
 
   const clearCookie = () => {
     res.setHeader(
@@ -71,13 +79,13 @@ export default async function handler(req, res) {
     }
 
     stage = "cookie";
-    if (!match) {
+    if (!cookieValueEncoded) {
       console.error("Deriv callback failed: OAuth cookie missing.");
       return finish("error");
     }
 
     stage = "cookie_validation";
-    const cookieValue = decodeURIComponent(match[1]);
+    const cookieValue = decodeURIComponent(cookieValueEncoded);
     const separator = cookieValue.lastIndexOf(".");
     if (separator === -1) return finish("error");
 
@@ -123,7 +131,8 @@ export default async function handler(req, res) {
         code,
         code_verifier: session.verifier,
         redirect_uri: DERIV_REDIRECT_URI
-      })
+      }),
+      signal: AbortSignal.timeout(15000)
     });
 
     const tokenData = await tokenResponse.json().catch(() => ({}));
@@ -133,16 +142,51 @@ export default async function handler(req, res) {
       !Number.isFinite(Number(tokenData.expires_in)) ||
       Number(tokenData.expires_in) <= 0
     ) {
-      console.error("Deriv token exchange failed:", { http_status: tokenResponse.status, error: tokenData.error || null, error_description: tokenData.error_description || null, has_access_token: typeof tokenData.access_token === "string", has_expiry: Number.isFinite(Number(tokenData.expires_in)) });
+      console.error("Deriv token exchange failed:", {
+        http_status: tokenResponse.status,
+        error: tokenData.error || null,
+        error_description: tokenData.error_description || null,
+        has_access_token: typeof tokenData.access_token === "string",
+        has_expiry: Number.isFinite(Number(tokenData.expires_in))
+      });
       return finish("error");
     }
 
-    // This phase intentionally requests account_manage only.
-    // Listing existing Options accounts uses GET /options/accounts and requires
-    // the separate trade scope, so do not call it while trade is disabled.
-    // Persist the securely encrypted OAuth token and mark account discovery
-    // as pending until the user explicitly enables the required read/trading scope.
-    const accounts = [];
+    // Verify the linked user's Options accounts before marking the connection.
+    // Deriv documents this endpoint as requiring the trade OAuth scope.
+    stage = "deriv_account_discovery";
+    const accountsResponse = await fetch(
+      "https://api.derivws.com/trading/v1/options/accounts",
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          Accept: "application/json"
+        },
+        signal: AbortSignal.timeout(15000)
+      }
+    );
+
+    const accountsPayload = await accountsResponse.json().catch(() => ({}));
+    if (!accountsResponse.ok) {
+      console.error("Deriv account discovery failed:", {
+        http_status: accountsResponse.status
+      });
+      return finish("error");
+    }
+
+    const accounts = safeAccounts(accountsPayload);
+    if (accounts.length === 0) {
+      console.error("Deriv account discovery returned no verifiable accounts.");
+      return finish("error");
+    }
+
+    // Never silently choose a REAL account when a member has multiple accounts.
+    // The account selector must explicitly choose one before any trading action.
+    const selectedAccountId = accounts.length === 1 &&
+      accounts[0].account_type.toLowerCase() === "demo"
+      ? accounts[0].account_id
+      : null;
 
     stage = "supabase_save";
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -158,24 +202,33 @@ export default async function handler(req, res) {
       .from("deriv_connections")
       .upsert({
         user_id: session.userId,
-        deriv_account_id: null,
+        deriv_account_id: selectedAccountId,
         encrypted_access_token: encryptToken(tokenData.access_token),
         token_expires_at: tokenExpiresAt,
         token_type: typeof tokenData.token_type === "string" ? tokenData.token_type : "Bearer",
-        requested_scopes: ["account_manage"],
+        requested_scopes: ["trade", "account_manage"],
         accounts,
         connected_at: now.toISOString(),
         updated_at: now.toISOString()
       }, { onConflict: "user_id" });
 
     if (saveError) {
-      console.error("Deriv connection save failed:", { code: saveError.code || null, message: saveError.message || null, details: saveError.details || null, hint: saveError.hint || null });
+      console.error("Deriv connection save failed:", {
+        code: saveError.code || null,
+        message: saveError.message || null,
+        details: saveError.details || null,
+        hint: saveError.hint || null
+      });
       return finish("error");
     }
 
     return finish("connected");
   } catch (error) {
-    console.error("Deriv callback processing failed:", { stage, name: error?.name || null, message: error?.message || "unknown_error" });
+    console.error("Deriv callback processing failed:", {
+      stage,
+      name: error?.name || null,
+      message: error?.message || "unknown_error"
+    });
     return finish("error");
   }
 }
