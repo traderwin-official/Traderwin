@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createBotLicenseHandler } from '../lib/cloudflare-bot-license.js';
 
 const key = 'TW-AB12-CD34-EF56-GH78-IJ90-KL12';
@@ -16,7 +17,7 @@ function makeRequest(body, options = {}) {
       'Content-Type': 'application/json',
       'CF-Connecting-IP': options.ip || '192.0.2.10'
     },
-    ...(body !== undefined ? { body: typeof body === 'string' ? body : JSON.stringify(body) } : {})
+    ...(body !== undefined && !['GET', 'HEAD'].includes(options.method || 'POST') ? { body: typeof body === 'string' ? body : JSON.stringify(body) } : {})
   });
 }
 
@@ -83,6 +84,7 @@ function makeDb(initialLicense, options = {}) {
 
 const activeLicense = {
   id: 'license-1',
+  license_key_hash: createHash('sha256').update(key).digest('hex'),
   product_code: 'TIGER-GOLD',
   license_type: 'LIFETIME',
   status: 'ACTIVE',
@@ -202,9 +204,9 @@ test('database errors fail closed without exposing the license key', async () =>
 });
 
 test('rate limiter failures fail closed', async () => {
-  const { db } = makeDb(activeLicense);
+  const { db, calls } = makeDb(activeLicense);
   const limiter = makeLimiter({ httpError: true });
   const response = await handlerFor(db, limiter);
   assert.equal(response.status, 503);
-  assert.equal(db.calls.length, 0);
+  assert.equal(calls.length, 0);
 });
