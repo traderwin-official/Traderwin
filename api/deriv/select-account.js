@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
 
     const { data: connection, error: lookupError } = await supabase
       .from("deriv_connections")
-      .select("accounts")
+      .select("accounts, token_expires_at")
       .eq("user_id", userData.user.id)
       .maybeSingle();
 
@@ -42,6 +43,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Could not validate account selection." });
     }
     if (!connection) return res.status(404).json({ error: "No Deriv connection found." });
+    if (!connection.token_expires_at || Date.parse(connection.token_expires_at) <= Date.now()) {
+      return res.status(409).json({ error: "Deriv authorization expired. Reconnect before selecting an account." });
+    }
 
     const accounts = Array.isArray(connection.accounts) ? connection.accounts : [];
     const allowed = accounts.find((account) =>
