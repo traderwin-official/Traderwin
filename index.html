@@ -389,12 +389,16 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   const waiting=document.createElement("option");waiting.textContent="Connecting to Deriv market data…";select.appendChild(waiting);
   clearPrice();setStatus("Connecting");
   try{socket=new WebSocket(wsUrl);}catch(e){setStatus("WebSocket could not start");return;}
-  socket.onopen=()=>{
+  const connection=socket;
+  connection.onopen=()=>{
+   if(socket!==connection)return;
    setStatus("Connected · loading active instruments");
    socket.send(JSON.stringify({active_symbols:"brief",req_id:1}));
   };
-  socket.onmessage=(event)=>{
+  connection.onmessage=(event)=>{
+   if(socket!==connection)return;
    let data;try{data=JSON.parse(event.data);}catch(e){return;}
+   if(data.subscription?.id)currentSubscription=data.subscription.id;
    if(data.error){setStatus("Feed error: "+(data.error.message||"Request rejected"));return;}
    if(data.msg_type==="active_symbols"){
     feedReady=true;populateSymbols(data.active_symbols);return;
@@ -412,8 +416,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
     if(data.subscription?.id)currentSubscription=data.subscription.id;
    }
   };
-  socket.onerror=()=>setStatus("Connection error · retry");
-  socket.onclose=()=>{feedReady=false;currentSubscription=null;select.disabled=true;setStatus("Disconnected · reconnect to resume");};
+  connection.onerror=()=>{if(socket===connection)setStatus("Connection error · retry");};
+  connection.onclose=()=>{if(socket!==connection)return;feedReady=false;currentSubscription=null;select.disabled=true;setStatus("Disconnected · reconnect to resume");};
  }
  select.addEventListener("change",subscribeSelected);
  reconnect.addEventListener("click",connect);
