@@ -16,6 +16,7 @@ on:
       - "docs/CLOUDFLARE_EMERGENCY_CONTROL.md"
       - "docs/CLOUDFLARE_DEMO_CONTROL.md"
       - "docs/CLOUDFLARE_DEMO_WORKER_PLAN.md"
+      - "docs/CLOUDFLARE_BOT_LICENSE_SETUP.md"
       - "docs/CLOUDFLARE_ORACLE_MIGRATION.md"
       - "package.json"
       - "wrangler.toml"
@@ -69,6 +70,9 @@ jobs:
           test -f functions/api/analysis/market.js
           test -f functions/api/subscriptions/status.js
           test -f functions/api/bots/emergency/control.js
+          test -f functions/api/bot-license/activate.js
+          test -f lib/cloudflare-bot-license.js
+          test -f test/cloudflare-bot-license.test.js
           test -f functions/api/bots/demo/control.js
           test -f lib/cloudflare-demo-control.js
           test -f test/cloudflare-demo-control.test.js
