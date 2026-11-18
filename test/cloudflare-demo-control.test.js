@@ -33,9 +33,9 @@ function fakeDb(options = {}) {
         limit(value) { state.limit = value; return query; },
         insert(payload) { state.operation = 'insert'; state.payload = payload; return query; },
         update(payload) { state.operation = 'update'; state.payload = payload; return query; },
-        maybeSingle() { calls.push({ ...state, mode: 'maybeSingle' }); return Promise.resolve(resolver(state, 'maybeSingle', calls.length - 1)); },
-        single() { calls.push({ ...state, mode: 'single' }); return Promise.resolve(resolver(state, 'single', calls.length - 1)); },
-        then(resolve, reject) { calls.push({ ...state, mode: 'await' }); return Promise.resolve(resolver(state, 'await', calls.length - 1)).then(resolve, reject); }
+        maybeSingle() { const call = { ...state, mode: 'maybeSingle' }; calls.push(call); return Promise.resolve(resolver(call, 'maybeSingle', calls.length - 1)); },
+        single() { const call = { ...state, mode: 'single' }; calls.push(call); return Promise.resolve(resolver(call, 'single', calls.length - 1)); },
+        then(resolve, reject) { const call = { ...state, mode: 'await' }; calls.push(call); return Promise.resolve(resolver(call, 'await', calls.length - 1)).then(resolve, reject); }
       };
       return query;
     }
