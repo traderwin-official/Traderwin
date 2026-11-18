@@ -45,6 +45,7 @@ test("blocks when projected portfolio risk exceeds its cap", () => {
     ...base,
     openPositions: [{ riskToStopMoney: 180, currentPnlMoney: 0, pnlAtStopMoney: -180 }],
     proposedRiskMoney: 30,
+    maxDailyLossPct: 10,
     maxPortfolioRiskPct: 2
   });
   assert.equal(result.allowed, false);
