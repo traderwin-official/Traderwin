@@ -181,7 +181,8 @@ export default async function handler(req, res) {
 
     // Never silently choose a REAL account when a member has multiple accounts.
     // The account selector must explicitly choose one before any trading action.
-    const selectedAccountId = accounts.length === 1
+    const selectedAccountId = accounts.length === 1 &&
+      accounts[0].account_type.toLowerCase() === "demo"
       ? accounts[0].account_id
       : null;
 
