@@ -232,7 +232,13 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <p class="muted">New to Deriv? <a href="https://t.deriv.link?t=QTK8G8M92TF2" target="_blank" rel="noopener noreferrer">Create your Deriv account using Young Tiger’s referral link</a>.</p>
    <p class="status" id="derivConnectionStatus">Connection: Not connected</p>
    <button id="connectDerivButton" type="button">Connect Deriv Account</button>
-   <p class="muted">Authorization is separate from bot activation. No trades will be placed by connecting.</p>
+   <div id="derivAccountPicker" style="margin-top:12px;display:none">
+    <label for="derivDemoAccountSelect">Verified DEMO account</label>
+    <select id="derivDemoAccountSelect" style="width:100%;margin-top:6px"></select>
+    <button id="saveDerivDemoAccount" type="button" style="margin-top:8px">Save DEMO Account</button>
+    <p class="muted" id="derivAccountPickerMessage" aria-live="polite"></p>
+   </div>
+   <p class="muted">Connecting does not enable automation. REAL accounts remain locked; DEMO selection only.</p>
   </div>
 
   <div class="card">
@@ -487,7 +493,7 @@ calculateRisk();
   // Surface the OAuth callback result instead of silently returning to the dashboard.
   const derivResult = new URLSearchParams(window.location.search).get("deriv");
   if (derivResult === "connected") {
-   derivStatus.textContent = "Deriv authorization completed. Your account list was retrieved and saved securely. Account selection and trading features are not yet available.";
+   derivStatus.textContent = "Deriv connection verified. Choose a DEMO account below; account selection does not enable trading.";
    connectButton.textContent = "Deriv Authorized";
    connectButton.disabled = true;
   } else if (derivResult === "error") {
@@ -495,6 +501,71 @@ calculateRisk();
   } else if (derivResult === "cancelled") {
    derivStatus.textContent = "Deriv authorization was cancelled. You can try again.";
   }
+
+  const accountPicker=document.getElementById("derivAccountPicker");
+  const demoSelect=document.getElementById("derivDemoAccountSelect");
+  const saveAccountButton=document.getElementById("saveDerivDemoAccount");
+  const accountPickerMessage=document.getElementById("derivAccountPickerMessage");
+
+  async function loadDerivAccounts(sessionToken){
+   try{
+    const response=await fetch("/api/deriv/accounts",{
+     headers:{"Authorization":"Bearer "+sessionToken},
+     credentials:"same-origin",
+     cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok){
+     if(response.status===404) return;
+     throw new Error(result.error||"Could not load Deriv accounts.");
+    }
+    const demoAccounts=(Array.isArray(result.accounts)?result.accounts:[])
+     .filter(account=>String(account.account_type||"").toLowerCase()==="demo");
+    if(demoAccounts.length===0) return;
+    demoSelect.replaceChildren();
+    demoAccounts.forEach(account=>{
+     const option=document.createElement("option");
+     option.value=account.account_id;
+     option.textContent=account.account_id+" • "+(account.currency||"currency unknown")+" • DEMO";
+     demoSelect.appendChild(option);
+    });
+    if(result.selected_account_id && demoAccounts.some(a=>a.account_id===result.selected_account_id)){
+     demoSelect.value=result.selected_account_id;
+    }
+    accountPicker.style.display="block";
+    accountPickerMessage.textContent="DEMO accounts only. Selecting an account does not start a bot or place trades.";
+   }catch(error){
+    accountPickerMessage.textContent=error.message||"Account list unavailable.";
+   }
+  }
+
+  saveAccountButton.addEventListener("click",async function(){
+   saveAccountButton.disabled=true;
+   accountPickerMessage.textContent="Saving your DEMO account selection...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/deriv/select-account",{
+     method:"POST",
+     headers:{
+      "Authorization":"Bearer "+sessionData.session.access_token,
+      "Content-Type":"application/json"
+     },
+     credentials:"same-origin",
+     cache:"no-store",
+     body:JSON.stringify({account_id:demoSelect.value})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Could not save selection.");
+    accountPickerMessage.textContent=result.message||"DEMO account selected. Bots remain OFF.";
+   }catch(error){
+    accountPickerMessage.textContent=error.message||"Could not save account selection.";
+   }finally{
+    saveAccountButton.disabled=false;
+   }
+  });
+
+  loadDerivAccounts(data.session.access_token);
 
   connectButton.addEventListener("click",async function(){
 
