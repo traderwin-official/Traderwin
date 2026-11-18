@@ -25,3 +25,20 @@ test("returns no signal for monotonic rising closes without crossover confirmati
   const result = evaluateDemoStrategy({ candles });
   assert.equal(result.status, "NO_SIGNAL");
 });
+
+test("generates a BUY analysis on a confirmed crossover", () => {
+  const closes = [100, 97, 94, 94, 91, 90, 93, 92, 94];
+  const result = evaluateDemoStrategy({ candles: closes.map(close => ({ close })), fastPeriod: 3, slowPeriod: 5 });
+  assert.equal(result.status, "SIGNAL");
+  assert.equal(result.side, "BUY");
+  assert.equal(result.referencePrice, 94);
+  assert.equal(result.stopLoss, 93.53);
+  assert.equal(result.takeProfit, 95.88);
+});
+
+test("generates a SELL analysis on a confirmed crossover", () => {
+  const closes = [100, 98, 101, 98, 101, 100, 100, 99, 96];
+  const result = evaluateDemoStrategy({ candles: closes.map(close => ({ close })), fastPeriod: 3, slowPeriod: 5 });
+  assert.equal(result.status, "SIGNAL");
+  assert.equal(result.side, "SELL");
+});
