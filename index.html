@@ -81,6 +81,21 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 
 <main>
 
+<section id="verifiedMarketWatch">
+ <h2 class="section-title">Verified <span>Live Market Watch</span></h2>
+ <div class="card">
+  <p class="muted">Live prices are streamed directly from Deriv's public market-data WebSocket. This feed is independent of broker execution. Only symbols confirmed by Deriv are offered.</p>
+  <div class="field">
+   <label for="derivLiveSymbol">Deriv market instrument</label>
+   <select id="derivLiveSymbol" disabled><option>Connecting to Deriv market data…</option></select>
+  </div>
+  <p class="status" id="derivLiveStatus" aria-live="polite">Status: Connecting</p>
+  <div class="price" id="derivLivePrice">—</div>
+  <p class="muted" id="derivLiveMeta">Source: Deriv public market data · Waiting for verified symbol feed</p>
+  <button type="button" id="derivLiveReconnect">Reconnect market data</button>
+ </div>
+</section>
+
 <section id="markets">
  <h2 class="section-title">Market <span>Overview</span></h2>
  <p class="muted">Displayed prices and charts may be indicative and are not executable broker quotes.</p>
@@ -324,6 +339,96 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 </footer>
 
 <script>
+// VERIFIED DERIV PUBLIC MARKET DATA — READ-ONLY STREAM
+(function(){
+ const select=document.getElementById("derivLiveSymbol");
+ const status=document.getElementById("derivLiveStatus");
+ const price=document.getElementById("derivLivePrice");
+ const meta=document.getElementById("derivLiveMeta");
+ const reconnect=document.getElementById("derivLiveReconnect");
+ const wsUrl="wss://api.derivws.com/trading/v1/options/ws/public";
+ let socket=null,activeSymbols=[],currentSubscription=null,feedReady=false;
+ function setStatus(text){status.textContent="Status: "+text;}
+ function clearPrice(){price.textContent="—";meta.textContent="Source: Deriv public market data · Waiting for price";}
+ function unsubscribe(){
+  if(socket&&socket.readyState===WebSocket.OPEN&&currentSubscription){
+   socket.send(JSON.stringify({forget:currentSubscription}));
+  }
+  currentSubscription=null;
+ }
+ function subscribeSelected(){
+  if(!socket||socket.readyState!==WebSocket.OPEN||!feedReady)return;
+  unsubscribe();
+  const symbol=select.value;
+  if(!symbol)return;
+  clearPrice();
+  setStatus("Subscribing to "+symbol);
+  socket.send(JSON.stringify({ticks:symbol,subscribe:1,req_id:2}));
+ }
+ function populateSymbols(items){
+  activeSymbols=Array.isArray(items)?items.map(item=>({
+   ...item,
+   symbol:item?.symbol||item?.underlying_symbol,
+   display_name:item?.display_name||item?.underlying_symbol_name,
+   market_display_name:item?.market_display_name||item?.market||item?.submarket||"Market"
+  })).filter(item=>item&&typeof item.symbol==="string"&&typeof item.display_name==="string"):[];
+  const sorted=activeSymbols.slice().sort((a,b)=>(a.market||"").localeCompare(b.market||"")||a.display_name.localeCompare(b.display_name));
+  select.replaceChildren();
+  sorted.forEach(item=>{
+   const option=document.createElement("option");
+   option.value=item.symbol;
+   option.textContent=item.display_name+" ("+item.symbol+") · "+(item.market_display_name||item.market||"Market");
+   select.appendChild(option);
+  });
+  select.disabled=sorted.length===0;
+  if(sorted.length){
+   setStatus("Connected · "+sorted.length+" Deriv instruments available");
+   subscribeSelected();
+  }else{
+   setStatus("Connected, but no active symbols returned");
+  }
+ }
+ function connect(){
+  if(socket){try{socket.close();}catch(e){}}
+  feedReady=false;currentSubscription=null;select.disabled=true;select.replaceChildren();
+  const waiting=document.createElement("option");waiting.textContent="Connecting to Deriv market data…";select.appendChild(waiting);
+  clearPrice();setStatus("Connecting");
+  try{socket=new WebSocket(wsUrl);}catch(e){setStatus("WebSocket could not start");return;}
+  const connection=socket;
+  connection.onopen=()=>{
+   if(socket!==connection)return;
+   setStatus("Connected · loading active instruments");
+   socket.send(JSON.stringify({active_symbols:"brief",req_id:1}));
+  };
+  connection.onmessage=(event)=>{
+   if(socket!==connection)return;
+   let data;try{data=JSON.parse(event.data);}catch(e){return;}
+   if(data.subscription?.id)currentSubscription=data.subscription.id;
+   if(data.error){setStatus("Feed error: "+(data.error.message||"Request rejected"));return;}
+   if(data.msg_type==="active_symbols"){
+    feedReady=true;populateSymbols(data.active_symbols);return;
+   }
+   if(data.msg_type==="tick"&&data.tick){
+    const tick=data.tick;
+    const symbol=tick.symbol||data.echo_req?.ticks;
+    if(symbol!==select.value)return;
+    const quote=Number(tick.quote);
+    if(!Number.isFinite(quote))return;
+    price.textContent=quote.toLocaleString(undefined,{maximumFractionDigits:8});
+    const time=tick.epoch?new Date(tick.epoch*1000):new Date();
+    meta.textContent="Source: Deriv · "+symbol+" · Last update: "+time.toLocaleString()+" · Live stream";
+    setStatus("Live");
+    if(data.subscription?.id)currentSubscription=data.subscription.id;
+   }
+  };
+  connection.onerror=()=>{if(socket===connection)setStatus("Connection error · retry");};
+  connection.onclose=()=>{if(socket!==connection)return;feedReady=false;currentSubscription=null;select.disabled=true;setStatus("Disconnected · reconnect to resume");};
+ }
+ select.addEventListener("change",subscribeSelected);
+ reconnect.addEventListener("click",connect);
+ connect();
+})();
+
 const marketData={
  "Forex":[["EUR/USD","Euro / US Dollar"],["GBP/USD","British Pound / US Dollar"],["USD/JPY","US Dollar / Japanese Yen"],["AUD/USD","Australian Dollar / US Dollar"]],
  "Gold":[["XAU/USD","Gold / US Dollar"],["XAG/USD","Silver / US Dollar"]],
