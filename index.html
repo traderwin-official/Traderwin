@@ -574,14 +574,21 @@ calculateRisk();
 
     const user=authData.user;
 
+    // Store preferences in the canonical per-user bot profile table.
+    // Client-side profiles are deliberately DEMO-only and cannot enable automation.
     const {error:saveError}=await client
-     .from("bot_settings")
-     .insert({
+     .from("bot_mode_profiles")
+     .upsert({
       user_id:user.id,
       broker:broker,
       instrument:instrument,
       account_mode:"DEMO",
+      risk_per_trade:0.5,
+      max_daily_loss:2,
+      max_open_positions:1,
       enabled:false
+     }, {
+      onConflict:"user_id,broker,instrument,account_mode"
      });
 
     if(saveError){
@@ -598,7 +605,7 @@ calculateRisk();
      return;
     }
 
-    botMessage.textContent="Success! Your bot preferences have been saved. Your selected account preference is "+selectedAccountMode+". Bot configuration remains DEMO and automation stays OFF until broker verification and a separate live-trading safety workflow are completed.";
+    botMessage.textContent="Success! Your DEMO bot preferences have been saved. Automation remains OFF. This form cannot enable REAL trading or start a bot.";
     botForm.reset();
 
    }catch(error){
