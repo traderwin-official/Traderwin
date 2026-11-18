@@ -131,7 +131,8 @@ export default async function handler(req, res) {
         code,
         code_verifier: session.verifier,
         redirect_uri: DERIV_REDIRECT_URI
-      })
+      }),
+      signal: AbortSignal.timeout(15000)
     });
 
     const tokenData = await tokenResponse.json().catch(() => ({}));
@@ -161,7 +162,8 @@ export default async function handler(req, res) {
         headers: {
           Authorization: `Bearer ${tokenData.access_token}`,
           Accept: "application/json"
-        }
+        },
+        signal: AbortSignal.timeout(15000)
       }
     );
 
