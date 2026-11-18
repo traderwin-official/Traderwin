@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed" });
@@ -37,6 +38,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Could not load connected Deriv accounts." });
     }
     if (!data) return res.status(404).json({ error: "No Deriv connection found." });
+    if (!data.token_expires_at || Date.parse(data.token_expires_at) <= Date.now()) {
+      return res.status(409).json({ error: "Deriv authorization expired. Reconnect your account to refresh its verified account list." });
+    }
 
     const accounts = Array.isArray(data.accounts) ? data.accounts.filter((account) =>
       account && typeof account.account_id === "string" &&
