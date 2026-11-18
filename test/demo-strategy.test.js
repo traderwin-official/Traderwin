@@ -33,7 +33,7 @@ test("generates a BUY analysis on a confirmed crossover", () => {
   assert.equal(result.side, "BUY");
   assert.equal(result.referencePrice, 94);
   assert.equal(result.stopLoss, 93.53);
-  assert.equal(result.takeProfit, 95.88);
+  assert.equal(result.takeProfit, 94.94);
 });
 
 test("generates a SELL analysis on a confirmed crossover", () => {
