@@ -21,7 +21,7 @@ test("rejects invalid or duplicate candle history", () => {
 });
 
 test("blocks stale completed candles", () => {
-  const data = candles(Array.from({length:25},(_,i)=>100+i));
+  const data = candles(Array.from({length:25},(_,i)=>100+i)).map(c=>({...c,bucket_epoch:c.bucket_epoch-3600}));
   assert.equal(analyzeClosedCandles({ candles:data, symbol:"frxXAUUSD", nowEpoch:now, maxAgeSeconds:30 }).reason, "CLOSED_CANDLE_DATA_STALE");
 });
 
