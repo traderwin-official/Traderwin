@@ -72,8 +72,15 @@ test("daily loss budget includes realized loss and existing open risk", () => {
   assert.equal(result.reason, "RISK_BUDGET_EXHAUSTED");
 });
 
-test("margin limits automatic sizing", () => {
+test("margin caps automatic sizing at the available amount", () => {
   const result = calculateRiskAwareLotSize({ ...base, availableMargin: 3 });
+  assert.equal(result.allowed, true);
+  assert.equal(result.lots, 0.03);
+  assert.equal(result.requiredMargin, 3);
+});
+
+test("margin below the broker minimum blocks automatic sizing", () => {
+  const result = calculateRiskAwareLotSize({ ...base, availableMargin: 0.5 });
   assert.equal(result.allowed, false);
   assert.equal(result.reason, "SAFE_SIZE_BELOW_BROKER_MINIMUM");
 });
