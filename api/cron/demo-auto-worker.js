@@ -125,6 +125,7 @@ async function processSession(db, session) {
       p_trade_id: decision.tradeId,
       p_stage: "STOP_LOSS",
       p_exit_price: decision.exitPrice,
+      p_quote_to_usd: quote.quoteToUsd,
       p_quote_source: quote.source,
       p_quote_as_of: quote.quoteAsOf
     });
