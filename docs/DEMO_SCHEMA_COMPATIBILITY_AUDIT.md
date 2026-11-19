@@ -13,7 +13,7 @@ Do not merge the historical DEMO migrations or deploy the DEMO endpoints as a gr
 
 - `demo_bot_sessions`: `id, user_id, broker, broker_account_ref, instrument, strategy, status, risk_per_trade_pct, max_daily_loss_pct, started_at, stopped_at, created_at, updated_at`.
 - `demo_bot_trades`: `id, session_id, user_id, instrument, side, quantity, entry_price, exit_price, stop_loss, take_profit, pnl, status, opened_at, closed_at, metadata, created_at`.
-- `bot_settings.id` is BIGINT, not UUID. Its known risk field is `risk_per_trade_pct`; the production schema also has `risk_per_trade_pct` and the newer code expects `risk_per_trade_pct` or `risk_per_trade_pct` depending on endpoint generation.
+- `bot_settings.id` is BIGINT, not UUID. Its known risk field is `risk_per_trade_pct`; the historical branch code frequently selects `max_risk_per_trade_pct`, which is not part of the supplied production table inventory.
 - `bot_mode_profiles` and `bot_activity` are already present with production contracts that differ from the historical branch assumptions.
 - `deriv_connections` is keyed by `user_id` and does not have an `id` column.
 
