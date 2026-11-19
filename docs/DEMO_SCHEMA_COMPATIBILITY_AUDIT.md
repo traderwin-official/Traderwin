@@ -50,11 +50,15 @@ Historical migration `202611120005_demo_paper_trading.sql` declares `bot_setting
 
 The worker/API calls RPCs including `open_demo_manual_trade`, `open_demo_auto_trade`, `close_demo_paper_trade`, and `manage_demo_auto_trade_exit`. Migration 016 defines `open_demo_auto_trade` and `close_demo_auto_trade`, with signatures and return shapes that do not match all callers. The endpoint and SQL function contracts must be reconciled before activation.
 
+## Recommended ledger architecture
+
+The follow-on design is documented in [DEMO_PAPER_LEDGER_V2_DESIGN.md](./DEMO_PAPER_LEDGER_V2_DESIGN.md). It proposes a separate additive `demo_paper_*` ledger so the deployed `demo_bot_sessions` and `demo_bot_trades` contracts remain untouched.
+
 ## Required next engineering sequence
 
 1. Freeze production deployment of this historical DEMO path.
 2. Inspect the complete production constraints, indexes, RLS policies, grants, triggers, and RPC signatures for the listed tables.
-3. Choose a canonical virtual-ledger design that fits the production schema. Prefer a dedicated additive paper-ledger table set if the current tables are used for a different purpose; do not overload existing production records.
+3. Implement and validate the dedicated additive `demo_paper_*` ledger design; do not overload existing production records.
 4. Define one explicit schema contract and update every DEMO endpoint, worker, RPC, and test to use it consistently.
 5. Add an additive migration only after testing it against a disposable copy of the production schema. Include idempotency, ownership isolation, service-role-only writes, and separate DEMO/REAL records.
 6. Test manual entry/close, automated entry/management, duplicate worker prevention, stale quote rejection, daily loss lock, partial TP accounting, and user isolation.
