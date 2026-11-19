@@ -41,8 +41,23 @@ create table if not exists public.bot_settings(
 alter table public.bot_settings add column if not exists strategy text not null default 'MANUAL_REVIEW';
 alter table public.bot_settings add column if not exists max_risk_per_trade_pct numeric(5,2) not null default 0.50;
 alter table public.bot_settings add column if not exists updated_at timestamptz not null default now();
--- Existing installations may predate UUID defaults; preserve rows and make new inserts safe.
-alter table public.bot_settings alter column id set default gen_random_uuid();
+-- Preserve the existing primary-key type. UUID defaults are valid only for UUID IDs;
+-- legacy BIGINT/identity keys must retain their own sequence/default.
+do $
+declare
+  v_id_type text;
+begin
+  select data_type into v_id_type
+    from information_schema.columns
+   where table_schema = 'public'
+     and table_name = 'bot_settings'
+     and column_name = 'id';
+
+  if v_id_type = 'uuid' then
+    alter table public.bot_settings alter column id set default gen_random_uuid();
+  end if;
+end;
+$;
 create unique index if not exists traderwin_bot_settings_user_uidx on public.bot_settings(user_id);
 alter table public.bot_settings enable row level security;
 drop policy if exists "Users manage own bot settings" on public.bot_settings;
