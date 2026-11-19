@@ -4,6 +4,7 @@ import { calculateRiskAwareLotSize } from "../lib/demo/risk-aware-lot-sizing.js"
 
 const base = {
   mode: "AUTO",
+  direction: "BUY",
   equity: 1000,
   entryPrice: 2000,
   stopLoss: 1990,
@@ -95,4 +96,23 @@ test("manual lot must respect broker minimum, maximum, and step", () => {
 test("invalid or zero-risk inputs fail closed", () => {
   assert.equal(calculateRiskAwareLotSize({ ...base, tickValuePerLot: 0 }).allowed, false);
   assert.equal(calculateRiskAwareLotSize({ ...base, stopLoss: 2000 }).allowed, false);
+});
+
+test("stop loss must be on the protective side for the trade direction", () => {
+  const wrongBuyStop = calculateRiskAwareLotSize({ ...base, direction: "BUY", stopLoss: 2010 });
+  const wrongSellStop = calculateRiskAwareLotSize({ ...base, direction: "SELL", stopLoss: 1990 });
+  assert.equal(wrongBuyStop.reason, "INVALID_SIZING_INPUT");
+  assert.equal(wrongSellStop.reason, "INVALID_SIZING_INPUT");
+});
+
+test("SELL sizing uses the protective stop distance", () => {
+  const result = calculateRiskAwareLotSize({
+    ...base,
+    direction: "SELL",
+    entryPrice: 2000,
+    stopLoss: 2010
+  });
+  assert.equal(result.allowed, true);
+  assert.equal(result.lots, 0.05);
+  assert.equal(result.estimatedLossAtStop, 5);
 });
