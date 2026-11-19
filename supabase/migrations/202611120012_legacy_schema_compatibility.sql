@@ -5,8 +5,22 @@
 -- Existing bot_settings rows use risk_per_trade_pct; the new server code reads
 -- max_risk_per_trade_pct. Give legacy rows a safe UUID default and preserve their
 -- configured risk, capped at the platform's 2% safety ceiling.
-alter table public.bot_settings
-  alter column id set default gen_random_uuid();
+-- Only UUID primary keys can use gen_random_uuid(). Preserve BIGINT identity/defaults.
+do $
+declare
+  v_id_type text;
+begin
+  select data_type into v_id_type
+    from information_schema.columns
+   where table_schema = 'public'
+     and table_name = 'bot_settings'
+     and column_name = 'id';
+
+  if v_id_type = 'uuid' then
+    alter table public.bot_settings alter column id set default gen_random_uuid();
+  end if;
+end;
+$;
 
 alter table public.bot_settings
   add column if not exists max_risk_per_trade_pct numeric(5,2) not null default 0.50;
