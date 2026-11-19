@@ -35,6 +35,21 @@ test("automatic size scales with equity while risk percentage stays constant", (
   assert.equal(result.estimatedLossAtStop, 10);
 });
 
+test("auto sizing floors from the broker minimum lot, not from zero", () => {
+  const result = calculateRiskAwareLotSize({
+    ...base,
+    tickValuePerLot: 0.07,
+    minLot: 0.1,
+    maxLot: 1.1,
+    lotStep: 0.25,
+    marginPerLot: 1
+  });
+  assert.equal(result.allowed, true);
+  assert.equal(result.lots, 0.6);
+  assert.equal((result.lots - 0.1) / 0.25, 2);
+  assert.equal(result.maxLotsByRisk, 0.6);
+});
+
 test("manual size is accepted when it passes all limits", () => {
   const result = calculateRiskAwareLotSize({ ...base, mode: "MANUAL", manualLots: 0.05 });
   assert.equal(result.allowed, true);
