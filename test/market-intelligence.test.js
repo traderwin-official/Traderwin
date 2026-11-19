@@ -3,16 +3,31 @@ import assert from "node:assert/strict";
 import { evaluateMarketConfluence } from "../lib/market-intelligence.js";
 
 const now = Date.parse("2026-11-16T12:00:00.000Z");
-const evidence = [
-  {category:"technical",direction:"BUY",source:"ta-engine",asOf:new Date(now-1000).toISOString(),confidence:94},
-  {category:"multi_timeframe",direction:"BUY",source:"mtf-engine",asOf:new Date(now-2000).toISOString(),confidence:92},
-  {category:"price_action",direction:"BUY",source:"price-action",asOf:new Date(now-3000).toISOString(),confidence:90},
-  {category:"liquidity",direction:"BUY",source:"liquidity-map",asOf:new Date(now-4000).toISOString(),confidence:91},
-  {category:"order_flow",direction:"BUY",source:"order-flow",asOf:new Date(now-5000).toISOString(),confidence:88},
-  {category:"news",direction:"BUY",source:"news-feed",asOf:new Date(now-6000).toISOString(),confidence:80}
+const rawEvidence = [
+  {category:"technical",direction:"BUY",source:"ta-engine",confidence:94},
+  {category:"multi_timeframe",direction:"BUY",source:"mtf-engine",confidence:92},
+  {category:"price_action",direction:"BUY",source:"price-action",confidence:90},
+  {category:"liquidity",direction:"BUY",source:"liquidity-map",confidence:91},
+  {category:"order_flow",direction:"BUY",source:"order-flow",confidence:88},
+  {category:"news",direction:"BUY",source:"news-feed",confidence:80}
 ];
+const evidenceFor = (instrument = "XAUUSD", timeframe = "M5") => rawEvidence.map(item => ({
+  ...item,
+  instrument,
+  adapterVerified: true,
+  ...(item.category === "multi_timeframe"
+    ? {timeframes:[timeframe,"H1"]}
+    : {timeframe})
+})).map((item, index) => ({
+  ...item,
+  asOf: new Date(now - (index + 1) * 1000).toISOString()
+}));
+const evidence = evidenceFor();
 const market = {tradable:true,quoteFresh:true,candleClosed:true};
-const risk = {spreadBps:1,maxSpreadBps:3,riskReward:2,minimumRiskReward:1.5,entryTriggerConfirmed:true};
+const risk = {
+  spreadBps:1,maxSpreadBps:3,riskReward:2,minimumRiskReward:1.5,
+  entryTriggerConfirmed:true,newsStatus:"CLEAR"
+};
 
 test("high-confluence M5 scalp can pass analysis but never authorizes execution", () => {
   const result = evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence,market,risk,now});
@@ -46,17 +61,18 @@ test("missing liquidity confirmation blocks a sensitive scalp", () => {
 });
 
 test("stale or future evidence is rejected", () => {
-  const stale = evidence.map(x=>({...x,asOf:new Date(now-600000).toISOString()}));
-  const future = [{...evidence[0],asOf:new Date(now+10000).toISOString()}];
+  const stale = evidenceFor("EURUSD").map(x=>({...x,asOf:new Date(now-600000).toISOString()}));
+  const future = [{...evidenceFor("EURUSD")[0],asOf:new Date(now+10000).toISOString()}];
   const result = evaluateMarketConfluence({instrument:"EURUSD",timeframe:"M5",evidence:[...stale,...future],market,risk,now});
   assert.equal(result.direction,"WAIT");
   assert.equal(result.acceptedEvidence.length,0);
+  assert.ok(result.reasons.includes("STALE_OR_INVALID_EVIDENCE"));
 });
 
 test("spread, news blackout and weak reward-risk block a trade", () => {
   const result = evaluateMarketConfluence({
-    instrument:"EURUSD",timeframe:"M5",evidence,market,
-    risk:{...risk,spreadBps:5,riskReward:1.1,highImpactNewsWindow:true},now
+    instrument:"EURUSD",timeframe:"M5",evidence:evidenceFor("EURUSD"),market,
+    risk:{...risk,spreadBps:5,riskReward:1.1,newsStatus:"BLACKOUT",highImpactNewsWindow:true},now
   });
   assert.equal(result.direction,"WAIT");
   assert.ok(result.reasons.includes("SPREAD_TOO_WIDE"));
@@ -65,7 +81,7 @@ test("spread, news blackout and weak reward-risk block a trade", () => {
 });
 
 test("conflicting signal sources force WAIT", () => {
-  const mixed = evidence.map((x,i)=>i<3?x:{...x,direction:"SELL"});
+  const mixed = evidenceFor("BTCUSD").map((x,i)=>i<3?x:{...x,direction:"SELL"});
   const result = evaluateMarketConfluence({instrument:"BTCUSD",timeframe:"M5",evidence:mixed,market,risk,now});
   assert.equal(result.direction,"WAIT");
   assert.ok(result.reasons.includes("SIGNAL_CONFLICT_OR_WEAK_AGREEMENT"));
@@ -88,4 +104,50 @@ test("missing spread, quote freshness or candle completion blocks a trade", () =
   assert.ok(result.reasons.includes("SPREAD_DATA_UNAVAILABLE"));
   assert.ok(result.reasons.includes("QUOTE_NOT_FRESH"));
   assert.ok(result.reasons.includes("ENTRY_CANDLE_NOT_CLOSED"));
+});
+
+test("evidence for another instrument is rejected", () => {
+  const result=evaluateMarketConfluence({
+    instrument:"XAUUSD",timeframe:"M5",
+    evidence:evidenceFor("EURUSD"),market,risk,now
+  });
+  assert.equal(result.direction,"WAIT");
+  assert.equal(result.acceptedEvidence.length,0);
+  assert.ok(result.reasons.includes("EVIDENCE_CONTEXT_MISMATCH"));
+});
+
+test("chart evidence must match the requested timeframe", () => {
+  const wrongTimeframe=evidence.map(item=>item.category==="technical"?{...item,timeframe:"H1"}:item);
+  const result=evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence:wrongTimeframe,market,risk,now});
+  assert.equal(result.direction,"WAIT");
+  assert.ok(result.reasons.includes("EVIDENCE_CONTEXT_MISMATCH"));
+  assert.ok(result.reasons.includes("MISSING_TECHNICAL_CONFIRMATION"));
+});
+
+test("multi-timeframe evidence must include the requested and a higher timeframe", () => {
+  const wrong=evidence.map(item=>item.category==="multi_timeframe"?{...item,timeframes:["H1","H4"]}:item);
+  const result=evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence:wrong,market,risk,now});
+  assert.equal(result.direction,"WAIT");
+  assert.ok(result.reasons.includes("EVIDENCE_CONTEXT_MISMATCH"));
+  assert.ok(result.reasons.includes("MISSING_MULTI_TIMEFRAME_CONFIRMATION"));
+});
+
+test("unverified adapter evidence is rejected", () => {
+  const unverified=evidence.map((item,index)=>index===0?{...item,adapterVerified:false}:item);
+  const result=evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence:unverified,market,risk,now});
+  assert.equal(result.direction,"WAIT");
+  assert.ok(result.reasons.includes("UNVERIFIED_EVIDENCE_SOURCE"));
+  assert.ok(result.reasons.includes("MISSING_TECHNICAL_CONFIRMATION"));
+});
+
+test("missing news status fails closed", () => {
+  const {newsStatus,...unverifiedRisk}=risk;
+  const result=evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence,market,risk:unverifiedRisk,now});
+  assert.equal(result.direction,"WAIT");
+  assert.ok(result.reasons.includes("NEWS_STATUS_NOT_VERIFIED"));
+});
+
+test("invalid time or timeframe configuration fails closed", () => {
+  assert.equal(evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence,market,risk,now:NaN}).direction,"WAIT");
+  assert.ok(evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"TICK",evidence,market,risk,now}).reasons.includes("INVALID_TIMEFRAME"));
 });
