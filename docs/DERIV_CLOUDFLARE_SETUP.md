@@ -44,3 +44,12 @@ The disconnect endpoint removes the local encrypted connection row; it does not 
 8. Confirm no broker order is submitted and REAL execution remains disabled.
 
 Do not run the Cloudflare preview deployment workflow until the owner has configured and approved the required Cloudflare/GitHub preview credentials and Deriv callback registration.
+
+
+## Read-only Deriv active-symbol discovery
+
+The migration branch also provides `GET /api/deriv/active-symbols` as a public, read-only Pages Function. It requests Deriv's public `active_symbols: brief` catalogue over an outbound WebSocket, validates the provider response, removes malformed/duplicate symbols, and returns provider metadata. It does not activate a symbol, change the platform's approved instrument list, create a trade, or submit a broker order.
+
+The endpoint is limited to 20 requests per Cloudflare client IP per 60-second window. It requires the existing `APP_RATE_LIMITER` service binding and `APP_RATE_LIMITER_TOKEN` secret; if either is missing or the limiter is unavailable, the route fails closed with HTTP 503. Excess requests receive HTTP 429 and `Retry-After`. Successful catalogue responses carry short public cache headers; errors are not cached.
+
+Cloudflare Workers supports outbound `new WebSocket(url)` connections (see the [Workers WebSockets documentation](https://developers.cloudflare.com/workers/runtime-apis/websockets/)). The preview still needs a real provider connection test after the Pages project and preview-only rate-limiter binding are configured. Do not run the preview deployment workflow until the owner has approved and configured those preview resources.
