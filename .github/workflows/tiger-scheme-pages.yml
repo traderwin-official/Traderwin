@@ -67,6 +67,10 @@ jobs:
           test -f functions/api/deriv/callback.js
           test -f functions/api/deriv/status.js
           test -f functions/api/deriv/disconnect.js
+          test -f functions/api/deriv/active-symbols.js
+          test -f lib/cloudflare-deriv-active-symbols.js
+          test -f lib/deriv-active-symbols-normalizer.js
+          test -f test/cloudflare-deriv-active-symbols.test.js
           test -f functions/api/analysis/market.js
           test -f functions/api/subscriptions/status.js
           test -f functions/api/bots/emergency/control.js
