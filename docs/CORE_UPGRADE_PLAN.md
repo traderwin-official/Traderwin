@@ -24,8 +24,19 @@ This branch is isolated from the live main branch. PR #3 remains draft and unmer
 - Supabase migrations 002-016 are not confirmed applied to the live project; only migration 001 was previously confirmed by the owner.
 - Vercel deployment is currently blocked by the account deployment API rate limit. Wait for the provider's stated retry window; do not bypass it.
 
-## Supabase migration order
-Run in Supabase SQL Editor, exactly in this order, and verify each result:
+## BLOCKED: production Supabase schema reconciliation required
+
+**Do not run the migration list below against the existing production Supabase project yet.** The owner supplied a live table/column inventory that differs materially from this branch's original schema assumptions. In particular:
+
+- Production `bot_settings.id` is BIGINT, while this branch's original migrations attempted to assign `gen_random_uuid()`; migrations 002 and 012 now guard that default so it is applied only when the column is UUID.
+- Production `demo_bot_sessions` uses the newer session model (`broker`, `broker_account_ref`, `instrument`, `strategy`, `status`, `risk_per_trade_pct`, `max_daily_loss_pct`, timestamps) and does not match the older paper-ledger model assumed by this branch (`bot_setting_id`, `account_mode`, `starting_balance`, `current_balance`, etc.).
+- Production `demo_bot_trades` uses `instrument/side/quantity/pnl`; this branch's DEMO worker expects `symbol/direction/virtual_units/realized_pnl/quote_source/quote_as_of` and other ledger fields.
+- Production `bot_activity` and `bot_mode_profiles` also have a different column contract from several branch endpoints and worker SQL functions.
+
+The UUID-default guard is a narrow compatibility correction, **not** a complete schema migration. Do not deploy the DEMO endpoints or run migrations 005-016 until a new additive reconciliation migration has been designed against the complete live columns, constraints, indexes, and RLS policies. Never drop or rename existing production columns or tables to force compatibility.
+
+## Historical branch migration sequence — NOT APPROVED FOR PRODUCTION
+The following is the original branch sequence for a clean/compatible database only. It is not an instruction to run these migrations against the owner's current Supabase project:
 1. `supabase/migrations/202611120001_trader_profiles.sql`
 2. `supabase/migrations/202611120002_platform_foundation.sql`
 3. `supabase/migrations/202611120003_deriv_connection_security.sql`
