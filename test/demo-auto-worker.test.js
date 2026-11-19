@@ -110,3 +110,14 @@ test("automated DEMO worker and SQL ledger require USD-normalized risk and exit 
   assert.match(sql, /v_trade\.virtual_units \* p_quote_to_usd/);
   assert.match(sql, /abs\(p_risk_amount - abs\(p_entry_price-p_stop_loss\)\*p_virtual_units\*p_quote_to_usd\)/);
 });
+
+
+test("STOP_LOSS worker RPC supplies the required USD conversion argument", async () => {
+  const source = await readFile(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
+  const stopLossCall = source
+    .split('if (decision.action === "CLOSE")')[1]
+    ?.split('if (decision.action === "OPEN")')[0] || "";
+  assert.match(stopLossCall, /rpc\("manage_demo_auto_trade_exit"/);
+  assert.match(stopLossCall, /p_stage: "STOP_LOSS"/);
+  assert.match(stopLossCall, /p_quote_to_usd: quote\.quoteToUsd/);
+});
