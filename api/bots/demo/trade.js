@@ -42,6 +42,29 @@ export default async function handler(req,res){
   let sizing;try{sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry,stop,quoteToUsd:conversion.rate});}
   catch{return res.status(400).json({error:"Could not calculate a safe paper position size."});}
   if(!Number.isFinite(sizing.units)||sizing.units<=0||sizing.units>1e12)return res.status(400).json({error:"Paper position size is outside safe limits."});
+  // Refresh server-owned market and emergency state immediately before
+  // the atomic paper-entry RPC; recalculate size against the final quote.
+  let finalQuote,finalConversion;
+  try{
+   finalQuote=await getDerivPublicQuote(symbol);
+   if(finalQuote.source!=="DERIV"||normalise(finalQuote.instrument)!==normalise(symbol)||!finalQuote.providerSymbol)
+    return res.status(503).json({error:"Final verified quote does not match the selected instrument."});
+   finalConversion=await getDerivQuoteToUsd(symbol,finalQuote);
+  }catch(e){return res.status(503).json({error:e.message||"Final verified quote or USD conversion unavailable."});}
+  const finalSetupError=validatePaperSetup({direction,entry:finalQuote.quote,stop,target});
+  if(finalSetupError)return res.status(409).json({error:"Market price changed; review your stop-loss and take-profit levels.",detail:finalSetupError});
+  try{sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry:finalQuote.quote,stop,quoteToUsd:finalConversion.rate});}
+  catch{return res.status(409).json({error:"Could not recalculate a safe paper position size at the final quote."});}
+  if(!Number.isFinite(sizing.units)||sizing.units<=0||sizing.units>1e12)
+   return res.status(409).json({error:"Final paper position size is outside safe limits."});
+  const [{data:finalEmergency,error:finalEmergencyError},{data:finalLegacy,error:finalLegacyError}]=await Promise.all([
+   db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle(),
+   db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle()
+  ]);
+  if(finalEmergencyError||finalLegacyError)return res.status(503).json({error:"Could not re-verify the DEMO emergency stop before entry."});
+  if(finalEmergency?.entries_blocked||finalLegacy?.kill_switch_active)return res.status(403).json({error:"Emergency stop is active. New paper entries are blocked."});
+  quote=finalQuote;
+  conversion=finalConversion;
   const {data:result,error}=await db.rpc("open_demo_paper_trade",{
    p_user_id:uid,p_session_id:session.id,p_instrument:symbol,p_side:direction,p_entry:entry,p_stop:stop,p_target:target,
    p_quantity:sizing.units,p_risk_amount:sizing.riskAmount,p_risk_pct:riskPct,p_quote_to_usd:conversion.rate,
