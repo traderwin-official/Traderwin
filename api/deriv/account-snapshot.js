@@ -11,7 +11,7 @@ async function readJson(response) {
   return response.json().catch(() => ({}));
 }
 
-async function fetchAccountScopedWsSnapshot(url, WebSocketImpl = globalThis.WebSocket) {
+export async function fetchAccountScopedWsSnapshot(url, WebSocketImpl = globalThis.WebSocket) {
   if (typeof WebSocketImpl !== "function") throw new Error("WEBSOCKET_RUNTIME_UNAVAILABLE");
   const socket = new WebSocketImpl(url);
   return new Promise((resolve, reject) => {
