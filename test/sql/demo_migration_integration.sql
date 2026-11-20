@@ -79,7 +79,7 @@ begin
 
   -- Both the BOT and MANUAL virtual positions must be closable at zero remainder.
   select public.close_demo_portfolio_trade(
-    v_user,v_bot_trade_id,1.10500,1,'DERIV',now(),'CI_BOT_PORTFOLIO_CLOSE_1'
+    v_user,v_bot_trade_id,'EURUSD',1.10500,1,'DERIV',now(),'CI_BOT_PORTFOLIO_CLOSE_1'
   ) into v_result;
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected BOT portfolio close to succeed: %',v_result;
@@ -164,7 +164,7 @@ begin
   -- The database itself must reject manual portfolio closes until the owner
   -- explicitly grants both monitoring and close permission.
   select public.close_demo_portfolio_trade(
-    v_user,v_manual_portfolio_id,1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
+    v_user,v_manual_portfolio_id,'EURUSD',1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
   ) into v_result;
   if v_result->>'reason' <> 'MANUAL_CLOSE_PERMISSION_NOT_GRANTED' then
     raise exception 'Expected manual portfolio close to be blocked: %',v_result;
@@ -176,7 +176,7 @@ begin
      and broker_account_ref='DEMO:'||v_user;
 
   select public.close_demo_portfolio_trade(
-    v_user,v_manual_portfolio_id,1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
+    v_user,v_manual_portfolio_id,'EURUSD',1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
   ) into v_result;
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected explicitly authorized manual portfolio close: %',v_result;
@@ -184,7 +184,7 @@ begin
 
   -- A retry with the same request key must be idempotent and not realize P&L twice.
   select public.close_demo_portfolio_trade(
-    v_user,v_manual_portfolio_id,1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
+    v_user,v_manual_portfolio_id,'EURUSD',1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
   ) into v_result;
   if coalesce((v_result->>'ok')::boolean,false) is not true
      or coalesce((v_result->>'already_closed')::boolean,false) is not true then
