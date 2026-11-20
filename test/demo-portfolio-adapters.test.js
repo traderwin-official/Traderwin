@@ -42,5 +42,6 @@ test("DEMO portfolio close uses only the atomic virtual-ledger RPC and a fresh q
   assert.deepEqual(result, { closed: true, status: "CLOSED" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].name, "close_demo_portfolio_trade");
+  assert.equal(calls[0].args.p_instrument, "EURUSD");
   assert.equal(calls[0].args.p_idempotency_key, "portfolio-protection:DEMO:DERIV:acc:p1:1");
 });
