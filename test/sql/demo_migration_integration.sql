@@ -107,7 +107,7 @@ begin
   select public.save_portfolio_profit_protection_state_v2(
     v_user,'DEMO','DERIV','DEMO:'||v_user,40,35,32,true,
     array['bot-1']::text[],jsonb_build_object('bot-1',jsonb_build_object('peakProfitPerUnitUsd',40,'units',1)),
-    1,2,0,now(),'CI_DERIV_FEED',now()
+    1,1,0,now(),'CI_DERIV_FEED',now()
   ) into v_saved;
   if v_saved is not false then raise exception 'Expected stale portfolio state version to be rejected'; end if;
 
