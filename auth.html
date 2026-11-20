@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Traderwin | Account Access</title>
+<title>Young Tiger FX | Account Access</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#080d17;color:#f4f4f4;font-family:Arial,sans-serif;min-height:100vh;display:grid;place-items:center;padding:20px}
@@ -23,7 +23,7 @@ a{color:#e6b84c}
 </head>
 <body>
 <div class="card">
-<h1>TRADERWIN</h1>
+<h1>YOUNG TIGER FX</h1>
 <p>Trade smarter. Manage risk. Grow with discipline.</p>
 
 <div id="auth">
@@ -49,7 +49,7 @@ a{color:#e6b84c}
 <div id="message" role="status"></div>
 
 <p class="small">Your account is protected by Supabase Authentication. Never share your password or broker credentials.</p>
-<p><a href="/">Return to Traderwin dashboard</a></p>
+<p><a href="/">Return to Young Tiger FX dashboard</a></p>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -93,7 +93,7 @@ async function updateAccount() {
       .maybeSingle();
 
     if (profileError) {
-      showMessage("Account-mode setup is not ready. The Traderwin administrator must apply the core upgrade SQL migration in Supabase. " + profileError.message);
+      showMessage("Account-mode setup is not ready. The Young Tiger FX administrator must apply the core upgrade SQL migration in Supabase. " + profileError.message);
       return;
     }
 
