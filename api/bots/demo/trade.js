@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { validatePaperSetup, calculatePaperPosition } from "../../../lib/demo-risk.js";
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
 import { getDerivQuoteToUsd } from "../../../lib/usd-conversion.js";
+import { loadApprovedInstrument } from "../../../lib/deriv/load-approved-instrument.js";
 const num=value=>{const n=Number(value);return Number.isFinite(n)?n:NaN;};
 const normalise=value=>String(value||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 export default async function handler(req,res){
@@ -35,6 +36,8 @@ export default async function handler(req,res){
   if(emergency?.entries_blocked||legacyEmergency?.kill_switch_active)return res.status(403).json({error:"Emergency stop is active. New paper entries are blocked."});
   let quote;try{quote=await getDerivPublicQuote(symbol);}catch(e){return res.status(503).json({error:e.message||"Fresh Deriv quote unavailable."});}
   if(quote.source!=="DERIV"||normalise(quote.instrument)!==normalise(symbol)||!quote.providerSymbol)return res.status(503).json({error:"Verified quote does not match the selected instrument."});
+  const approval=await loadApprovedInstrument(db,{broker:"DERIV",instrument:symbol,providerSymbol:quote.providerSymbol});
+  if(!approval.approved)return res.status(403).json({error:"This instrument is not approved for DEMO entries by the platform.",reason:approval.reason});
   let conversion;try{conversion=await getDerivQuoteToUsd(symbol,quote);}catch(e){return res.status(503).json({error:e.message||"Fresh USD conversion unavailable."});}
   const entry=quote.quote,setupError=validatePaperSetup({direction,entry,stop,target});
   if(setupError)return res.status(400).json({error:setupError});
@@ -49,6 +52,8 @@ export default async function handler(req,res){
    finalQuote=await getDerivPublicQuote(symbol);
    if(finalQuote.source!=="DERIV"||normalise(finalQuote.instrument)!==normalise(symbol)||!finalQuote.providerSymbol)
     return res.status(503).json({error:"Final verified quote does not match the selected instrument."});
+   const finalApproval=await loadApprovedInstrument(db,{broker:"DERIV",instrument:symbol,providerSymbol:finalQuote.providerSymbol});
+   if(!finalApproval.approved)return res.status(403).json({error:"Instrument approval changed or is unavailable; paper entry blocked.",reason:finalApproval.reason});
    finalConversion=await getDerivQuoteToUsd(symbol,finalQuote);
   }catch(e){return res.status(503).json({error:e.message||"Final verified quote or USD conversion unavailable."});}
   const finalSetupError=validatePaperSetup({direction,entry:finalQuote.quote,stop,target});
