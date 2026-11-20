@@ -72,3 +72,8 @@ This is currently a pure adapter plus unit tests. It is not connected to a live 
 Request fields are symbol, catalogue-listed contract type, amount, stake/payout basis, duration, optional duration unit and any required barrier values. Currency is never accepted from the browser. Proposal retrieval is informational and is not instrument approval, position sizing, paper-trade entry or order authorization. `sizing_authorized` and `execution_authorized` are always false; REAL trading remains disabled.
 
 The route and WebSocket helper have regression tests, but the flow has not yet been exercised against Deriv's live DEMO sandbox or connected to the existing bot entry path. Provider duration semantics remain unverified and are not inferred. The active instrument approval registry remains mandatory for any future trading integration.
+
+
+### One-time quote versus executable proposal
+
+The current `POST /api/deriv/proposal` endpoint intentionally sends a one-time, non-streaming proposal request. Its response is marked `proposal_kind: ONE_TIME_READ_ONLY` and `proposal_usable_for_buy: false`. Deriv's New API documentation states that only streaming proposal IDs (requested with `subscribe: 1`) can be used by the buy endpoint. Therefore this quote endpoint is not an execution precursor, and its server-held proposal ID must never be passed to a buy request. A future, separately designed DEMO paper workflow may use quote values for simulation only; any real broker execution would require a new explicit consent, streaming quote freshness and independent risk/permission gates.
