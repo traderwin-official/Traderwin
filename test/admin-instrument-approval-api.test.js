@@ -29,6 +29,7 @@ test("registration starts pending and cannot self-approve using browser fields",
 
 test("approval and disable actions require a reason and exact provider mapping", () => {
   assert.match(api, /reason\.length < 8/);
+  assert.match(api, /const instrument = cleanText\(body\.instrument, 30\)\.toUpperCase\(\)/);
   assert.match(api, /provider_symbol: providerSymbol/);
   assert.match(api, /\.eq\("provider_symbol", providerSymbol\)/);
   assert.match(api, /status: "DISABLED", is_active: false/);
