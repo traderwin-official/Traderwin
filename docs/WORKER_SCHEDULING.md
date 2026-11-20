@@ -6,7 +6,7 @@ The worker endpoint requires:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `CRON_SECRET`
+- `CRON_SECRET` (at least 32 characters)
 
 Vercel Schedules path targets send `Authorization: Bearer <CRON_SECRET>` automatically when the environment variable is configured. The endpoint acquires the shared database worker lease, processes a bounded set of DEMO sessions, runs the combined portfolio monitor, and releases the lease.
 
