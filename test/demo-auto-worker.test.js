@@ -58,3 +58,10 @@ test("scheduled DEMO worker runs the account-wide portfolio giveback guard under
  assert.match(s,/mode:"DEMO_PAPER_ONLY",realOrdersSent:0/);
  assert.ok(s.lastIndexOf("runDemoPortfolioProtection") < s.indexOf("release_demo_paper_worker"),"portfolio monitor must run while the worker lease is held");
 });
+
+test("DEMO portfolio queue rotates blocked and failed accounts while retrying CAS conflicts",async()=>{
+ const s=await readFile(new URL("../lib/demo-portfolio-protection-runner.js",import.meta.url),"utf8");
+ assert.match(s,/CLOSE_BLOCKED", "BLOCKED"/);
+ assert.match(s,/PORTFOLIO_QUEUE_UPDATE_FAILED/);
+ assert.match(s,/status === "RETRY"/);
+});
