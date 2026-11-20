@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "schedules": {
+    "demo-auto-worker": {
+      "schedule": "*/15 * * * *",
+      "path": "/api/cron/demo-auto-worker",
+      "requestMethod": "POST",
+      "timezone": "Etc/UTC"
+    }
+  }
+}
