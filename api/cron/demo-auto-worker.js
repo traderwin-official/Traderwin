@@ -4,6 +4,7 @@ import {getDerivPublicQuote} from "../../lib/deriv-public-quote.js";
 import {getDerivCandles} from "../../lib/deriv-candles.js";
 import {getDerivQuoteToUsd} from "../../lib/usd-conversion.js";
 import {decideDemoAutoAction} from "../../lib/demo-auto-decision.js";
+import {runDemoPortfolioProtection} from "../../lib/demo-portfolio-protection-runner.js";
 export const config={maxDuration:25};
 const MAX_SESSIONS_PER_TICK=3;
 const safeError=e=>String(e?.message||"Worker step failed").slice(0,240);
@@ -96,7 +97,10 @@ export default async function handler(req,res){
   }finally{
    const {error}=await db.rpc("release_demo_paper_worker",{p_token:token});if(error)console.error("DEMO lease release:",error.message);
   }
+  let portfolioProtection={processed:0,results:[]};
+  try{portfolioProtection=await runDemoPortfolioProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK});}
+  catch(e){portfolioProtection={processed:0,results:[],error:safeError(e)};}
   const counts=results.reduce((o,r)=>(o[r.action]=(o[r.action]||0)+1,o),{});
-  return res.status(200).json({ok:true,processed:results.length,counts,results,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
+  return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
  }catch(e){console.error("DEMO paper worker:",e.message);return res.status(500).json({error:"DEMO paper worker failed safely."});}
 }
