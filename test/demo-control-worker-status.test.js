@@ -13,3 +13,25 @@ test("dashboard still exposes timeframe, validated strategy and worker health",a
  assert.match(html,/id="botTimeframe"/);assert.match(html,/value="MULTI_CONFIRMATION_V1"/);
  assert.match(html,/id="demoWorkerHealth"/);assert.match(html,/showDemoWorkerHealth\(r\.workerHeartbeat\)/);
 });
+
+test("DEMO status returns all open positions while preserving the legacy primary openTrade field",async()=>{
+ const s=await readFile(new URL("../api/bots/demo/control.js",import.meta.url),"utf8");
+ assert.match(s,/data:openTrades/);
+ assert.match(s,/order\("opened_at",\{ascending:false\}\)/);
+ assert.match(s,/openTrades:compatibleTrades/);
+ assert.match(s,/compatibleTrades\.find\(t=>t\.trade_origin==="BOT"\)/);
+ assert.match(s,/eq\("trade_origin","BOT"\)\.maybeSingle\(\)/);
+});
+test("DEMO sessions persist a bounded multi-position count and aggregate risk ceiling",async()=>{
+ const s=await readFile(new URL("../api/bots/demo/control.js",import.meta.url),"utf8");
+ assert.match(s,/max_open_positions/);
+ assert.match(s,/maxOpenPositions=Math\.max\(1,Math\.min\(10/);
+ assert.match(s,/max_total_open_risk_pct:2\.00/);
+});
+test("dashboard lets members select one of their open DEMO positions",async()=>{
+ const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
+ assert.match(html,/id="paperOpenPositionSelect"/);
+ assert.match(html,/function renderOpenPaperPositions\(trades\)/);
+ assert.match(html,/status\.openTrades/);
+ assert.match(html,/refreshOpenPaperPositions/);
+});
