@@ -4,6 +4,7 @@ import { normalizeVerifiedDerivAccounts } from "../../lib/deriv-accounts.js";
 import {
   normalizeDerivBalanceResponse,
   normalizeDerivPortfolioResponse,
+  normalizeDerivOpenContractValuation,
   buildDerivAccountSnapshot
 } from "../../lib/deriv/account-snapshot.js";
 import { calculateDerivOptionsOpenStakeRisk } from "../../lib/deriv/options-portfolio-risk.js";
@@ -209,11 +210,21 @@ export default async function handler(req, res) {
     const receivedAt = new Date().toISOString();
     const balance = normalizeDerivBalanceResponse(raw.balance, accountId, receivedAt);
     const portfolio = normalizeDerivPortfolioResponse(raw.portfolio, accountId, receivedAt);
-    if (balance.ok === false || portfolio.ok === false) {
+    if (balance.ok === false || portfolio.ok === false || !Array.isArray(raw.valuations) ||
+        raw.valuations.length !== portfolio.contracts.length) {
       return res.status(502).json({ error: "Deriv returned incomplete or mismatched account data." });
     }
+    const valuationNow = Date.now();
+    const valuations = raw.valuations.map((payload, index) =>
+      normalizeDerivOpenContractValuation(payload, portfolio.contracts[index]?.contractId, {
+        now: valuationNow, maxAgeSeconds: 30
+      })
+    );
+    if (valuations.some((item) => item.ok !== true)) {
+      return res.status(502).json({ error: "Deriv returned a stale or mismatched open-contract valuation." });
+    }
     const snapshot = buildDerivAccountSnapshot({
-      balance, portfolio, expectedAccountId: accountId, now: Date.now(), maxAgeMs: 15000
+      balance, portfolio, valuations, expectedAccountId: accountId, now: valuationNow, maxAgeMs: 15000
     });
     if (!snapshot.ok) return res.status(502).json({ error: "Deriv account snapshot failed freshness or consistency checks." });
 
@@ -232,6 +243,7 @@ export default async function handler(req, res) {
         portfolio_as_of: snapshot.portfolioAsOf,
         source: snapshot.source,
         open_stake_at_risk: openRisk.openStakeAtRisk,
+        open_unrealized_profit: openRisk.openUnrealizedProfit,
         open_stake_risk_ratio: openRisk.balanceRatio,
         risk_basis: openRisk.riskBasis
       },
