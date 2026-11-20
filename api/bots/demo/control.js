@@ -43,7 +43,7 @@ export default async function handler(req,res){
    const brokerAccountRef="DEMO:"+uid;
    const {data:emergency,error:emergencyError}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",brokerAccountRef).maybeSingle();
    if(emergencyError)return res.status(503).json({error:"Could not verify the DEMO emergency stop."});
-   if(emergency?.entries_blocked)return res.status(403).json({error:"DEMO emergency stop is active."});
+   const {data:legacyEmergency,error:legacyEmergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",brokerAccountRef).maybeSingle();\n   if(legacyEmergencyError)return res.status(503).json({error:"Could not verify the existing DEMO emergency stop."});\n   if(emergency?.entries_blocked||legacyEmergency?.kill_switch_active)return res.status(403).json({error:"DEMO emergency stop is active."});
    if(latest&&["RUNNING","PAUSED","RISK_LOCKED"].includes(latest.status)){
     if(latest.status==="PAUSED"){
      const {data:resumed,error}=await db.from("demo_paper_sessions").update({status:"RUNNING",stopped_at:null,updated_at:new Date().toISOString()}).eq("id",latest.id).eq("user_id",uid).select("*").single();
