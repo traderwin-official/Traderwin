@@ -23,8 +23,8 @@ create table if not exists public.portfolio_trade_permissions (
   broker text not null check(broker in ('DERIV','MT5')),
   broker_account_ref text not null,
   manual_trade_management boolean not null default false,
-  bot_trade_management boolean not null default false,
-  close_managed_positions boolean not null default false,
+  bot_trade_management boolean not null default true,
+  close_managed_positions boolean not null default true,
   close_manual_trades boolean not null default false,
   permission_granted_at timestamptz,
   permission_revoked_at timestamptz,
@@ -37,6 +37,9 @@ alter table public.portfolio_trade_permissions
   add column if not exists bot_trade_management boolean not null default false,
   add column if not exists close_managed_positions boolean not null default false,
   add column if not exists close_manual_trades boolean not null default false;
+
+alter table public.portfolio_trade_permissions alter column bot_trade_management set default true;
+alter table public.portfolio_trade_permissions alter column close_managed_positions set default true;
 
 alter table public.portfolio_profit_protection_state enable row level security;
 alter table public.portfolio_trade_permissions enable row level security;
