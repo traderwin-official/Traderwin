@@ -58,6 +58,7 @@ Do not apply the historical branch migrations 005–016 to production. Never dro
 
 - Supabase: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
 - Worker: `CRON_SECRET` (at least 32 random characters). Vercel Schedules path targets send it as the Authorization bearer token.
+- REAL execution: keep `REAL_EXECUTION_ENABLED` unset or `false`. The portfolio adapter also requires this server-side release switch in addition to a complete `AUTHORIZED` database record; do not set it to `true` before independent end-to-end testing and explicit owner approval.
 - Deriv: `DERIV_CLIENT_ID`, `DERIV_REDIRECT_URI`, `DERIV_OAUTH_SECRET`, `TOKEN_ENCRYPTION_KEY` (exactly 64 hex characters / 32 bytes).
 - M-Pesa: `MPESA_ENV`, `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, and optional `MPESA_TRANSACTION_TYPE`.
 
