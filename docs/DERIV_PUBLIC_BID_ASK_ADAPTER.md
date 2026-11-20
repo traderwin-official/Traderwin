@@ -35,3 +35,12 @@ This adapter is deliberately not wired into manual or automated DEMO entries yet
 ## Registry integration
 
 `lib/deriv/load-approved-market-snapshot.js` now joins the provider snapshot with the private `trading_instrument_approvals` registry and the strict market validator. It requires the exact active APPROVED Deriv/provider-symbol tuple, a fresh snapshot (10-second default), and a spread within 0.5% (default). Database errors, missing approval, stale data and excessive spread all block eligibility. This coordinator is tested but is not yet connected to any entry route.
+
+
+## Deriv contract catalogue boundary
+
+The public `contracts_for` endpoint returns available contract types for an underlying symbol. The new `lib/deriv/contract-catalogue.js` normalizes provider contract type/category, market, expiry type and min/max duration. It rejects mismatched symbols, malformed or reversed duration ranges and incomplete records.
+
+This is **options-contract availability metadata**, not a CFD/FX instrument specification. It does not provide a verified lot size, contract multiplier, tick value, margin requirement, account equity or available margin. Do not feed this catalogue into `calculateRiskAwareLotSize`, and do not translate a Deriv options stake into MT5 lots or FX quantity. A Deriv options proposal and its account-currency stake/payout must be validated separately. MT5/CFD sizing needs a separate broker-specific contract-specification adapter.
+
+The parser is read-only and is not wired into manual or automated entries.
