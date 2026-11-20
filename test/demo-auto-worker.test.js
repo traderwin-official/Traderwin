@@ -54,4 +54,5 @@ test("scheduled DEMO worker runs the account-wide portfolio giveback guard under
  assert.match(s,/runDemoPortfolioProtection/);
  assert.match(s,/portfolioProtection/);
  assert.match(s,/mode:"DEMO_PAPER_ONLY",realOrdersSent:0/);
+ assert.ok(s.indexOf("runDemoPortfolioProtection") < s.indexOf("release_demo_paper_worker"),"portfolio monitor must run while the worker lease is held");
 });
