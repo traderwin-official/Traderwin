@@ -1,6 +1,7 @@
 
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { normalizeVerifiedDerivAccounts, selectUnambiguousAccountId } from "../../lib/deriv-accounts.js";
 
 // Encrypt Deriv access tokens using AES-256-GCM.
 function encryptToken(token) {
@@ -164,27 +165,16 @@ export default async function handler(req, res) {
       signal: AbortSignal.timeout(12000)
     });
     const accountsPayload = await accountsResponse.json().catch(() => ({}));
-    const rawAccounts = Array.isArray(accountsPayload.data)
-      ? accountsPayload.data
-      : Array.isArray(accountsPayload.data?.accounts) ? accountsPayload.data.accounts : [];
-    if (!accountsResponse.ok || !rawAccounts.length) {
-      console.error("Deriv account verification failed.");
+    const accounts = normalizeVerifiedDerivAccounts(accountsPayload);
+    if (!accountsResponse.ok || !accounts.some((account) => account.account_type === "demo")) {
+      console.error("Deriv account verification failed or no active DEMO account was returned.");
       return finish("error");
     }
-    const eligible = rawAccounts.filter(account => {
-      const status = String(account.status || "active").toLowerCase();
-      return account && account.account_id && status === "active";
-    });
-    const demoAccount = eligible.find(account =>
-      String(account.account_type || account.type || "").toLowerCase() === "demo"
-    );
-    const realAccount = eligible.find(account =>
-      String(account.account_type || account.type || "").toLowerCase() === "real"
-    );
-    if (!demoAccount) {
-      console.error("Deriv did not return an active demo account.");
-      return finish("error");
-    }
+
+    // Never silently choose between multiple DEMO accounts. The member must
+    // select one through the authenticated DEMO-only account picker.
+    const demoAccountId = selectUnambiguousAccountId(accounts, "demo");
+    const realAccountId = selectUnambiguousAccountId(accounts, "real");
 
     const encryptedToken = encryptToken(tokenData.access_token);
     const tokenExpiresAt = new Date(Date.now() + Number(tokenData.expires_in) * 1000).toISOString();
@@ -205,11 +195,15 @@ export default async function handler(req, res) {
       .upsert(
         {
           user_id: session.userId,
-          deriv_account_id: String(demoAccount.account_id),
-          demo_account_id: String(demoAccount.account_id),
-          real_account_id: realAccount ? String(realAccount.account_id) : null,
+          deriv_account_id: demoAccountId,
+          demo_account_id: demoAccountId,
+          real_account_id: realAccountId,
           token_expires_at: tokenExpiresAt,
           encrypted_access_token: encryptedToken,
+          token_type: typeof tokenData.token_type === "string" ? tokenData.token_type : "Bearer",
+          requested_scopes: ["trade", "account_manage"],
+          accounts,
+          connected_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         },
         {
