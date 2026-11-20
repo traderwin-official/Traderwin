@@ -103,6 +103,7 @@ test("manual DEMO entries refresh the quote, recalculate size, and recheck both 
  const preflightStart=s.indexOf("// Refresh server-owned market");
  const rpcStart=s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"');
  assert.ok(preflightStart>=0&&preflightStart<rpcStart);
- assert.match(rpc,/p_entry:entry,p_stop:stop,p_target:target/);
+ assert.match(rpc,/p_entry:quote\.quote,p_stop:stop,p_target:target/);
+ assert.ok(s.indexOf("quote=finalQuote;")<s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"')),"RPC must use the final refreshed quote");
  assert.match(rpc,/p_quote_as_of:quote\.quoteAsOf/);
 });
