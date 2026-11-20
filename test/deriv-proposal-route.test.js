@@ -16,6 +16,8 @@ test("Deriv proposal route is authenticated, verified-DEMO scoped and read-only"
   assert.match(route, /normalizeDerivContractsForResponse/);
   assert.match(route, /buildDerivProposalRequest/);
   assert.match(route, /normalizeDerivProposalResponse/);
+  assert.match(route, /proposal_kind: "ONE_TIME_READ_ONLY"/);
+  assert.match(route, /proposal_usable_for_buy: false/);
   assert.match(route, /sizing_authorized: false/);
   assert.match(route, /execution_authorized: false/);
   assert.match(route, /real_trading_enabled: false/);
