@@ -47,3 +47,14 @@ create table public.portfolio_profit_protection_state (
   updated_at timestamptz not null default now(),
   unique(user_id,broker,broker_account_ref,account_mode)
 );
+
+-- Existing Deriv connection foundation shape for additive account-picker tests.
+create table public.deriv_connections (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  deriv_account_id text,
+  demo_account_id text,
+  real_account_id text,
+  encrypted_access_token text not null,
+  token_expires_at timestamptz,
+  updated_at timestamptz not null default now()
+);
