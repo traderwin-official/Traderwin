@@ -104,6 +104,7 @@ create policy demo_paper_heartbeats_owner_read on public.demo_paper_worker_heart
 revoke all on public.demo_paper_sessions,public.demo_paper_trades,public.demo_paper_worker_heartbeats,
   public.demo_paper_worker_leases,public.demo_paper_emergency_controls from anon,authenticated;
 grant select on public.demo_paper_sessions,public.demo_paper_trades,public.demo_paper_worker_heartbeats to authenticated;
+grant all on public.demo_paper_sessions,public.demo_paper_trades,public.demo_paper_worker_heartbeats,public.demo_paper_worker_leases,public.demo_paper_emergency_controls to service_role;
 
 create or replace function public.claim_demo_paper_worker(p_token uuid,p_lease_seconds integer default 90)
 returns boolean language plpgsql security definer set search_path=public,pg_temp as $$
