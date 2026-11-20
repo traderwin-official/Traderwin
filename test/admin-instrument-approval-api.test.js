@@ -6,7 +6,7 @@ const api = readFileSync(new URL("../api/admin/instruments.js", import.meta.url)
 
 test("instrument administration requires a verified bearer session and ADMIN role", () => {
   assert.match(api, /req\.headers\.authorization/);
-  assert.match(api, /admin\.auth\.getUser\(/);
+  assert.match(api, /db\.auth\.getUser\(/);
   assert.match(api, /from\("traderwin_admin_roles"\)/);
   assert.match(api, /role\?\.role !== "ADMIN"/);
   assert.match(api, /return res\.status\(403\)/);
