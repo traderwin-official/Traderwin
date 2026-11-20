@@ -9,8 +9,8 @@ const now=1_800_000_000_000;
 const at=new Date(now).toISOString();
 const balancePayload={balance:{loginid:accountId,balance:10000,currency:"USD",time:now/1000}};
 const portfolioPayload={portfolio:{contracts:[{
- contract_id:123456,underlying:"frxEURUSD",contract_type:"CALL",currency:"USD",
- buy_price:10,profit:2.5,payout:18,purchase_time:now/1000,expiry_time:now/1000+60
+ contract_id:123456,underlying_symbol:"frxEURUSD",contract_type:"CALL",currency:"USD",
+ buy_price:10,payout:18,purchase_time:now/1000,expiry_time:now/1000+60
 }]}};
 
 test("normalizes authenticated balance only for exact account and valid currency",()=>{
@@ -28,7 +28,8 @@ test("normalizes open portfolio contracts and rejects malformed or duplicate ent
  const p=normalizeDerivPortfolioResponse(portfolioPayload,accountId,at);
  assert.equal(p.ok,true);
  assert.equal(p.openContractCount,1);
- assert.equal(p.contracts[0].profit,2.5);
+ assert.equal(p.contracts[0].symbol,"frxEURUSD");
+ assert.equal("profit" in p.contracts[0],false);
  assert.equal(normalizeDerivPortfolioResponse({portfolio:{contracts:[{contract_id:1}]}},accountId,at).ok,false);
  assert.equal(normalizeDerivPortfolioResponse({portfolio:{contracts:[portfolioPayload.portfolio.contracts[0],portfolioPayload.portfolio.contracts[0]]}},accountId,at).ok,false);
 });
