@@ -22,3 +22,16 @@ test("dashboard keeps manual monitoring and manual closing as separate explicit 
   assert.match(html, /Allow the portfolio guard to automatically close my manual DEMO positions/);
   assert.match(html, /portfolio-permissions/);
 });
+
+test("portfolio close RPC rechecks manual permissions under a row lock and is idempotent", async () => {
+  const sql = await readFile(new URL("../supabase/migrations/202611200004_demo_portfolio_close_authorization.sql", import.meta.url), "utf8");
+  assert.match(sql, /close_demo_portfolio_trade/);
+  assert.match(sql, /for update/);
+  assert.match(sql, /manual_trade_management is not true/);
+  assert.match(sql, /close_manual_trades is not true/);
+  assert.match(sql, /close_managed_positions is not true/);
+  assert.match(sql, /bot_trade_management is not true/);
+  assert.match(sql, /portfolio_close_request_key/);
+  assert.match(sql, /already_closed/);
+  assert.match(sql, /to service_role/);
+});
