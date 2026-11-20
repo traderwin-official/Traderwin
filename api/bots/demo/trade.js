@@ -66,7 +66,7 @@ export default async function handler(req,res){
   quote=finalQuote;
   conversion=finalConversion;
   const {data:result,error}=await db.rpc("open_demo_paper_trade",{
-   p_user_id:uid,p_session_id:session.id,p_instrument:symbol,p_side:direction,p_entry:entry,p_stop:stop,p_target:target,
+   p_user_id:uid,p_session_id:session.id,p_instrument:symbol,p_side:direction,p_entry:quote.quote,p_stop:stop,p_target:target,
    p_quantity:sizing.units,p_risk_amount:sizing.riskAmount,p_risk_pct:riskPct,p_quote_to_usd:conversion.rate,
    p_quote_source:quote.source,p_quote_as_of:quote.quoteAsOf,p_trade_origin:"MANUAL"
   });
