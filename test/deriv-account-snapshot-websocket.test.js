@@ -17,8 +17,8 @@ class FakeWebSocket extends EventTarget {
       const payload = this.fail
         ? { req_id: request.req_id, error: { code: "InvalidSession" } }
         : request.req_id === 7101
-          ? { req_id: 7101, balance: { loginid: "VRTC12345", balance: 100, currency: "USD" } }
-          : { req_id: 7102, portfolio: { contracts: [] } };
+          ? { req_id: 7101, msg_type: "balance", balance: { loginid: "VRTC12345", balance: 100, currency: "USD" } }
+          : { req_id: 7102, msg_type: "portfolio", portfolio: { contracts: [] } };
       this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(payload) }));
     });
   }
