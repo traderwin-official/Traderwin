@@ -11,6 +11,7 @@ on:
       - "workers/**"
       - "test/**"
       - "scripts/**"
+      - "supabase/migrations/**"
       - "docs/UNIFIED_MPESA_SETUP.md"
       - "docs/DERIV_CLOUDFLARE_SETUP.md"
       - "docs/CLOUDFLARE_EMERGENCY_CONTROL.md"
