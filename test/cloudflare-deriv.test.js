@@ -62,7 +62,7 @@ test('Deriv OAuth start creates a signed, short-lived PKCE session for the authe
   assert.equal(authorizationUrl.origin, 'https://auth.deriv.com');
   assert.equal(authorizationUrl.searchParams.get('client_id'), env.DERIV_CLIENT_ID);
   assert.equal(authorizationUrl.searchParams.get('redirect_uri'), env.DERIV_REDIRECT_URI);
-  assert.equal(authorizationUrl.searchParams.get('scope'), 'trade');
+  assert.equal(authorizationUrl.searchParams.get('scope'), 'trade account_manage');
   assert.equal(authorizationUrl.searchParams.get('code_challenge_method'), 'S256');
   assert.ok(authorizationUrl.searchParams.get('code_challenge'));
 
@@ -183,6 +183,14 @@ test('Deriv callback verifies demo account, encrypts token and saves only to the
   assert.equal(savedRow.demo_account_id, 'VRTC12345');
   assert.equal(savedRow.real_account_id, 'CR12345');
   assert.equal(savedRow.deriv_account_id, 'VRTC12345');
+  assert.deepEqual(savedRow.accounts, [
+    { account_id: 'VRTC12345', account_type: 'demo', currency: null, status: 'active', group: null },
+    { account_id: 'CR12345', account_type: 'real', currency: null, status: 'active', group: null }
+  ]);
+  assert.equal(savedRow.token_type, 'Bearer');
+  assert.deepEqual(savedRow.requested_scopes, ['trade', 'account_manage']);
+  assert.equal(savedRow.connected_at, new Date(now).toISOString());
+  assert.equal(JSON.stringify(savedRow.accounts).includes('deriv-token-test-only'), false);
   assert.equal(savedOptions.onConflict, 'user_id');
   assert.notEqual(savedRow.encrypted_access_token, 'deriv-token-test-only');
   const [ivHex, tagHex, cipherHex] = savedRow.encrypted_access_token.split(':');
