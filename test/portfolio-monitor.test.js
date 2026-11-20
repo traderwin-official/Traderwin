@@ -14,7 +14,7 @@ function adapters(overrides = {}) {
     calls,
     loadSnapshot: async () => ({ positions: positions.map((p, i) => ({ ...p, profitUsd: i === 0 ? 60 : 21 })), source: "verified-test-feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10_000, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10_000 } }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], positionPeakState: peaks, membershipVersion: 4, stateVersion: 7 }),
-    loadPermissions: async () => ({ manageManualTrades: false, manageBotTrades: true, closeManagedPositions: true }),
+    loadPermissions: async () => ({ manageManualTrades: false, manageBotTrades: true, closeManagedPositions: true, closeManualTrades: false }),
     saveState: async (_scope, state, expected) => { calls.saved.push({ state, expected }); return { saved: true }; },
     closePosition: async (position, request) => { calls.closed.push({ id: position.id, request }); return { closed: true }; },
     ...overrides
@@ -87,12 +87,38 @@ test("manual close permission is required before any close operation", async () 
   const a = adapters({
     loadSnapshot: async () => ({ positions: positions.map(p => ({ ...p, profitUsd: 30 })), source: "feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10000, emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10000 } }),
     loadState: async () => ({ peakProfitUsd: 100, includedPositionIds: ["p1", "p2"], positionPeakState: peaks, membershipVersion: 4, stateVersion: 7 }),
-    loadPermissions: async () => ({ manageManualTrades: false, manageBotTrades: true, closeManagedPositions: false })
+    loadPermissions: async () => ({ manageManualTrades: false, manageBotTrades: true, closeManagedPositions: false, closeManualTrades: false })
   });
   const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
   assert.equal(result.status, "CLOSE_BLOCKED");
   assert.equal(result.reason, "CLOSE_PERMISSION_NOT_GRANTED");
   assert.equal(a.calls.closed.length, 0);
+});
+
+test("manual positions may be monitored in the portfolio but are never closed without separate close permission", async () => {
+  const manual = { id: "manual-1", userId: "u1", accountMode: "DEMO", broker: "DERIV", accountRef: "d1", source: "MANUAL", status: "OPEN", profitUsd: 20, units: 1 };
+  const a = adapters({
+    loadSnapshot: async () => ({
+      positions: [...positions.map(p => ({ ...p, profitUsd: 20 })), manual],
+      source: "verified-test-feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10_000,
+      emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10_000 }
+    }),
+    loadState: async () => ({
+      peakProfitUsd: 130, includedPositionIds: ["manual-1", "p1", "p2"],
+      positionPeakState: {
+        "manual-1": { peakProfitPerUnitUsd: 30, units: 1 },
+        p1: { peakProfitPerUnitUsd: 50, units: 1 },
+        p2: { peakProfitPerUnitUsd: 50, units: 1 }
+      },
+      membershipVersion: 4, stateVersion: 7
+    }),
+    loadPermissions: async () => ({ manageManualTrades: true, manageBotTrades: true, closeManagedPositions: true, closeManualTrades: false })
+  });
+  const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
+  assert.equal(result.status, "PARTIAL_CLOSE");
+  assert.equal(result.reason, "MANUAL_CLOSE_PERMISSION_NOT_GRANTED");
+  assert.deepEqual(a.calls.closed.map(x => x.id).sort(), ["p1", "p2"]);
+  assert.deepEqual(result.manualCloseBlockedIds, ["manual-1"]);
 });
 
 test("REAL positions require separate real-execution authorization", async () => {
