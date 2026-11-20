@@ -75,7 +75,7 @@ test("blocks malformed rows, duplicate identifiers, missing sell times and bad c
     }).ok,false);
   }
   assert.equal(calculateDerivDailyRealizedPnl({
-    pages:[page([row(),row({transaction_id:102}))],
+    pages:[page([row(),row({transaction_id:102})])],
     expectedAccountId:"VRTC12345",accountMode:"DEMO",accountCurrency:"USD",dayStartEpoch,dayEndEpoch
   }).reason,"REALIZED_PNL_TRANSACTION_INVALID");
   assert.equal(calculateDerivDailyRealizedPnl({
