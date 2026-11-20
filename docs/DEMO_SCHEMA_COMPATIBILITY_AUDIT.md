@@ -74,3 +74,10 @@ This document does not authorize live broker execution, real-money orders, chang
 An additive v2 paper-ledger migration is now present on `upgrade/full-platform-build` as `202611200001_demo_paper_ledger_v2.sql`. The DEMO control, manual entry/close/mark routes and scheduled worker have been switched to `demo_paper_*` records and v2 RPCs. This migration does not modify the legacy production `demo_bot_sessions`, `demo_bot_trades`, `bot_settings`, or broker tables. The v2 contract includes owner-only reads, service-role-only writes, per-user open-position uniqueness, quote freshness checks, USD-normalized risk sizing, Nairobi-day net-loss locking, worker lease, candle checkpoint and staged TP exits. The existing emergency-control latch is also checked.
 
 **Not production-ready yet:** no Supabase migration has been applied; no disposable database integration test has run; CI has not yet completed for the latest revision. Do not deploy or merge until SQL is validated against a disposable database built from the current production schema, all tests pass, and the dashboard response compatibility is verified.
+
+
+## Remaining DEMO integration gaps
+
+- The v2 worker currently manages one open paper position per user and implements staged TP exits and daily-loss locking. It does **not** yet implement the agreed combined 20% portfolio giveback monitor (USD 20 activation) across multiple positions, nor the explicit manual-trade monitoring/close permission workflow. Those must be added before claiming full portfolio risk protection.
+- The SQL migration has not been executed against a disposable PostgreSQL/Supabase instance in this environment. GitHub CI validates JavaScript tests and syntax only; it does not compile or execute this SQL migration.
+- The dashboard still needs a live preview check against the new response fields, and the new worker needs end-to-end testing with mocked/verified quote adapters and a disposable Supabase schema.
