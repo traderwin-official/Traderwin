@@ -55,6 +55,12 @@ jobs:
           test -f functions/api/deriv/callback.js
           test -f functions/api/deriv/status.js
           test -f functions/api/deriv/disconnect.js
+          test -f functions/api/deriv/accounts.js
+          test -f functions/api/deriv/select-account.js
+          test -f lib/cloudflare-deriv-accounts.js
+          test -f lib/deriv-accounts.js
+          test -f test/cloudflare-deriv-account-selection.test.js
+          test -f supabase/migrations/202611200005_deriv_verified_account_selection.sql
           test -f functions/api/analysis/market.js
           test -f functions/api/subscriptions/status.js
           test -f workers/mpesa-rate-limiter/index.js
