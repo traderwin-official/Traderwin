@@ -14,18 +14,19 @@ async function processSession(db,raw){
   max_risk_per_trade_pct:Number(raw.risk_per_trade_pct),worker_last_candle_as_of:raw.last_candle_as_of};
  const settings={...(raw.config_snapshot||{}),broker:raw.broker,instrument:raw.instrument,
   account_mode:"DEMO",strategy:raw.strategy,timeframe:raw.timeframe};
- const {data:emergency,error:emergencyError}=await db.from("demo_paper_emergency_controls")
-  .select("entries_blocked").eq("user_id",raw.user_id).eq("broker","DERIV")
-  .eq("broker_account_ref",raw.broker_account_ref).maybeSingle();
+ const [{data:emergency,error:emergencyError},{data:legacyEmergency,error:legacyEmergencyError}]=await Promise.all([
+  db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",raw.user_id).eq("broker","DERIV").eq("broker_account_ref",raw.broker_account_ref).maybeSingle(),
+  db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",raw.user_id).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",raw.broker_account_ref).maybeSingle()
+ ]);
  const {data:t,error:tradeError}=await db.from("demo_paper_trades")
   .select("id,instrument,side,entry_price,stop_loss,take_profit,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,status,trade_origin")
   .eq("session_id",raw.id).eq("user_id",raw.user_id).eq("status","OPEN").maybeSingle();
  if(tradeError)return {sessionId:raw.id,action:"ERROR",reason:"OPEN_TRADE_LOOKUP_FAILED"};
- if(emergencyError&&!t)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STATUS_UNAVAILABLE"};
+ if((emergencyError||legacyEmergencyError)&&!t)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STATUS_UNAVAILABLE"};
  const openTrade=t?{...t,symbol:t.instrument,direction:t.side,virtual_units:Number(t.remaining_quantity)}:null;
  if(openTrade&&openTrade.trade_origin!=="BOT")return {sessionId:raw.id,action:"SKIP",reason:"MANUAL_POSITION_NOT_MANAGED"};
  if(["PAUSED","RISK_LOCKED"].includes(raw.status)&&!openTrade)return {sessionId:raw.id,action:"SKIP",reason:"SESSION_PAUSED_NO_OPEN_POSITION"};
- if(emergency?.entries_blocked&&!openTrade)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STOP_ACTIVE"};
+ if((emergency?.entries_blocked||legacyEmergency?.kill_switch_active)&&!openTrade)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STOP_ACTIVE"};
  let quote;
  try{quote=await getDerivPublicQuote(raw.instrument);}catch(e){return {sessionId:raw.id,action:"BLOCK",reason:"QUOTE_UNAVAILABLE",detail:safeError(e)};}
  try{const fx=await getDerivQuoteToUsd(raw.instrument,quote);quote.quoteToUsd=fx.rate;quote.conversionSource=fx.source;quote.conversionAsOf=fx.asOf;}
