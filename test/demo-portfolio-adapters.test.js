@@ -38,9 +38,9 @@ test("DEMO portfolio close uses only the atomic virtual-ledger RPC and a fresh q
   const result = await adapters.closePosition({
     id: "p1", userId: "u1", accountMode: "DEMO", broker: "DERIV",
     accountRef: "DEMO:u1", instrument: "EURUSD"
-  }, { reason: "PORTFOLIO_PROFIT_GIVEBACK" });
+  }, { reason: "PORTFOLIO_PROFIT_GIVEBACK", idempotencyKey: "portfolio-protection:DEMO:DERIV:acc:p1:1" });
   assert.deepEqual(result, { closed: true, status: "CLOSED" });
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].name, "close_demo_paper_trade");
-  assert.equal(calls[0].args.p_reason, "PORTFOLIO_PROFIT_GIVEBACK");
+  assert.equal(calls[0].name, "close_demo_portfolio_trade");
+  assert.equal(calls[0].args.p_idempotency_key, "portfolio-protection:DEMO:DERIV:acc:p1:1");
 });
