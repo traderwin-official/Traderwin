@@ -77,9 +77,9 @@ begin
   end if;
 
   if p_user_id is null
-     or p_account_mode not in ('DEMO','REAL')
-     or p_broker not in ('DERIV','MT5')
-     or nullif(trim(p_broker_account_ref),'') is null
+     or p_account_mode is null or p_account_mode not in ('DEMO','REAL')
+     or p_broker is null or p_broker not in ('DERIV','MT5')
+     or p_broker_account_ref is null or nullif(trim(p_broker_account_ref),'') is null
      or p_peak_profit_usd is null or p_peak_profit_usd < 0
      or p_current_profit_usd is null
      or p_protected_floor_usd is null or p_protected_floor_usd < 0
@@ -91,8 +91,9 @@ begin
      or p_expected_state_version is null or p_expected_state_version < 0
      or p_state_version <> p_expected_state_version + 1
      or p_last_valuation_at is null
-     or nullif(trim(p_quote_source),'') is null
-     or p_quote_as_of is null or p_quote_as_of > now() then
+     or p_quote_source is null or nullif(trim(p_quote_source),'') is null
+     or p_quote_as_of is null or p_quote_as_of > now()
+     or p_last_valuation_at > now() then
     raise exception 'Invalid portfolio protection state payload';
   end if;
 
