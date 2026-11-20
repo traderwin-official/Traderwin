@@ -31,6 +31,8 @@ test("portfolio close RPC rechecks manual permissions under a row lock and is id
   assert.match(sql, /close_manual_trades is not true/);
   assert.match(sql, /close_managed_positions is not true/);
   assert.match(sql, /bot_trade_management is not true/);
+  assert.match(sql, /p_instrument text/);
+  assert.match(sql, /upper\(v_trade\.instrument\) <> upper\(p_instrument\)/);
   assert.match(sql, /portfolio_close_request_key/);
   assert.match(sql, /already_closed/);
   assert.match(sql, /to service_role/);
