@@ -25,6 +25,8 @@ test("staged exits preserve TP1 40 percent, TP2 30 percent and TP3 remainder",as
  const sql=await readFile(new URL("../supabase/migrations/202611200001_demo_paper_ledger_v2.sql",import.meta.url),"utf8");
  assert.match(sql,/v_trade\.quantity\*0\.40/);assert.match(sql,/v_trade\.quantity\*0\.30/);
  assert.match(sql,/v_qty:=v_trade\.remaining_quantity/);assert.match(sql,/MANUAL_TRADE_NOT_MANAGED/);
+ assert.match(sql,/remaining_quantity numeric\(28,12\) not null check \(remaining_quantity >= 0\)/);
+ assert.match(sql,/status='CLOSED' and remaining_quantity=0/);
 });
 test("manual close uses v2 atomic close and verified quote",async()=>{
  const route=await readFile(new URL("../api/bots/demo/close.js",import.meta.url),"utf8");
