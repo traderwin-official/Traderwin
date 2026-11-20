@@ -56,8 +56,7 @@ create table if not exists public.demo_paper_trades (
   check ((side='BUY' and stop_loss<entry_price and take_profit>entry_price) or
          (side='SELL' and stop_loss>entry_price and take_profit<entry_price))
 );
-create unique index if not exists demo_paper_one_open_trade_per_session
-  on public.demo_paper_trades(session_id) where status='OPEN';
+create unique index if not exists demo_paper_one_open_trade_per_session\n  on public.demo_paper_trades(session_id) where status='OPEN';\ncreate unique index if not exists demo_paper_one_open_trade_per_user\n  on public.demo_paper_trades(user_id) where status='OPEN';
 create index if not exists demo_paper_trades_user_status_idx
   on public.demo_paper_trades(user_id,status,opened_at desc);
 
@@ -150,7 +149,7 @@ begin
  if exists(select 1 from public.demo_paper_emergency_controls e where e.user_id=p_user_id and e.broker='DERIV'
    and e.broker_account_ref=v_session.broker_account_ref and e.entries_blocked) then
    return jsonb_build_object('ok',false,'reason','KILL_SWITCH_ACTIVE'); end if;
- if exists(select 1 from public.demo_paper_trades t where t.session_id=p_session_id and t.status='OPEN') then
+ if p_risk_pct>v_session.risk_per_trade_pct or p_risk_amount>v_session.current_balance*v_session.risk_per_trade_pct/100\n   or abs(p_risk_amount-abs(p_entry-p_stop)*p_quantity*p_quote_to_usd)>0.02 then\n   raise exception 'Paper position risk does not match the server-approved session limits'; end if;\n if exists(select 1 from public.demo_paper_trades t where t.user_id=p_user_id and t.status='OPEN') then
    return jsonb_build_object('ok',false,'reason','OPEN_POSITION_EXISTS'); end if;
  v_daily_loss := greatest(0, -coalesce((select sum(realized_pnl_usd) from public.demo_paper_trades
    where user_id=p_user_id and closed_at >= date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'),0));
