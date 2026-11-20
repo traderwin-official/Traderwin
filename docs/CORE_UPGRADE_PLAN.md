@@ -8,7 +8,7 @@ This document describes the isolated `upgrade/full-platform-build` branch. It is
 - Supabase authentication and the DEMO/REAL onboarding preference flow remain in the platform foundation.
 - Deriv public quote and OHLC adapters provide verified market data for a limited supported-instrument allow-list. Unsupported instruments or unavailable USD conversions fail closed.
 - The authenticated technical analyst (EMA, RSI, ATR, momentum and breakout confirmations) remains research-only; it does not execute trades.
-- Deriv OAuth/account verification and encrypted token storage are present in the foundation. The main branch's newer OAuth flow and `trade` / `account_manage` scopes must be preserved during the eventual PR conflict resolution.
+- Deriv OAuth uses PKCE and signed, short-lived HttpOnly state; access tokens are encrypted server-side. The callback stores only sanitized verified account metadata, requests `trade` and `account_manage`, and never silently selects among multiple DEMO accounts. Authenticated account-list and DEMO-only selection endpoints are now present. REAL account identifiers may be recorded as verification metadata, but REAL selection and execution remain locked.
 - M-Pesa payment ledger and STK Push scaffolding remain in place. REAL subscription pricing is USD 75 for the first paid month and USD 175 for subsequent monthly renewals. Payment grants eligibility only; it never authorizes live trading.
 - A new isolated DEMO paper ledger (`demo_paper_*`) is implemented without altering the legacy production `demo_bot_*` tables.
 - The ledger supports multiple open MANUAL virtual positions alongside one BOT-managed strategy position. Default cap is 3 simultaneous positions (maximum 10); combined open risk is capped at 2% of virtual balance.
@@ -17,7 +17,7 @@ This document describes the isolated `upgrade/full-platform-build` branch. It is
 - Automatic BOT positions are included by default for DEMO. MANUAL positions are excluded until the member explicitly enables monitoring; automatic closing of manual positions requires a separate explicit permission.
 - Portfolio closes use a server-only RPC that locks the permission row, checks the exact instrument and account, and stores an idempotency key. Manual permission revocation and portfolio closing serialize safely.
 - `vercel.json` declares a Vercel Schedule that calls `POST /api/cron/demo-auto-worker` every 15 minutes. The route requires a server-side `CRON_SECRET` of at least 32 characters.
-- GitHub Actions validates 189 JavaScript tests, serverless syntax, inline page scripts, all four new SQL migrations against disposable PostgreSQL 16, and a SQL integration script that exercises multi-position caps, aggregate risk, TP1 partial close, full close, permission denial/authorization, idempotent retries and portfolio-state compare-and-swap.
+- GitHub Actions is configured to validate JavaScript tests, serverless syntax, inline page scripts, the isolated DEMO/portfolio migrations against disposable PostgreSQL 16, and SQL integration scripts. The latest Deriv account-selection additions still require a fresh confirmed CI run; do not treat the previous 189-test result as validation of these additions.
 
 ## Current limitations — not yet operational
 
@@ -50,6 +50,7 @@ Apply these only to a disposable Supabase project after verifying that the exist
 2. `supabase/migrations/202611200002_portfolio_protection_state_v2.sql`
 3. `supabase/migrations/202611200003_demo_multi_position_v3.sql`
 4. `supabase/migrations/202611200004_demo_portfolio_close_authorization.sql`
+5. `supabase/migrations/202611200005_deriv_verified_account_selection.sql`
 
 Do not apply the historical branch migrations 005–016 to production. Never drop or rename existing production tables or columns to force compatibility. The disposable PostgreSQL CI bootstrap is a validation fixture, not a substitute for a disposable Supabase project.
 
@@ -64,7 +65,7 @@ Never paste secrets into chat, GitHub source, or browser-visible environment var
 
 ## Safe release gates
 
-1. Apply the four additive migrations to a disposable Supabase project and verify Auth, RLS, PostgREST and service-role RPC behavior.
+1. Apply the five additive migrations to a disposable Supabase project and verify Auth, RLS, PostgREST, service-role RPC behavior and the Deriv account-list/DEMO-only selection endpoints.
 2. Verify the new DEMO API routes and portfolio permission controls in a browser against that disposable project.
 3. Set Production Supabase and `CRON_SECRET` environment variables in Vercel.
 4. Create a preview deployment and verify public market data, virtual open/mark/partial-close/full-close, multi-position risk limits, manual permission revocation, portfolio giveback and worker lease behavior.
@@ -78,3 +79,11 @@ Never paste secrets into chat, GitHub source, or browser-visible environment var
 - REAL subscription payment only grants eligibility to proceed through broker verification, risk acknowledgements and explicit authorization; it never starts live trading.
 - No profitability, win-rate or return guarantee is made.
 - No production Supabase change, PR merge or Vercel deployment is authorized by this branch work.
+
+
+## 2026-11-20 Deriv account-selection hardening
+- Added authenticated `GET /api/deriv/accounts` and `POST /api/deriv/select-account` endpoints for the account picker already present in the dashboard.
+- The OAuth callback now persists sanitized active DEMO/REAL account metadata, token type, requested scopes and connection time; encrypted access tokens remain server-only.
+- A single DEMO account may be preselected only when unambiguous. Multiple DEMO accounts require explicit member selection. The selection endpoint rejects REAL accounts and never changes `real_account_id`.
+- Added additive migration `202611200005_deriv_verified_account_selection.sql` and disposable PostgreSQL integration coverage.
+- The branch remains unmerged and undeployed. The newest changes still need a confirmed CI run and disposable Supabase Auth/PostgREST/RLS verification. No live broker orders are authorized.
