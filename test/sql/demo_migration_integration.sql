@@ -1,4 +1,4 @@
--- Runs only in the disposable PostgreSQL CI database after migrations 001-003.
+-- Runs only in the disposable PostgreSQL CI database after migrations 001-004.
 -- Exercises the actual atomic RPCs; no production Supabase data is used.
 do $$
 declare
@@ -7,6 +7,7 @@ declare
   v_session_count uuid;
   v_bot_trade_id uuid;
   v_manual_trade_id uuid;
+  v_manual_portfolio_id uuid;
   v_result jsonb;
   v_count integer;
   v_permission record;
@@ -77,8 +78,8 @@ begin
   end if;
 
   -- Both the BOT and MANUAL virtual positions must be closable at zero remainder.
-  select public.close_demo_paper_trade(
-    v_user,v_bot_trade_id,1.10500,1,'DERIV',now(),'PORTFOLIO_PROFIT_GIVEBACK'
+  select public.close_demo_portfolio_trade(
+    v_user,v_bot_trade_id,1.10500,1,'DERIV',now(),'CI_BOT_PORTFOLIO_CLOSE_1'
   ) into v_result;
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected BOT portfolio close to succeed: %',v_result;
@@ -116,6 +117,7 @@ begin
     if coalesce((v_result->>'ok')::boolean,false) is not true then
       raise exception 'Expected position % to open: %',i,v_result;
     end if;
+    if i=1 then v_manual_portfolio_id := (v_result->>'trade_id')::uuid; end if;
   end loop;
 
   select public.open_demo_paper_trade(
@@ -157,6 +159,36 @@ begin
      or v_permission.close_managed_positions is not true
      or v_permission.close_manual_trades is not false then
     raise exception 'Unexpected default portfolio permissions: %',row_to_json(v_permission);
+  end if;
+
+  -- The database itself must reject manual portfolio closes until the owner
+  -- explicitly grants both monitoring and close permission.
+  select public.close_demo_portfolio_trade(
+    v_user,v_manual_portfolio_id,1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
+  ) into v_result;
+  if v_result->>'reason' <> 'MANUAL_CLOSE_PERMISSION_NOT_GRANTED' then
+    raise exception 'Expected manual portfolio close to be blocked: %',v_result;
+  end if;
+
+  update public.portfolio_trade_permissions
+     set manual_trade_management=true,close_manual_trades=true,updated_at=now()
+   where user_id=v_user and account_mode='DEMO' and broker='DERIV'
+     and broker_account_ref='DEMO:'||v_user;
+
+  select public.close_demo_portfolio_trade(
+    v_user,v_manual_portfolio_id,1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected explicitly authorized manual portfolio close: %',v_result;
+  end if;
+
+  -- A retry with the same request key must be idempotent and not realize P&L twice.
+  select public.close_demo_portfolio_trade(
+    v_user,v_manual_portfolio_id,1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true
+     or coalesce((v_result->>'already_closed')::boolean,false) is not true then
+    raise exception 'Expected idempotent portfolio close retry: %',v_result;
   end if;
 end
 $$;
