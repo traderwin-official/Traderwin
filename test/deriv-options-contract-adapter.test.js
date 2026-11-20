@@ -25,6 +25,7 @@ const catalogue = {
 const now = 1_800_000_000_000;
 const proposalPayload = (request, overrides = {}) => ({
   msg_type: "proposal",
+  req_id: request.req_id,
   echo_req: { ...request },
   proposal: {
     id: "proposal-id-not-for-browser",
