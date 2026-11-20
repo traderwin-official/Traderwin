@@ -67,3 +67,14 @@ All RPC names and signatures must be versioned and tested against the same migra
 - Monitoring/inclusion of manual trades (`manual_trade_management`) and permission to close manual trades (`close_manual_trades`) are separate. The latter defaults to false. A global `close_managed_positions` grant is also required before any portfolio close request.
 - This is not yet an operational service: no scheduled portfolio worker loads all DEMO paper positions, computes their fresh USD valuations, or sends idempotent virtual closes. The current DEMO ledger still has one open position per user. The persistence migration has not been run against PostgreSQL or Supabase.
 - Do not enable portfolio auto-closing until the multi-position ledger, dashboard position list, account-level quote/valuation adapter, worker scheduling, permission settings and disposable-database integration tests are complete.
+
+
+## Multi-position ledger v3 (2026-11-20)
+
+The additive migration `202611200003_demo_multi_position_v3.sql` replaces the single-open-position-per-user/session restriction in the isolated v2 ledger. It allows multiple MANUAL virtual positions alongside the current single BOT-managed position for the session's saved instrument. The BOT-only unique slot is retained until the strategy runner supports multi-instrument sessions.
+
+Each session now has a bounded simultaneous-position cap (default 3, maximum 10) and a combined open-risk cap (default 2% of virtual balance). The atomic entry RPC locks the session row, checks the position count, checks current remaining risk (original risk scaled by remaining quantity), and enforces the aggregate risk cap before inserting. This prevents concurrent requests from bypassing the account-level risk budget. Existing v2 sessions receive the safe defaults.
+
+The worker now queries only the BOT-originated slot, so several MANUAL rows do not cause a single-row lookup failure or get managed without permission. The STATUS API returns `openTrades[]` while preserving `openTrade` as a backward-compatible primary position. The dashboard adds a selector so a member can choose which open virtual position to mark or close.
+
+This is a first multi-position ledger step, not yet the complete portfolio protection feature. The account-level 20% giveback service must still load all positions, obtain fresh USD-normalized valuations for each instrument, persist portfolio peaks and permissions, and call the atomic virtual-close RPC. Manual-position inclusion and manual-close permissions remain separate. No production database has been changed and the v3 migration has not been executed against PostgreSQL.
