@@ -5,7 +5,8 @@ declare
   v_user uuid;
   v_session_risk uuid;
   v_session_count uuid;
-  v_session_bot uuid;
+  v_bot_trade_id uuid;
+  v_manual_trade_id uuid;
   v_result jsonb;
   v_count integer;
   v_permission record;
@@ -32,6 +33,7 @@ begin
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected BOT position to open: %',v_result;
   end if;
+  v_bot_trade_id := (v_result->>'trade_id')::uuid;
 
   select public.open_demo_paper_trade(
     v_user,v_session_risk,'EURUSD','SELL',1.10000,1.11000,1.07000,
@@ -40,6 +42,7 @@ begin
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected MANUAL position to coexist with BOT: %',v_result;
   end if;
+  v_manual_trade_id := (v_result->>'trade_id')::uuid;
 
   -- A second BOT is refused by the single strategy slot.
   select public.open_demo_paper_trade(
@@ -62,6 +65,33 @@ begin
   select count(*) into v_count from public.demo_paper_trades
    where session_id=v_session_risk and status='OPEN';
   if v_count <> 2 then raise exception 'Expected exactly two open positions, got %',v_count; end if;
+
+  -- TP1 must reduce remaining quantity while keeping the position OPEN.
+  select public.manage_demo_paper_exit(
+    v_user,v_bot_trade_id,'TP1',1.11000,1,'DERIV',now()
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true
+     or coalesce((v_result->>'closed')::boolean,true) is not false
+     or (v_result->>'remaining_units')::numeric <> 6000 then
+    raise exception 'Expected atomic 40 percent TP1 partial close: %',v_result;
+  end if;
+
+  -- Both the BOT and MANUAL virtual positions must be closable at zero remainder.
+  select public.close_demo_paper_trade(
+    v_user,v_bot_trade_id,1.10500,1,'DERIV',now(),'PORTFOLIO_PROFIT_GIVEBACK'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected BOT portfolio close to succeed: %',v_result;
+  end if;
+  select public.close_demo_paper_trade(
+    v_user,v_manual_trade_id,1.09500,1,'DERIV',now(),'MANUAL_CLOSE'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected MANUAL paper close to succeed: %',v_result;
+  end if;
+  select count(*) into v_count from public.demo_paper_trades
+   where session_id=v_session_risk and status='OPEN';
+  if v_count <> 0 then raise exception 'Expected both positions to be closed, got % open',v_count; end if;
 
   -- Stop the first session so the one-active-session-per-user guard remains tested.
   update public.demo_paper_trades set status='CLOSED',remaining_quantity=0,closed_at=now()
