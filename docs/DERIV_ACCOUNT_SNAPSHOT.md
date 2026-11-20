@@ -22,7 +22,7 @@ The endpoint never connects to the REAL WebSocket, sends buy/sell/proposal messa
 
 ## Open options exposure
 
-The endpoint also returns a conservative read-only `open_stake_at_risk` value: the sum of provider-reported `buy_price` values for all open Deriv Options contracts, with a same-currency check. This is an options premium/stake exposure summary, not a margin estimate, CFD/FX notional, guaranteed loss-at-stop or a substitute for broker-native risk limits. The result is not used to authorize entries.
+The endpoint also returns a conservative read-only `open_stake_at_risk` value: the sum of provider-reported `buy_price` values for all open Deriv Options contracts, with a same-currency check. It returns `open_unrealized_profit` as the sum of fresh provider-reported `profit` values from each contract's authenticated `proposal_open_contract` response. This is an options premium/stake exposure summary, not a margin estimate, CFD/FX notional, guaranteed loss-at-stop or a substitute for broker-native risk limits. The result is not used to authorize entries.
 
 The current Deriv `portfolio_response` schema includes `underlying_symbol`, `buy_price`, `payout`, `currency`, contract ID and timing/description fields; it does not define a live `profit` field. The endpoint therefore requests `proposal_open_contract` for each open position and validates its contract ID, open status, currency, purchase price, bid price, provider-reported profit and fresh `current_spot_time`. It does not invent unrealised P&L.
 
