@@ -18,7 +18,9 @@ test("portfolio persistence migration matches the Supabase adapter contract", ()
   ]) assert.match(portfolio, new RegExp(field));
   assert.match(portfolio, /save_portfolio_profit_protection_state_v2/);
   assert.match(portfolio, /p_position_peak_state jsonb/);
-  assert.match(portfolio, /where public\.portfolio_profit_protection_state\.state_version = p_expected_state_version/);
+  assert.match(portfolio, /where public\.portfolio_profit_protection_state\.state_version = 0/);
+  assert.match(portfolio, /and state_version = p_expected_state_version/);
+  assert.match(portfolio, /if p_expected_state_version = 0 then[\s\S]*else[\s\S]*update public\.portfolio_profit_protection_state set/);
   assert.equal(/\bas \$(?!\$)|end \$(?!\$);/.test(portfolio), false);
   assert.doesNotMatch(portfolio, /\b(drop table|drop column|truncate)\b/i);
 });
