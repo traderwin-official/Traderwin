@@ -48,3 +48,10 @@ test("multi-position v3 keeps one BOT worker slot while permitting additional ma
  assert.match(sql,/sum\(risk_amount_usd\*remaining_quantity\/nullif\(quantity,0\)\)/);
  assert.doesNotMatch(sql,/drop table|truncate/i);
 });
+
+test("scheduled DEMO worker runs the account-wide portfolio giveback guard under its existing lease",async()=>{
+ const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ assert.match(s,/runDemoPortfolioProtection/);
+ assert.match(s,/portfolioProtection/);
+ assert.match(s,/mode:"DEMO_PAPER_ONLY",realOrdersSent:0/);
+});
