@@ -25,6 +25,9 @@ test("subscription status never treats payment as live-trading authorization", a
   const source = await readFile(new URL("../api/subscriptions/status.js", import.meta.url), "utf8");
   assert.match(source, /realExecutionAuthorized: false/);
   assert.match(source, /renewalMode: "MANUAL"/);
+  assert.match(source, /evaluateSubscriptionWindow/);
+  assert.match(source, /startsAt: data\?\.starts_at/);
+  assert.match(source, /endsAt: data\?\.ends_at/);
 });
 
 test("early manual renewal extends the existing subscription expiry", async () => {
