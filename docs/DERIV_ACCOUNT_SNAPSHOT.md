@@ -19,3 +19,7 @@ The endpoint never connects to the REAL WebSocket, sends buy/sell/proposal messa
 - This account snapshot is useful for account monitoring. It is not a complete margin model or a verified FX/CFD contract specification.
 - The Options portfolio may contain contract values for options positions. Do not reinterpret an options stake or payout as MT5 lots, CFD notional, margin, or stop-loss risk.
 - No DEMO entry route currently consumes this snapshot. No REAL route consumes it. A separate, broker-specific contract and risk adapter plus end-to-end sandbox validation is still required.
+
+## Open options exposure
+
+The endpoint also returns a conservative read-only `open_stake_at_risk` value: the sum of provider-reported `buy_price` values for all open Deriv Options contracts, with a same-currency check. This is an options premium/stake exposure summary, not a margin estimate, CFD/FX notional, guaranteed loss-at-stop or a substitute for broker-native risk limits. The result is not used to authorize entries.
