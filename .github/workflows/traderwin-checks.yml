@@ -9,6 +9,20 @@ permissions:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: traderwin_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d traderwin_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,3 +34,11 @@ jobs:
           find api lib -type f -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Check inline page scripts
         run: node scripts/check-inline-scripts.mjs
+      - name: Validate isolated DEMO and portfolio migrations on disposable PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/demo_migration_bootstrap.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611200001_demo_paper_ledger_v2.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611200002_portfolio_protection_state_v2.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611200003_demo_multi_position_v3.sql
