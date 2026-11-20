@@ -152,9 +152,8 @@ begin
    return jsonb_build_object('ok',false,'reason','KILL_SWITCH_ACTIVE'); end if;
  if exists(select 1 from public.demo_paper_trades t where t.session_id=p_session_id and t.status='OPEN') then
    return jsonb_build_object('ok',false,'reason','OPEN_POSITION_EXISTS'); end if;
- v_daily_loss := coalesce((select -sum(realized_pnl_usd) from public.demo_paper_trades
-   where user_id=p_user_id and closed_at >= date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'
-   and realized_pnl_usd<0),0);
+ v_daily_loss := greatest(0, -coalesce((select sum(realized_pnl_usd) from public.demo_paper_trades
+   where user_id=p_user_id and closed_at >= date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'),0));
  if v_daily_loss >= v_session.starting_balance*v_session.max_daily_loss_pct/100 then
    update public.demo_paper_sessions set status='RISK_LOCKED',updated_at=now() where id=p_session_id;
    return jsonb_build_object('ok',false,'reason','DAILY_LOSS_LIMIT'); end if;
@@ -185,9 +184,8 @@ begin
  update public.demo_paper_trades set status='CLOSED',remaining_quantity=0,last_mark_price=p_exit_price,
    last_mark_at=p_quote_as_of,realized_pnl_usd=realized_pnl_usd+v_pnl,closed_at=now() where id=v_trade.id;
  update public.demo_paper_sessions set current_balance=greatest(0,current_balance+v_pnl),
-   status=case when (select coalesce(-sum(realized_pnl_usd),0) from public.demo_paper_trades
-      where user_id=p_user_id and closed_at >= date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'
-      and realized_pnl_usd<0) >= starting_balance*max_daily_loss_pct/100 then 'RISK_LOCKED' else status end,
+   status=case when greatest(0,-(select coalesce(sum(realized_pnl_usd),0) from public.demo_paper_trades
+      where user_id=p_user_id and closed_at >= date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi')) >= starting_balance*max_daily_loss_pct/100 then 'RISK_LOCKED' else status end,
    updated_at=now() where id=v_trade.session_id returning current_balance into v_balance;
  return jsonb_build_object('ok',true,'trade_id',v_trade.id,'exit_price',p_exit_price,
    'realized_pnl_total',v_pnl,'realized_pnl_this_stage',v_pnl,'balance',v_balance);
@@ -248,7 +246,10 @@ begin
   realized_pnl_usd=realized_pnl_usd+v_pnl,last_mark_price=p_exit_price,last_mark_at=p_quote_as_of,
   status=case when v_closed then 'CLOSED' else 'OPEN' end,closed_at=case when v_closed then now() else null end
   where id=v_trade.id;
- update public.demo_paper_sessions set current_balance=greatest(0,current_balance+v_pnl),updated_at=now()
+ update public.demo_paper_sessions set current_balance=greatest(0,current_balance+v_pnl),
+  status=case when greatest(0,-(select coalesce(sum(realized_pnl_usd),0) from public.demo_paper_trades
+    where user_id=p_user_id and closed_at >= date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'))
+    >= starting_balance*max_daily_loss_pct/100 then 'RISK_LOCKED' else status end,updated_at=now()
   where id=v_trade.session_id returning current_balance into v_balance;
  return jsonb_build_object('ok',true,'stage',p_stage,'trade_id',v_trade.id,'closed',v_closed,
   'closed_units',v_qty,'remaining_units',v_remaining,'realized_pnl_this_stage',v_pnl,
