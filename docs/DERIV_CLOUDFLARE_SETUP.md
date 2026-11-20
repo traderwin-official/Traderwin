@@ -53,3 +53,19 @@ The migration branch also provides `GET /api/deriv/active-symbols` as a public, 
 The endpoint is limited to 20 requests per Cloudflare client IP per 60-second window. It requires the existing `APP_RATE_LIMITER` service binding and `APP_RATE_LIMITER_TOKEN` secret; if either is missing or the limiter is unavailable, the route fails closed with HTTP 503. Excess requests receive HTTP 429 and `Retry-After`. Successful catalogue responses carry short public cache headers; errors are not cached.
 
 Cloudflare Workers supports outbound `new WebSocket(url)` connections (see the [Workers WebSockets documentation](https://developers.cloudflare.com/workers/runtime-apis/websockets/)). The preview still needs a real provider connection test after the Pages project and preview-only rate-limiter binding are configured. Do not run the preview deployment workflow until the owner has approved and configured those preview resources.
+
+
+## Verified account list and DEMO account picker
+
+The Cloudflare Pages Functions also provide:
+
+- `GET /api/deriv/accounts` — returns the authenticated user's sanitized, active Deriv account metadata and the currently selected account. Access tokens are never returned.
+- `POST /api/deriv/select-account` — accepts only an active, provider-verified DEMO account ID belonging to that user's saved Deriv connection. The update is scoped to the authenticated user and uses the current token-expiry value as a compare-and-set guard.
+
+The OAuth request uses `trade account_manage` so the callback can verify the provider account list. This scope is not live-trading approval: the account picker refuses REAL account selection, returns `real_trading_enabled: false`, and these routes submit no broker orders.
+
+The callback stores only normalized account identifiers, account types, currency/status/group metadata, token type, requested scopes and timestamps alongside the existing encrypted token. Raw provider access tokens are not copied into the account list or response.
+
+**Database prerequisite:** `supabase/migrations/202611200005_deriv_verified_account_selection.sql` adds the `accounts`, `token_type`, `requested_scopes` and `connected_at` columns to the existing `deriv_connections` table. It has been added to the repository only; it has **not** been applied to Supabase. Do not enable these routes against a database that lacks the columns. Apply the migration only after a separate schema review and explicit owner approval.
+
+Preview testing also requires the existing Supabase and Deriv environment variables to be configured in Cloudflare's preview environment, and the exact preview callback URL to be registered with the Deriv OAuth application. Do not put credentials in source control or chat.
