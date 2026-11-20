@@ -9,8 +9,8 @@ begin
   insert into auth.users default values returning id into v_user;
 
   insert into public.trading_instrument_approvals(
-    broker,instrument,provider,provider_symbol,status,is_active
-  ) values ('DERIV','R_100','DERIV','R_100','PENDING',false)
+    broker,instrument,provider,provider_symbol,status,is_active,updated_by
+  ) values ('DERIV','R_100','DERIV','R_100','PENDING',false,v_user)
   returning id into v_approval;
 
   select count(*) into v_count from public.trading_instrument_approval_audit
@@ -19,13 +19,13 @@ begin
 
   update public.trading_instrument_approvals
      set status='APPROVED',is_active=true,approved_by=v_user,approved_at=now(),
-         approval_note='CI approved fixture',updated_at=now()
+         approval_note='CI approved fixture',updated_by=v_user,updated_at=now()
    where id=v_approval;
 
   select count(*) into v_count from public.trading_instrument_approval_audit
    where approval_id=v_approval and operation='UPDATE'
      and old_record->>'status'='PENDING'
-     and new_record->>'status'='APPROVED';
+     and new_record->>'status'='APPROVED' and actor_user_id=v_user;
   if v_count<>1 then raise exception 'Expected approval audit event, got %',v_count; end if;
 
   if not (select relrowsecurity from pg_class where oid='public.trading_instrument_approvals'::regclass) then
