@@ -121,31 +121,7 @@ test("manual positions may be monitored in the portfolio but are never closed wi
   assert.deepEqual(result.manualCloseBlockedIds, ["manual-1"]);
 });
 
-test("manual positions may be monitored in the portfolio but are never closed without separate close permission", async () => {
-  const manual = { id: "manual-1", userId: "u1", accountMode: "DEMO", broker: "DERIV", accountRef: "d1", source: "MANUAL", status: "OPEN", profitUsd: 20, units: 1 };
-  const a = adapters({
-    loadSnapshot: async () => ({
-      positions: [...positions.map(p => ({ ...p, profitUsd: 20 })), manual],
-      source: "verified-test-feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10_000,
-      emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10_000 }
-    }),
-    loadState: async () => ({
-      peakProfitUsd: 130, includedPositionIds: ["manual-1", "p1", "p2"],
-      positionPeakState: {
-        "manual-1": { peakProfitPerUnitUsd: 30, units: 1 },
-        p1: { peakProfitPerUnitUsd: 50, units: 1 },
-        p2: { peakProfitPerUnitUsd: 50, units: 1 }
-      },
-      membershipVersion: 4, stateVersion: 7
-    }),
-    loadPermissions: async () => ({ manageManualTrades: true, manageBotTrades: true, closeManagedPositions: true, closeManualTrades: false })
-  });
-  const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
-  assert.equal(result.status, "PARTIAL_CLOSE");
-  assert.equal(result.reason, "MANUAL_CLOSE_PERMISSION_NOT_GRANTED");
-  assert.deepEqual(a.calls.closed.map(x => x.id).sort(), ["p1", "p2"]);
-  assert.deepEqual(result.manualCloseBlockedIds, ["manual-1"]);
-});
+
 
 test("REAL positions require separate real-execution authorization", async () => {
   const realScope = { ...scope, accountMode: "REAL" };
