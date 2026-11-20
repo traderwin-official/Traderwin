@@ -6,6 +6,7 @@ import {
   normalizeDerivPortfolioResponse,
   buildDerivAccountSnapshot
 } from "../../lib/deriv/account-snapshot.js";
+import { calculateDerivOptionsOpenStakeRisk } from "../../lib/deriv/options-portfolio-risk.js";
 
 async function readJson(response) {
   return response.json().catch(() => ({}));
@@ -157,6 +158,9 @@ export default async function handler(req, res) {
     });
     if (!snapshot.ok) return res.status(502).json({ error: "Deriv account snapshot failed freshness or consistency checks." });
 
+    const openRisk = calculateDerivOptionsOpenStakeRisk(snapshot);
+    if (!openRisk.ok) return res.status(502).json({ error: "Deriv open-position risk data is incomplete." });
+
     return res.status(200).json({
       account: {
         account_id: snapshot.accountId,
@@ -167,7 +171,10 @@ export default async function handler(req, res) {
         open_contracts: snapshot.openContracts,
         balance_as_of: snapshot.balanceAsOf,
         portfolio_as_of: snapshot.portfolioAsOf,
-        source: snapshot.source
+        source: snapshot.source,
+        open_stake_at_risk: openRisk.openStakeAtRisk,
+        open_stake_risk_ratio: openRisk.balanceRatio,
+        risk_basis: openRisk.riskBasis
       },
       real_trading_enabled: false,
       execution_authorized: false
