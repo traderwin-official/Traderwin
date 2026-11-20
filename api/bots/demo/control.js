@@ -47,19 +47,18 @@ export default async function handler(req,res){
    const {data:legacyEmergency,error:legacyEmergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",brokerAccountRef).maybeSingle();
    if(legacyEmergencyError)return res.status(503).json({error:"Could not verify the existing DEMO emergency stop."});
    if(emergency?.entries_blocked||legacyEmergency?.kill_switch_active)return res.status(403).json({error:"DEMO emergency stop is active."});
-   if(latest&&["RUNNING","PAUSED","RISK_LOCKED"].includes(latest.status)){
-    if(latest.status==="RISK_LOCKED"){
-     const nairobiNow=new Date(Date.now()+3*60*60*1000);nairobiNow.setUTCHours(0,0,0,0);
-     const nairobiDayStart=new Date(nairobiNow.getTime()-3*60*60*1000);
-     if(!latest.risk_locked_at||new Date(latest.risk_locked_at)>=nairobiDayStart)return res.status(403).json({error:"Your DEMO daily-loss lock remains active until the next Nairobi trading day."});
-     const {error:unlockError}=await db.from("demo_paper_sessions").update({status:"STOPPED",stopped_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",latest.id).eq("status","RISK_LOCKED");
-     if(unlockError)return res.status(503).json({error:"Could not safely close the previous risk-locked session."});
-    }else if(latest.status==="PAUSED"){
-     const {data:resumed,error}=await db.from("demo_paper_sessions").update({status:"RUNNING",stopped_at:null,updated_at:new Date().toISOString()}).eq("id",latest.id).eq("user_id",uid).select("*").single();
-     if(error)return res.status(503).json({error:"Could not resume DEMO automation."});
-     return res.status(200).json({ok:true,session:resumed,message:"DEMO automation resumed. Existing BOT positions remain under automated risk management."});
-    }
-    return res.status(200).json({ok:true,session:latest,message:"DEMO session is already active or risk-locked."});
+   if(latest?.status==="RUNNING")return res.status(200).json({ok:true,session:{...latest,account_mode:"DEMO"},message:"DEMO paper session is already running."});
+   if(latest?.status==="PAUSED"){
+    const {data:resumed,error:resumeError}=await db.from("demo_paper_sessions").update({status:"RUNNING",stopped_at:null,updated_at:new Date().toISOString()}).eq("id",latest.id).eq("user_id",uid).select("*").single();
+    if(resumeError)return res.status(503).json({error:"Could not resume DEMO automation."});
+    return res.status(200).json({ok:true,session:{...resumed,account_mode:"DEMO"},message:"DEMO automation resumed. Existing BOT positions remain under automated risk management."});
+   }
+   if(latest?.status==="RISK_LOCKED"){
+    const nairobiNow=new Date(Date.now()+3*60*60*1000);nairobiNow.setUTCHours(0,0,0,0);
+    const nairobiDayStart=new Date(nairobiNow.getTime()-3*60*60*1000);
+    if(!latest.risk_locked_at||new Date(latest.risk_locked_at)>=nairobiDayStart)return res.status(403).json({error:"Your DEMO daily-loss lock remains active until the next Nairobi trading day."});
+    const {error:unlockError}=await db.from("demo_paper_sessions").update({status:"STOPPED",stopped_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",latest.id).eq("status","RISK_LOCKED");
+    if(unlockError)return res.status(503).json({error:"Could not safely close the previous risk-locked session."});
    }
    const {data:orphanOpen,error:orphanError}=await db.from("demo_paper_trades").select("id").eq("user_id",uid).eq("status","OPEN").limit(1);
    if(orphanError)return res.status(503).json({error:"Could not verify existing DEMO positions."});
