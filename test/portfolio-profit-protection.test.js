@@ -48,6 +48,30 @@ test("combined portfolio peak is captured at one simultaneous account snapshot a
   assert.equal(retraced.shouldClose, true);
 });
 
+test("combined peak snapshot preserves losing position contributions at the same valuation time", () => {
+  const peakSnapshot = [
+    { ...base[0], profitUsd: 120 },
+    { ...base[2], profitUsd: -20 }
+  ];
+  const first = aggregatePortfolioProfitProtection({ positions: peakSnapshot });
+  assert.equal(first.peakProfitUsd, 100);
+  assert.equal(first.positionPeakState["bot-1"].peakProfitPerUnitUsd, 120);
+  assert.equal(first.positionPeakState["bot-2"].peakProfitPerUnitUsd, -20);
+
+  const retraced = aggregatePortfolioProfitProtection({
+    positions: [
+      { ...base[0], profitUsd: 90 },
+      { ...base[2], profitUsd: -10 }
+    ],
+    previousPeakProfitUsd: 100,
+    previousIncludedPositionIds: first.includedPositionIds,
+    previousPositionPeakState: first.positionPeakState
+  });
+  assert.equal(retraced.currentProfitUsd, 80);
+  assert.equal(retraced.peakProfitUsd, 100);
+  assert.equal(retraced.shouldClose, true);
+});
+
 test("a TP partial close scales the saved combined-peak contribution by remaining volume", () => {
   const positions = [
     { ...base[0], profitUsd: 30, units: 0.6 },
