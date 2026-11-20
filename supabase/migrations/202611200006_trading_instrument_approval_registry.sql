@@ -48,7 +48,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path=public,pg_temp
-as $
+as $$
 declare
   v_id uuid;
   v_broker text;
@@ -74,7 +74,7 @@ begin
   if tg_op='DELETE' then return old; end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists trading_instrument_approval_audit_trigger
   on public.trading_instrument_approvals;
