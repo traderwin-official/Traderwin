@@ -75,16 +75,27 @@ test("state save calls atomic v2 RPC with per-position peak state", async () => 
   assert.deepEqual(db.calls.rpc[0].args.p_position_peak_state, positionPeakState);
 });
 
-test("REAL authorization requires all server-side approval timestamps", async () => {
+test("REAL authorization requires the platform release switch and all server-side approval timestamps", async () => {
   const realScope = { ...scope, accountMode: "REAL" };
-  const incomplete = createSupabasePortfolioAdapters(fakeDb({ rows: { real_execution_authorizations: {
-    status: "AUTHORIZED", authorized_at: "2026-11-12T10:00:00Z", broker_verified_at: null,
-    risk_acknowledged_at: "2026-11-12T10:00:00Z"
-  } } }));
-  assert.equal(await incomplete.isRealExecutionAuthorized(realScope), false);
-  const complete = createSupabasePortfolioAdapters(fakeDb({ rows: { real_execution_authorizations: {
-    status: "AUTHORIZED", authorized_at: "2026-11-12T10:00:00Z",
-    broker_verified_at: "2026-11-12T10:00:00Z", risk_acknowledged_at: "2026-11-12T10:00:00Z"
-  } } }));
-  assert.equal(await complete.isRealExecutionAuthorized(realScope), true);
+  const previous = process.env.REAL_EXECUTION_ENABLED;
+  try {
+    delete process.env.REAL_EXECUTION_ENABLED;
+    const complete = createSupabasePortfolioAdapters(fakeDb({ rows: { real_execution_authorizations: {
+      status: "AUTHORIZED", authorized_at: "2026-11-12T10:00:00Z",
+      broker_verified_at: "2026-11-12T10:00:00Z", risk_acknowledged_at: "2026-11-12T10:00:00Z"
+    } } }));
+    assert.equal(await complete.isRealExecutionAuthorized(realScope), false);
+
+    process.env.REAL_EXECUTION_ENABLED = "true";
+    assert.equal(await complete.isRealExecutionAuthorized(realScope), true);
+
+    const incomplete = createSupabasePortfolioAdapters(fakeDb({ rows: { real_execution_authorizations: {
+      status: "AUTHORIZED", authorized_at: "2026-11-12T10:00:00Z",
+      broker_verified_at: null, risk_acknowledged_at: "2026-11-12T10:00:00Z"
+    } } }));
+    assert.equal(await incomplete.isRealExecutionAuthorized(realScope), false);
+  } finally {
+    if (previous === undefined) delete process.env.REAL_EXECUTION_ENABLED;
+    else process.env.REAL_EXECUTION_ENABLED = previous;
+  }
 });
