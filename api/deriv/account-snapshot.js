@@ -82,12 +82,14 @@ export async function fetchAccountScopedWsSnapshot(url, WebSocketImpl = globalTh
           finish(new Error("DERIV_ACCOUNT_OPEN_CONTRACT_LIMIT_EXCEEDED"));
           return;
         }
+        const portfolioIds = new Set();
         for (let index = 0; index < portfolioContracts.length; index += 1) {
           const contractId = portfolioContracts[index]?.contract_id;
-          if (!Number.isSafeInteger(contractId) || contractId <= 0) {
+          if (!Number.isSafeInteger(contractId) || contractId <= 0 || portfolioIds.has(contractId)) {
             finish(new Error("DERIV_ACCOUNT_PORTFOLIO_CONTRACT_ID_INVALID"));
             return;
           }
+          portfolioIds.add(contractId);
           const valuationReqId = 7200 + index;
           valuationRequests.set(valuationReqId, contractId);
           try {
