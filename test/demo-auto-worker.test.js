@@ -100,7 +100,9 @@ test("manual DEMO entries refresh the quote, recalculate size, and recheck both 
  assert.match(finalCheck,/calculatePaperPosition\(\{balance:Number\(session\.current_balance\),riskPct,entry:finalQuote\.quote/);
  assert.match(finalCheck,/finalEmergencyError\|\|finalLegacyError/);
  assert.match(finalCheck,/finalEmergency\?\.entries_blocked\|\|finalLegacy\?\.kill_switch_active/);
- assert.ok(s.indexOf("const finalCheck=")<s.indexOf('db.rpc("open_demo_paper_trade"'));
+ const preflightStart=s.indexOf("// Refresh server-owned market");
+ const rpcStart=s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"');
+ assert.ok(preflightStart>=0&&preflightStart<rpcStart);
  assert.match(rpc,/p_entry:entry,p_stop:stop,p_target:target/);
  assert.match(rpc,/p_quote_as_of:quote\.quoteAsOf/);
 });
