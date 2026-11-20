@@ -18,6 +18,7 @@ test("registry is deny-by-default and requires explicit approval metadata", () =
   assert.match(migration, /is_active boolean not null default false/);
   assert.match(migration, /status='APPROVED' and is_active=true and approved_at is not null/);
   assert.match(migration, /status<>'APPROVED' or approved_by is not null/);
+  assert.match(migration, /updated_by uuid references auth\.users\(id\)/);
   assert.match(migration, /unique \(broker,instrument\)/);
   assert.match(migration, /unique \(broker,provider_symbol\)/);
 });
@@ -35,5 +36,6 @@ test("every registry mutation is recorded in an audit event", () => {
   assert.match(migration, /insert into public\.trading_instrument_approval_audit/);
   assert.match(migration, /auth\.uid\(\)/);
   assert.match(migration, /auth\.role\(\)/);
+  assert.match(migration, /v_actor:=coalesce\(auth\.uid\(\),new\.updated_by/);
   assert.doesNotMatch(migration, /\b(drop table|drop column|truncate)\b/i);
 });
