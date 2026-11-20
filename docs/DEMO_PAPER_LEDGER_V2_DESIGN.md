@@ -23,7 +23,7 @@ Existing production tables remain untouched. Existing user data remains intact.
 3. User identity is derived from a validated bearer token in API routes; client-supplied user IDs are never trusted.
 4. Quotes must come from a verified provider adapter, match the selected instrument, and pass freshness checks. Persist provider/source and timestamps.
 5. Virtual balance, realized P&L, partial take-profit accounting, daily loss and worker checkpoints update atomically.
-6. Enforce at most one active paper position per user (or, if later expanded, per session) with a partial unique index.
+6. **Interim v2 limitation:** the current ledger enforces one open paper position per user. This is not sufficient for the agreed account-wide portfolio guard. Before that guard is activated, replace the single-position restriction with an account-scoped multi-position model, atomic per-account position caps and worker/API/dashboard support for arrays of open positions. Never remove the unique index without completing that coordinated redesign.
 7. Worker leases prevent overlapping cron runs. A candle checkpoint prevents duplicate entries on the same completed candle.
 8. Emergency stop blocks new entries. It does not close an existing position or bypass normal stop/target management.
 9. Manual positions are never automatically closed unless the user explicitly enables the separate close-management permission. Monitoring-only is not close authorization.
@@ -58,3 +58,12 @@ All RPC names and signatures must be versioned and tested against the same migra
 4. Test user isolation, concurrent opens, worker lease expiry, duplicate candles, stale/mismatched quotes, daily loss locks, partial TP accounting, stop/target exits, and manual-trade permission boundaries.
 5. Run CI and inspect the full diff.
 6. Open a draft PR for owner review. Production migration and deployment remain separate explicit approvals.
+
+
+## Portfolio protection integration status (2026-11-20)
+
+- Shared aggregation and monitoring code is present in `lib/portfolio-profit-protection.js` and `lib/portfolio-monitor.js`. It uses the USD 20 activation threshold, a 20% trailing giveback, USD-normalized position valuations, per-position peak tracking and one-account/one-mode scoping.
+- `lib/supabase-portfolio-adapters.js` provides service-role state/permission persistence. The additive migration `202611200002_portfolio_protection_state_v2.sql` supplies the versioned JSON peak state, compare-and-swap RPC and separate `close_manual_trades` permission expected by the adapter.
+- Monitoring/inclusion of manual trades (`manual_trade_management`) and permission to close manual trades (`close_manual_trades`) are separate. The latter defaults to false. A global `close_managed_positions` grant is also required before any portfolio close request.
+- This is not yet an operational service: no scheduled portfolio worker loads all DEMO paper positions, computes their fresh USD valuations, or sends idempotent virtual closes. The current DEMO ledger still has one open position per user. The persistence migration has not been run against PostgreSQL or Supabase.
+- Do not enable portfolio auto-closing until the multi-position ledger, dashboard position list, account-level quote/valuation adapter, worker scheduling, permission settings and disposable-database integration tests are complete.
