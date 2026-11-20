@@ -107,7 +107,13 @@ test("validates fresh proposal against exact request and exposes stake limits wi
   assert.equal(result.stakeWithinProviderLimits, true);
   assert.equal(result.sizingAuthorized, false);
   assert.equal(result.executionAuthorized, false);
+  assert.equal(result.proposalKind, "ONE_TIME_READ_ONLY");
+  assert.equal(result.proposalUsableForBuy, false);
   assert.equal("proposalId" in result, false);
+  const wrongRequestId = proposalPayload(built.request);
+  wrongRequestId.req_id = 9999;
+  assert.equal(normalizeDerivProposalResponse(wrongRequestId, built.request, { now: () => now }).reason,
+    "DERIV_PROPOSAL_RESPONSE_INVALID_OR_MISMATCHED");
 });
 
 test("blocks mismatched, stale, malformed or contradictory proposal data", () => {
