@@ -29,6 +29,9 @@ test("Deriv account snapshot route is authenticated, selected-DEMO scoped and re
   assert.match(route, /ws\/demo/);
   assert.match(route, /balance: 1/);
   assert.match(route, /portfolio: 1/);
+  assert.match(route, /proposal_open_contract: 1/);
+  assert.match(route, /normalizeDerivOpenContractValuation/);
+  assert.match(route, /open_unrealized_profit/);
   assert.match(route, /calculateDerivOptionsOpenStakeRisk/);
   assert.match(route, /open_stake_at_risk/);
   assert.match(route, /real_trading_enabled: false/);
