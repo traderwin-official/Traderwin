@@ -30,7 +30,7 @@ export default async function handler(req,res){
   if(normalise(symbol)!==normalise(session.instrument)||normalise(symbol)!==normalise(settings.instrument))return res.status(400).json({error:"Symbol must match your saved DEMO instrument."});
   const {data:emergency,error:ee}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle();
   if(ee)return res.status(503).json({error:"Could not verify the DEMO emergency stop."});
-  if(emergency?.entries_blocked)return res.status(403).json({error:"Emergency stop is active. New paper entries are blocked."});
+  const {data:legacyEmergency,error:legacyEmergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle();\n  if(legacyEmergencyError)return res.status(503).json({error:"Could not verify the existing DEMO emergency stop."});\n  if(emergency?.entries_blocked||legacyEmergency?.kill_switch_active)return res.status(403).json({error:"Emergency stop is active. New paper entries are blocked."});
   let quote;try{quote=await getDerivPublicQuote(symbol);}catch(e){return res.status(503).json({error:e.message||"Fresh Deriv quote unavailable."});}
   if(quote.source!=="DERIV"||normalise(quote.instrument)!==normalise(symbol)||!quote.providerSymbol)return res.status(503).json({error:"Verified quote does not match the selected instrument."});
   let conversion;try{conversion=await getDerivQuoteToUsd(symbol,quote);}catch(e){return res.status(503).json({error:e.message||"Fresh USD conversion unavailable."});}
