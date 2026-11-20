@@ -78,3 +78,15 @@ test("Vercel Schedules invokes the protected DEMO worker every 15 minutes",async
  assert.match(handler,/CRON_SECRET/);
  assert.match(handler,/CRON_SECRET\.length<32/);
 });
+
+test("new BOT entries re-fetch the Deriv quote and emergency controls immediately before the atomic paper open",async()=>{
+ const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ const openBlock=s.slice(s.indexOf('if(decision.action==="OPEN")'));
+ assert.match(openBlock,/getDerivPublicQuote\(raw\.instrument\)/);
+ assert.match(openBlock,/getDerivQuoteToUsd\(raw\.instrument,entryQuote\)/);
+ assert.match(openBlock,/latestEmergencyError\|\|latestLegacyEmergencyError/);
+ assert.match(openBlock,/latestEmergency\?\.entries_blocked\|\|latestLegacyEmergency\?\.kill_switch_active/);
+ assert.match(openBlock,/decideDemoAutoAction\(\{session,settings,quote:entryQuote,market,openTrade:null/);
+ assert.ok(openBlock.indexOf("const rechecked=")<openBlock.indexOf('db.rpc("open_demo_paper_trade"'));
+ assert.match(openBlock,/ENTRY_RECHECK_NO_LONGER_VALID/);
+});
