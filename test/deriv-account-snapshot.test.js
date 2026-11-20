@@ -40,6 +40,9 @@ test("normalizes open portfolio contracts and rejects malformed or duplicate ent
  assert.equal("profit" in p.contracts[0],false);
  assert.equal(normalizeDerivOpenContractValuation({...valuationPayload,proposal_open_contract:{...valuationPayload.proposal_open_contract,current_spot_time:now/1000-31}},123456,{now}).reason,"OPEN_CONTRACT_VALUATION_STALE");
  assert.equal(normalizeDerivOpenContractValuation({...valuationPayload,proposal_open_contract:{...valuationPayload.proposal_open_contract,contract_id:123}},123456,{now}).ok,false);
+ assert.equal(normalizeDerivOpenContractValuation({...valuationPayload,proposal_open_contract:{...valuationPayload.proposal_open_contract,status:"sold"}},123456,{now}).ok,false);
+ assert.equal(normalizeDerivOpenContractValuation({...valuationPayload,proposal_open_contract:{...valuationPayload.proposal_open_contract,profit:"bad"}},123456,{now}).ok,false);
+ assert.equal(normalizeDerivOpenContractValuation({...valuationPayload,proposal_open_contract:{...valuationPayload.proposal_open_contract,current_spot_time:now/1000+5}},123456,{now}).ok,false);
  assert.equal(normalizeDerivPortfolioResponse({msg_type:"balance",portfolio:{contracts:[]}},accountId,at).ok,false);
  assert.equal(normalizeDerivPortfolioResponse({msg_type:"portfolio",portfolio:{contracts:[{contract_id:1}]}},accountId,at).ok,false);
  assert.equal(normalizeDerivPortfolioResponse({msg_type:"portfolio",portfolio:{contracts:[portfolioPayload.portfolio.contracts[0],portfolioPayload.portfolio.contracts[0]]}},accountId,at).ok,false);
@@ -56,6 +59,7 @@ test("combines only fresh same-account same-currency DEMO account snapshots",()=
  assert.equal(result.accountMode,"DEMO");
  assert.equal(result.realExecutionAuthorized,false);
  assert.equal(buildDerivAccountSnapshot({balance:{...b,ok:false},portfolio:p,valuations:[valuation],expectedAccountId:accountId,now}).ok,false);
+ assert.equal(buildDerivAccountSnapshot({balance:b,portfolio:p,valuations:[{...valuation,buyPrice:11}],expectedAccountId:accountId,now}).reason,"OPEN_CONTRACT_VALUATION_MISMATCH");
  assert.equal(buildDerivAccountSnapshot({balance:b,portfolio:p,valuations:[valuation],expectedAccountId:"VRTC99999",now}).ok,false);
  assert.equal(buildDerivAccountSnapshot({balance:b,portfolio:p,valuations:[valuation],expectedAccountId:accountId,now:now+16000}).reason,"ACCOUNT_SNAPSHOT_STALE");
  const wrongCurrency=normalizeDerivPortfolioResponse({msg_type:"portfolio",portfolio:{contracts:[{...portfolioPayload.portfolio.contracts[0],currency:"EUR"}]}},accountId,at);
