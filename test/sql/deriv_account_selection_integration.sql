@@ -2,17 +2,17 @@
 do $$
 declare
   required_columns text[] := array['accounts','token_type','requested_scopes','connected_at'];
-  column_name text;
+  required_name text;
 begin
-  foreach column_name in array required_columns loop
+  foreach required_name in array required_columns loop
     if not exists (
       select 1
-      from information_schema.columns
-      where table_schema='public'
-        and table_name='deriv_connections'
-        and information_schema.columns.column_name=column_name
+      from information_schema.columns c
+      where c.table_schema='public'
+        and c.table_name='deriv_connections'
+        and c.column_name=required_name
     ) then
-      raise exception 'Missing deriv_connections column: %', column_name;
+      raise exception 'Missing deriv_connections column: %', required_name;
     end if;
   end loop;
 end
