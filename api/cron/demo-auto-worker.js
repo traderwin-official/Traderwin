@@ -87,11 +87,10 @@ export default async function handler(req,res){
   if(!claimed)return res.status(200).json({ok:true,skipped:true,reason:"WORKER_ALREADY_RUNNING"});
   let results=[];
   let portfolioProtection={processed:0,results:[]};
-   try{
+   try{   const {data:sessions,error}=await db.from("demo_paper_sessions").select("*").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(MAX_SESSIONS_PER_TICK);
+   if(error)throw new Error("Could not load DEMO paper sessions.");
    const portfolioPromise=runDemoPortfolioProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK})
     .catch(e=>({processed:0,results:[],error:safeError(e)}));
-   const {data:sessions,error}=await db.from("demo_paper_sessions").select("*").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(MAX_SESSIONS_PER_TICK);
-   if(error)throw new Error("Could not load DEMO paper sessions.");
    results=await Promise.all((sessions||[]).map(s=>processSession(db,s).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}))));
    portfolioProtection=await portfolioPromise;
    const tick=new Date().toISOString();
