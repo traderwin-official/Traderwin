@@ -4,14 +4,14 @@ import {readFile} from "node:fs/promises";
 test("DEMO worker uses cron authorization, v2 lease and never sends broker orders",async()=>{
  const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(s,/CRON_SECRET/);assert.match(s,/claim_demo_paper_worker/);assert.match(s,/release_demo_paper_worker/);
- assert.match(s,/p_lease_seconds:90/);assert.match(s,/MANUAL_POSITION_NOT_MANAGED/);assert.match(s,/realOrdersSent:0/);
+ assert.match(s,/p_lease_seconds:90/);assert.match(s,/eq\("trade_origin","BOT"\)/);assert.match(s,/realOrdersSent:0/);
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);
 });
 test("worker processes DEMO sessions only and respects paused, risk-lock and emergency stop",async()=>{
  const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(s,/\["RUNNING","PAUSED","RISK_LOCKED"\]/);assert.match(s,/entries_blocked/);
  assert.match(s,/\(emergency\?\.entries_blocked\|\|legacyEmergency\?\.kill_switch_active\)&&!openTrade/);
- assert.match(s,/MANUAL_POSITION_NOT_MANAGED/);
+ assert.match(s,/eq\("trade_origin","BOT"\)/);
 });
 test("v2 migration provides isolated tables, owner reads and service-only atomic RPCs",async()=>{
  const sql=await readFile(new URL("../supabase/migrations/202611200001_demo_paper_ledger_v2.sql",import.meta.url),"utf8");
@@ -30,4 +30,21 @@ test("manual close uses v2 atomic close and verified quote",async()=>{
  const route=await readFile(new URL("../api/bots/demo/close.js",import.meta.url),"utf8");
  assert.match(route,/demo_paper_trades/);assert.match(route,/close_demo_paper_trade/);
  assert.match(route,/p_exit_price:q\.quote/);assert.match(route,/getDerivQuoteToUsd/);
+});
+
+test("DEMO worker selects only the BOT slot so multiple MANUAL positions cannot break its single-position decision path",async()=>{
+ const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ assert.match(s,/eq\("trade_origin","BOT"\)\.maybeSingle\(\)/);
+ assert.doesNotMatch(s,/MANUAL_POSITION_NOT_MANAGED/);
+});
+test("multi-position v3 keeps one BOT worker slot while permitting additional manual positions",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611200003_demo_multi_position_v3.sql",import.meta.url),"utf8");
+ assert.match(sql,/drop index if exists public\.demo_paper_one_open_trade_per_user/);
+ assert.match(sql,/demo_paper_one_open_bot_trade_per_session/);
+ assert.match(sql,/max_open_positions integer not null default 3/);
+ assert.match(sql,/max_total_open_risk_pct numeric\(5,2\) not null default 2\.00/);
+ assert.match(sql,/MAX_OPEN_POSITIONS/);
+ assert.match(sql,/TOTAL_OPEN_RISK_LIMIT/);
+ assert.match(sql,/sum\(risk_amount_usd\*remaining_quantity\/nullif\(quantity,0\)\)/);
+ assert.doesNotMatch(sql,/drop table|truncate/i);
 });
