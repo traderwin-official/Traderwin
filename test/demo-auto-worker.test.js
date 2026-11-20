@@ -66,3 +66,14 @@ test("DEMO portfolio queue rotates blocked and failed accounts while retrying CA
  assert.match(s,/CLOSE_BLOCKED", "BLOCKED"\]\s*\.includes\(result\.status\)/);
  assert.doesNotMatch(s,/RETRY.*includes\(result\.status\)/);
 });
+
+test("Vercel Schedules invokes the protected DEMO worker every 15 minutes",async()=>{
+ const config=JSON.parse(await readFile(new URL("../vercel.json",import.meta.url),"utf8"));
+ assert.equal(config.schedules["demo-auto-worker"].schedule,"*/15 * * * *");
+ assert.equal(config.schedules["demo-auto-worker"].path,"/api/cron/demo-auto-worker");
+ assert.equal(config.schedules["demo-auto-worker"].requestMethod,"POST");
+ assert.equal(config.schedules["demo-auto-worker"].timezone,"Etc/UTC");
+ const handler=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ assert.match(handler,/authorization/);
+ assert.match(handler,/CRON_SECRET/);
+});
