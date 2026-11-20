@@ -25,12 +25,25 @@ export default async function handler(req,res){
   if(sessionError)return res.status(503).json({error:"Could not verify your DEMO account."});
   if(!session)return res.status(409).json({error:"Start a DEMO session before changing portfolio permissions."});
   if(action==="STATUS"){
-   const {data:permission,error}=await db.from("portfolio_trade_permissions")
-    .select("manual_trade_management,close_manual_trades")
-    .eq("user_id",userId).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",accountRef).maybeSingle();
-   if(error)return res.status(503).json({error:"Could not load your portfolio permissions."});
+   const [{data:permission,error},{data:state,error:stateError}]=await Promise.all([
+    db.from("portfolio_trade_permissions").select("manual_trade_management,close_manual_trades")
+     .eq("user_id",userId).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",accountRef).maybeSingle(),
+    db.from("portfolio_profit_protection_state")
+     .select("protection_active,peak_unrealized_profit_usd,current_unrealized_profit_usd,protected_profit_floor_usd,last_valuation_at,quote_source,quote_as_of")
+     .eq("user_id",userId).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",accountRef).maybeSingle()
+   ]);
+   if(error||stateError)return res.status(503).json({error:"Could not load your portfolio status."});
    return res.status(200).json({ok:true,manualTradeManagement:permission?.manual_trade_management===true,
-    closeManualTrades:permission?.close_manual_trades===true,botTradeManagement:true,closeManagedPositions:true});
+    closeManualTrades:permission?.close_manual_trades===true,botTradeManagement:true,closeManagedPositions:true,
+    portfolioProtection:state?{
+     active:state.protection_active===true,
+     peakProfitUsd:Number(state.peak_unrealized_profit_usd)||0,
+     currentProfitUsd:Number(state.current_unrealized_profit_usd)||0,
+     protectedFloorUsd:Number(state.protected_profit_floor_usd)||0,
+     lastValuationAt:state.last_valuation_at,
+     quoteSource:state.quote_source,
+     quoteAsOf:state.quote_as_of
+    }:null});
   }
   if(typeof body.monitorManualTrades!=="boolean"||typeof body.closeManualTrades!=="boolean")
    return res.status(400).json({error:"Choose both manual monitoring and manual close permissions."});
