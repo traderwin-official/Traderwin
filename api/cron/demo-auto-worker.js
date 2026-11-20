@@ -20,11 +20,10 @@ async function processSession(db,raw){
  ]);
  const {data:t,error:tradeError}=await db.from("demo_paper_trades")
   .select("id,instrument,side,entry_price,stop_loss,take_profit,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,status,trade_origin")
-  .eq("session_id",raw.id).eq("user_id",raw.user_id).eq("status","OPEN").maybeSingle();
+  .eq("session_id",raw.id).eq("user_id",raw.user_id).eq("status","OPEN").eq("trade_origin","BOT").maybeSingle();
  if(tradeError)return {sessionId:raw.id,action:"ERROR",reason:"OPEN_TRADE_LOOKUP_FAILED"};
  if((emergencyError||legacyEmergencyError)&&!t)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STATUS_UNAVAILABLE"};
  const openTrade=t?{...t,symbol:t.instrument,direction:t.side,virtual_units:Number(t.remaining_quantity)}:null;
- if(openTrade&&openTrade.trade_origin!=="BOT")return {sessionId:raw.id,action:"SKIP",reason:"MANUAL_POSITION_NOT_MANAGED"};
  if(["PAUSED","RISK_LOCKED"].includes(raw.status)&&!openTrade)return {sessionId:raw.id,action:"SKIP",reason:"SESSION_PAUSED_NO_OPEN_POSITION"};
  if((emergency?.entries_blocked||legacyEmergency?.kill_switch_active)&&!openTrade)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STOP_ACTIVE"};
  let quote;
