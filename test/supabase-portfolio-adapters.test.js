@@ -39,17 +39,17 @@ test("Supabase state adapter maps database columns and returns safe initial stat
 test("missing account permission row grants no management or closing authority", async () => {
   const adapter = createSupabasePortfolioAdapters(fakeDb());
   assert.deepEqual(await adapter.loadPermissions(scope), {
-    manageManualTrades: false, manageBotTrades: false, closeManagedPositions: false
+    manageManualTrades: false, manageBotTrades: false, closeManagedPositions: false, closeManualTrades: false
   });
 });
 
 test("permission values are mapped only from explicit true database flags", async () => {
   const db = fakeDb({ rows: { portfolio_trade_permissions: {
-    manual_trade_management: true, bot_trade_management: true, close_managed_positions: false
+    manual_trade_management: true, bot_trade_management: true, close_managed_positions: false, close_manual_trades: true
   } } });
   const adapter = createSupabasePortfolioAdapters(db);
   assert.deepEqual(await adapter.loadPermissions(scope), {
-    manageManualTrades: true, manageBotTrades: true, closeManagedPositions: false
+    manageManualTrades: true, manageBotTrades: true, closeManagedPositions: false, closeManualTrades: true
   });
 });
 
