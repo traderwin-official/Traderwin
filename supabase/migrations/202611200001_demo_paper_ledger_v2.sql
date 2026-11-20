@@ -119,7 +119,7 @@ begin
   where lease_key='global' and (lease_until is null or lease_until < now() or lease_token=p_token);
  get diagnostics v_claimed = row_count;
  return v_claimed=1;
-end $;
+end $$;
 
 create or replace function public.release_demo_paper_worker(p_token uuid)
 returns boolean language plpgsql security definer set search_path=public,pg_temp as $$
@@ -215,7 +215,7 @@ end $$;
 create or replace function public.manage_demo_paper_exit(
  p_user_id uuid,p_trade_id uuid,p_stage text,p_exit_price numeric,p_quote_to_usd numeric,
  p_quote_source text,p_quote_as_of timestamptz
-) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $
+) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare v_trade public.demo_paper_trades%rowtype; v_qty numeric(28,12); v_pnl numeric(18,2);
  v_remaining numeric(28,12); v_closed boolean; v_balance numeric(18,2);
 begin
@@ -264,7 +264,7 @@ begin
  return jsonb_build_object('ok',true,'stage',p_stage,'trade_id',v_trade.id,'closed',v_closed,
   'closed_units',v_qty,'remaining_units',v_remaining,'realized_pnl_this_stage',v_pnl,
   'realized_pnl_total',v_trade.realized_pnl_usd+v_pnl,'balance',v_balance);
-end $;
+end $$;
 
 revoke all on function public.claim_demo_paper_worker(uuid,integer),public.release_demo_paper_worker(uuid),
  public.open_demo_paper_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,text,timestamptz,numeric,numeric,numeric),
