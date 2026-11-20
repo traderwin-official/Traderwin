@@ -10,6 +10,7 @@ declare
   v_count integer;
   v_permission record;
   v_saved boolean;
+  i integer;
 begin
   perform set_config('request.jwt.claim.role','service_role',true);
   insert into auth.users default values returning id into v_user;
@@ -61,6 +62,11 @@ begin
   select count(*) into v_count from public.demo_paper_trades
    where session_id=v_session_risk and status='OPEN';
   if v_count <> 2 then raise exception 'Expected exactly two open positions, got %',v_count; end if;
+
+  -- Stop the first session so the one-active-session-per-user guard remains tested.
+  update public.demo_paper_trades set status='CLOSED',remaining_quantity=0,closed_at=now()
+   where session_id=v_session_risk and status='OPEN';
+  update public.demo_paper_sessions set status='STOPPED',stopped_at=now() where id=v_session_risk;
 
   -- A separate session proves the configurable position-count cap.
   insert into public.demo_paper_sessions(
