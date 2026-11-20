@@ -76,4 +76,5 @@ test("Vercel Schedules invokes the protected DEMO worker every 15 minutes",async
  const handler=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(handler,/authorization/);
  assert.match(handler,/CRON_SECRET/);
+ assert.match(handler,/CRON_SECRET\.length<32/);
 });
