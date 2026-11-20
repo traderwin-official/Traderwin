@@ -88,5 +88,6 @@ Never paste secrets into chat, GitHub source, or browser-visible environment var
 - A single DEMO account may be preselected only when unambiguous. Multiple DEMO accounts require explicit member selection. The selection endpoint rejects REAL accounts and never changes `real_account_id`.
 - Added additive migration `202611200005_deriv_verified_account_selection.sql` and disposable PostgreSQL integration coverage.
 - REAL subscription status now requires a valid active time window: `starts_at <= now < ends_at`; missing, malformed, inverted or future-start dates fail closed. Payment and subscription eligibility still return `realExecutionAuthorized: false`.
-- Local Node 22 checks for the targeted Deriv account-selection and subscription-window tests passed (8/8). This is not a substitute for the full GitHub Actions suite or disposable Supabase Auth/PostgREST/RLS verification.
+- The REAL portfolio adapter now also requires the server-side `REAL_EXECUTION_ENABLED=true` release switch in addition to an `AUTHORIZED` record and all approval timestamps; unset/false keeps REAL actions blocked even if a database row is misconfigured.
+- Local Node 22 checks for the targeted Deriv account-selection, subscription-window and REAL release-gate tests passed (13/13). This is not a substitute for the full GitHub Actions suite or disposable Supabase Auth/PostgREST/RLS verification.
 - The branch remains unmerged and undeployed. The newest changes still need a confirmed CI run and disposable Supabase Auth/PostgREST/RLS verification. No live broker orders are authorized.
