@@ -48,23 +48,33 @@ returns trigger
 language plpgsql
 security definer
 set search_path=public,pg_temp
-as $$
+as $
+declare
+  v_id uuid;
+  v_broker text;
+  v_instrument text;
+  v_old jsonb;
+  v_new jsonb;
 begin
+  if tg_op='INSERT' then
+    v_id:=new.id; v_broker:=new.broker; v_instrument:=new.instrument;
+    v_new:=to_jsonb(new);
+  elsif tg_op='UPDATE' then
+    v_id:=new.id; v_broker:=new.broker; v_instrument:=new.instrument;
+    v_old:=to_jsonb(old); v_new:=to_jsonb(new);
+  else
+    v_id:=old.id; v_broker:=old.broker; v_instrument:=old.instrument;
+    v_old:=to_jsonb(old);
+  end if;
+
   insert into public.trading_instrument_approval_audit
     (approval_id,broker,instrument,operation,old_record,new_record,actor_user_id,actor_role)
-  values (
-    coalesce(new.id,old.id),
-    coalesce(new.broker,old.broker),
-    coalesce(new.instrument,old.instrument),
-    tg_op,
-    case when tg_op in ('UPDATE','DELETE') then to_jsonb(old) else null end,
-    case when tg_op in ('INSERT','UPDATE') then to_jsonb(new) else null end,
-    auth.uid(),
-    coalesce(auth.role(),'unknown')
-  );
-  return coalesce(new,old);
+  values (v_id,v_broker,v_instrument,tg_op,v_old,v_new,auth.uid(),coalesce(auth.role(),'unknown'));
+
+  if tg_op='DELETE' then return old; end if;
+  return new;
 end;
-$$;
+$;
 
 drop trigger if exists trading_instrument_approval_audit_trigger
   on public.trading_instrument_approvals;
