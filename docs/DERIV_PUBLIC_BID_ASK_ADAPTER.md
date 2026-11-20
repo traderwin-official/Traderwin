@@ -30,3 +30,8 @@ This adapter is deliberately not wired into manual or automated DEMO entries yet
 - Verify Deriv actually supplies both optional fields for each approved instrument in the target environment; if it does not, keep new entries blocked for that feed/instrument.
 - Do not infer that a valid public tick or active-symbol listing grants platform instrument approval.
 - No production migration, merge, deployment, real broker order or live-trading enablement is part of this change.
+
+
+## Registry integration
+
+`lib/deriv/load-approved-market-snapshot.js` now joins the provider snapshot with the private `trading_instrument_approvals` registry and the strict market validator. It requires the exact active APPROVED Deriv/provider-symbol tuple, a fresh snapshot (10-second default), and a spread within 0.5% (default). Database errors, missing approval, stale data and excessive spread all block eligibility. This coordinator is tested but is not yet connected to any entry route.
