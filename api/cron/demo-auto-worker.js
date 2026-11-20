@@ -53,6 +53,30 @@ async function processSession(db,raw){
   return r?.ok?{sessionId:raw.id,action:decision.action,reason:stage,tradeId:decision.tradeId,closed:r.closed,closedUnits:r.closed_units,remainingUnits:r.remaining_units,realizedPnl:r.realized_pnl_this_stage}:{sessionId:raw.id,action:"SKIP",reason:r?.reason||"EXIT_NOT_APPLIED"};
  }
  if(decision.action==="OPEN"){
+  // Close the time-of-check/time-of-use gap: fetch a second server quote,
+  // refresh the emergency controls, and rerun the same strategy before the
+  // atomic paper-entry RPC. The browser never supplies this snapshot.
+  let entryQuote;
+  try{entryQuote=await getDerivPublicQuote(raw.instrument);}
+  catch(e){return {sessionId:raw.id,action:"BLOCK",reason:"ENTRY_RECHECK_QUOTE_UNAVAILABLE",detail:safeError(e)};}
+  try{
+   const fx=await getDerivQuoteToUsd(raw.instrument,entryQuote);
+   entryQuote.quoteToUsd=fx.rate;
+   entryQuote.conversionSource=fx.source;
+   entryQuote.conversionAsOf=fx.asOf;
+  }catch(e){return {sessionId:raw.id,action:"BLOCK",reason:"ENTRY_RECHECK_USD_CONVERSION_UNAVAILABLE",detail:safeError(e)};}
+  const [{data:latestEmergency,error:latestEmergencyError},{data:latestLegacyEmergency,error:latestLegacyEmergencyError}]=await Promise.all([
+   db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",raw.user_id).eq("broker","DERIV").eq("broker_account_ref",raw.broker_account_ref).maybeSingle(),
+   db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",raw.user_id).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",raw.broker_account_ref).maybeSingle()
+  ]);
+  if(latestEmergencyError||latestLegacyEmergencyError)return {sessionId:raw.id,action:"BLOCK",reason:"ENTRY_RECHECK_EMERGENCY_STATUS_UNAVAILABLE"};
+  if(latestEmergency?.entries_blocked||latestLegacyEmergency?.kill_switch_active)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STOP_ACTIVE"};
+  const rechecked=decideDemoAutoAction({session,settings,quote:entryQuote,market,openTrade:null,now:Date.now()});
+  if(rechecked.action!=="OPEN"||rechecked.symbol!==decision.symbol||rechecked.direction!==decision.direction){
+   return {sessionId:raw.id,action:"SKIP",reason:"ENTRY_RECHECK_NO_LONGER_VALID",detail:rechecked.reason||rechecked.action};
+  }
+  decision=rechecked;
+  quote=entryQuote;
   const distance=Math.abs(decision.entry-decision.stop);
   const tp1=decision.direction==="BUY"?decision.entry+distance:decision.entry-distance;
   const tp2=decision.direction==="BUY"?decision.entry+distance*2:decision.entry-distance*2;
