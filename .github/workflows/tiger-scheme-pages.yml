@@ -68,6 +68,12 @@ jobs:
           test -f functions/api/deriv/status.js
           test -f functions/api/deriv/disconnect.js
           test -f functions/api/deriv/active-symbols.js
+          test -f functions/api/deriv/accounts.js
+          test -f functions/api/deriv/select-account.js
+          test -f lib/cloudflare-deriv-accounts.js
+          test -f lib/deriv-accounts.js
+          test -f test/cloudflare-deriv-account-selection.test.js
+          test -f supabase/migrations/202611200005_deriv_verified_account_selection.sql
           test -f lib/cloudflare-deriv-active-symbols.js
           test -f lib/deriv-active-symbols-normalizer.js
           test -f test/cloudflare-deriv-active-symbols.test.js
