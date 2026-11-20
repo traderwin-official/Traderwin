@@ -10,6 +10,7 @@ create table if not exists public.trading_instrument_approvals (
   is_active boolean not null default false,
   approval_note text,
   approved_by uuid references auth.users(id) on delete set null,
+  updated_by uuid references auth.users(id) on delete set null,
   approved_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -53,23 +54,27 @@ declare
   v_id uuid;
   v_broker text;
   v_instrument text;
+  v_actor uuid;
   v_old jsonb;
   v_new jsonb;
 begin
   if tg_op='INSERT' then
     v_id:=new.id; v_broker:=new.broker; v_instrument:=new.instrument;
+    v_actor:=coalesce(auth.uid(),new.updated_by,new.approved_by);
     v_new:=to_jsonb(new);
   elsif tg_op='UPDATE' then
     v_id:=new.id; v_broker:=new.broker; v_instrument:=new.instrument;
+    v_actor:=coalesce(auth.uid(),new.updated_by,old.updated_by,new.approved_by,old.approved_by);
     v_old:=to_jsonb(old); v_new:=to_jsonb(new);
   else
     v_id:=old.id; v_broker:=old.broker; v_instrument:=old.instrument;
+    v_actor:=coalesce(auth.uid(),old.updated_by,old.approved_by);
     v_old:=to_jsonb(old);
   end if;
 
   insert into public.trading_instrument_approval_audit
     (approval_id,broker,instrument,operation,old_record,new_record,actor_user_id,actor_role)
-  values (v_id,v_broker,v_instrument,tg_op,v_old,v_new,auth.uid(),coalesce(auth.role(),'unknown'));
+  values (v_id,v_broker,v_instrument,tg_op,v_old,v_new,v_actor,coalesce(auth.role(),'unknown'));
 
   if tg_op='DELETE' then return old; end if;
   return new;
