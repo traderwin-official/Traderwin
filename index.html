@@ -1095,6 +1095,7 @@ calculateRisk();
      const r=await callDemoApi("/api/bots/demo/mark",{tradeId:document.getElementById("paperTradeId").value.trim()});
      if(r.closed){msg.textContent=r.message+" Simulated exit P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);document.getElementById("paperTradeId").value="";closePaper.disabled=true;}
      else{msg.textContent=r.message+" Latest verified price: "+Number(r.currentPrice).toFixed(5)+" · unrealised P/L: USD "+Number(r.currentUnrealizedPnl).toFixed(2)+". "+r.protection.reason;}
+     await refreshOpenPaperPositions();
     }catch(e){msg.textContent=e.message;}
     finally{markPaper.disabled=!document.getElementById("paperTradeId").value.trim();}
    });
@@ -1106,8 +1107,40 @@ calculateRisk();
      });
      msg.textContent=r.message+" Simulated P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);
      document.getElementById("paperTradeId").value="";markPaper.disabled=true;
+     await refreshOpenPaperPositions();
     }catch(e){msg.textContent=e.message;closePaper.disabled=false;}
    });
+
+   const openPositionSelect=document.getElementById("paperOpenPositionSelect");
+   function renderOpenPaperPositions(trades){
+    const list=Array.isArray(trades)?trades:[];
+    const previous=document.getElementById("paperTradeId").value.trim();
+    openPositionSelect.innerHTML="";
+    if(!list.length){
+     const option=document.createElement("option");option.value="";option.textContent="No open positions";openPositionSelect.appendChild(option);
+     document.getElementById("paperTradeId").value="";
+     closePaper.disabled=true;markPaper.disabled=true;return;
+    }
+    list.forEach(t=>{
+     const option=document.createElement("option");option.value=t.id;
+     option.textContent=(t.instrument||t.symbol)+" "+(t.side||t.direction)+" · "+t.trade_origin+" · "+String(t.id).slice(0,8);
+     openPositionSelect.appendChild(option);
+    });
+    const chosen=list.find(t=>t.id===previous)||list.find(t=>t.trade_origin==="BOT")||list[0];
+    openPositionSelect.value=chosen.id;
+    document.getElementById("paperTradeId").value=chosen.id;
+    document.getElementById("paperSymbol").value=chosen.instrument||chosen.symbol;
+    closePaper.disabled=false;markPaper.disabled=false;
+   }
+   openPositionSelect.addEventListener("change",()=>{
+    const id=openPositionSelect.value;
+    document.getElementById("paperTradeId").value=id;
+    closePaper.disabled=!id;markPaper.disabled=!id;
+   });
+   async function refreshOpenPaperPositions(){
+    const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
+    renderOpenPaperPositions(status.openTrades||(status.openTrade?[status.openTrade]:[]));
+   }
 
    {
     callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
@@ -1128,11 +1161,7 @@ calculateRisk();
       if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
       startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
      }
-     if(r.openTrade){
-      document.getElementById("paperTradeId").value=r.openTrade.id;
-      document.getElementById("paperSymbol").value=r.openTrade.symbol;
-      closePaper.disabled=false;markPaper.disabled=false;
-     }else{closePaper.disabled=true;markPaper.disabled=true;}
+     renderOpenPaperPositions(r.openTrades||(r.openTrade?[r.openTrade]:[]));
     }).catch(e=>{demoMessage.textContent=e.message;});
    }
 
