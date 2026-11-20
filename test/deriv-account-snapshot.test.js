@@ -20,6 +20,8 @@ test("normalizes authenticated balance only for exact account and valid currency
  assert.equal(b.balance,10000);
  assert.equal(b.currency,"USD");
  assert.equal(normalizeDerivBalanceResponse(balancePayload,"VRTC99999",at).ok,false);
+ assert.equal(normalizeDerivBalanceResponse({...balancePayload,msg_type:"portfolio"},accountId,at).ok,false);
+ assert.equal(normalizeDerivBalanceResponse({balance:{account_id:accountId,balance:1,currency:"USD"}},accountId,at).ok,false);
  assert.equal(normalizeDerivBalanceResponse({balance:{loginid:accountId,balance:-1,currency:"USD"}},accountId,at).ok,false);
  assert.equal(normalizeDerivBalanceResponse({balance:{loginid:accountId,balance:5,currency:"US"}},accountId,at).ok,false);
 });
@@ -30,6 +32,7 @@ test("normalizes open portfolio contracts and rejects malformed or duplicate ent
  assert.equal(p.openContractCount,1);
  assert.equal(p.contracts[0].symbol,"frxEURUSD");
  assert.equal("profit" in p.contracts[0],false);
+ assert.equal(normalizeDerivPortfolioResponse({msg_type:"balance",portfolio:{contracts:[]}},accountId,at).ok,false);
  assert.equal(normalizeDerivPortfolioResponse({msg_type:"portfolio",portfolio:{contracts:[{contract_id:1}]}},accountId,at).ok,false);
  assert.equal(normalizeDerivPortfolioResponse({msg_type:"portfolio",portfolio:{contracts:[portfolioPayload.portfolio.contracts[0],portfolioPayload.portfolio.contracts[0]]}},accountId,at).ok,false);
 });
@@ -41,6 +44,7 @@ test("combines only fresh same-account same-currency DEMO account snapshots",()=
  assert.equal(result.ok,true);
  assert.equal(result.accountMode,"DEMO");
  assert.equal(result.realExecutionAuthorized,false);
+ assert.equal(buildDerivAccountSnapshot({balance:{...b,ok:false},portfolio:p,expectedAccountId:accountId,now}).ok,false);
  assert.equal(buildDerivAccountSnapshot({balance:b,portfolio:p,expectedAccountId:"VRTC99999",now}).ok,false);
  assert.equal(buildDerivAccountSnapshot({balance:b,portfolio:p,expectedAccountId:accountId,now:now+16000}).reason,"ACCOUNT_SNAPSHOT_STALE");
  const wrongCurrency=normalizeDerivPortfolioResponse({msg_type:"portfolio",portfolio:{contracts:[{...portfolioPayload.portfolio.contracts[0],currency:"EUR"}]}},accountId,at);
