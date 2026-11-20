@@ -28,6 +28,8 @@ test("subscription status never treats payment as live-trading authorization", a
   assert.match(source, /evaluateSubscriptionWindow/);
   assert.match(source, /startsAt: data\?\.starts_at/);
   assert.match(source, /endsAt: data\?\.ends_at/);
+  assert.match(source, /message: entitlement\.active/);
+  assert.doesNotMatch(source, /message: active/);
 });
 
 test("early manual renewal extends the existing subscription expiry", async () => {
