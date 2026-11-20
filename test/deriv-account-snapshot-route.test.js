@@ -21,20 +21,22 @@ test("decrypts only authenticated AES-256-GCM token envelopes", () => {
 
 test("Deriv account snapshot route is authenticated, selected-DEMO scoped and read-only", async () => {
   const route = await readFile(new URL("../api/deriv/account-snapshot.js", import.meta.url), "utf8");
+  const websocket = await readFile(new URL("../lib/deriv/account-snapshot-websocket.js", import.meta.url), "utf8");
   assert.match(route, /auth\.getUser/);
   assert.match(route, /encrypted_access_token/);
   assert.match(route, /demo_account_id/);
   assert.match(route, /\/trading\/v1\/options\/accounts/);
   assert.match(route, /\/otp/);
   assert.match(route, /ws\/demo/);
-  assert.match(route, /balance: 1/);
-  assert.match(route, /portfolio: 1/);
-  assert.match(route, /proposal_open_contract: 1/);
+  assert.match(route, /fetchAccountScopedWsSnapshot/);
+  assert.match(websocket, /balance: 1/);
+  assert.match(websocket, /portfolio: 1/);
+  assert.match(websocket, /proposal_open_contract: 1/);
   assert.match(route, /normalizeDerivOpenContractValuation/);
   assert.match(route, /open_unrealized_profit/);
   assert.match(route, /calculateDerivOptionsOpenStakeRisk/);
   assert.match(route, /open_stake_at_risk/);
   assert.match(route, /real_trading_enabled: false/);
   assert.match(route, /execution_authorized: false/);
-  assert.doesNotMatch(route, /buy: 1|sell: 1|proposal:/);
+  assert.doesNotMatch(route + websocket, /buy: 1|sell: 1|proposal:/);
 });
