@@ -112,37 +112,57 @@ begin
     raise exception 'Included position IDs must be unique and non-empty';
   end if;
 
-  insert into public.portfolio_profit_protection_state (
-    user_id, account_mode, broker, broker_account_ref,
-    peak_unrealized_profit_usd, current_unrealized_profit_usd,
-    protected_profit_floor_usd, protection_active, trailing_active,
-    included_position_ids, position_peak_state, membership_version, state_version,
-    last_valuation_at, quote_source, quote_as_of, updated_at
-  )
-  select
-    p_user_id, p_account_mode, p_broker, p_broker_account_ref,
-    p_peak_profit_usd, p_current_profit_usd,
-    p_protected_floor_usd, p_trailing_active, p_trailing_active,
-    p_included_position_ids, p_position_peak_state, p_membership_version, p_state_version,
-    p_last_valuation_at, p_quote_source, p_quote_as_of, now()
-  where p_expected_state_version = 0
-  on conflict (user_id, broker, broker_account_ref, account_mode)
-  do update set
-    peak_unrealized_profit_usd = excluded.peak_unrealized_profit_usd,
-    current_unrealized_profit_usd = excluded.current_unrealized_profit_usd,
-    protected_profit_floor_usd = excluded.protected_profit_floor_usd,
-    protection_active = excluded.protection_active,
-    trailing_active = excluded.trailing_active,
-    included_position_ids = excluded.included_position_ids,
-    position_peak_state = excluded.position_peak_state,
-    membership_version = excluded.membership_version,
-    state_version = excluded.state_version,
-    last_valuation_at = excluded.last_valuation_at,
-    quote_source = excluded.quote_source,
-    quote_as_of = excluded.quote_as_of,
-    updated_at = now()
-  where public.portfolio_profit_protection_state.state_version = p_expected_state_version
-  returning true into v_saved;
+  if p_expected_state_version = 0 then
+    insert into public.portfolio_profit_protection_state (
+      user_id, account_mode, broker, broker_account_ref,
+      peak_unrealized_profit_usd, current_unrealized_profit_usd,
+      protected_profit_floor_usd, protection_active, trailing_active,
+      included_position_ids, position_peak_state, membership_version, state_version,
+      last_valuation_at, quote_source, quote_as_of, updated_at
+    ) values (
+      p_user_id, p_account_mode, p_broker, p_broker_account_ref,
+      p_peak_profit_usd, p_current_profit_usd,
+      p_protected_floor_usd, p_trailing_active, p_trailing_active,
+      p_included_position_ids, p_position_peak_state, p_membership_version, p_state_version,
+      p_last_valuation_at, p_quote_source, p_quote_as_of, now()
+    )
+    on conflict (user_id, broker, broker_account_ref, account_mode)
+    do update set
+      peak_unrealized_profit_usd = excluded.peak_unrealized_profit_usd,
+      current_unrealized_profit_usd = excluded.current_unrealized_profit_usd,
+      protected_profit_floor_usd = excluded.protected_profit_floor_usd,
+      protection_active = excluded.protection_active,
+      trailing_active = excluded.trailing_active,
+      included_position_ids = excluded.included_position_ids,
+      position_peak_state = excluded.position_peak_state,
+      membership_version = excluded.membership_version,
+      state_version = excluded.state_version,
+      last_valuation_at = excluded.last_valuation_at,
+      quote_source = excluded.quote_source,
+      quote_as_of = excluded.quote_as_of,
+      updated_at = now()
+    where public.portfolio_profit_protection_state.state_version = 0
+    returning true into v_saved;
+  else
+    update public.portfolio_profit_protection_state set
+      peak_unrealized_profit_usd = p_peak_profit_usd,
+      current_unrealized_profit_usd = p_current_profit_usd,
+      protected_profit_floor_usd = p_protected_floor_usd,
+      protection_active = p_trailing_active,
+      trailing_active = p_trailing_active,
+      included_position_ids = p_included_position_ids,
+      position_peak_state = p_position_peak_state,
+      membership_version = p_membership_version,
+      state_version = p_state_version,
+      last_valuation_at = p_last_valuation_at,
+      quote_source = p_quote_source,
+      quote_as_of = p_quote_as_of,
+      updated_at = now()
+    where user_id = p_user_id and account_mode = p_account_mode
+      and broker = p_broker and broker_account_ref = p_broker_account_ref
+      and state_version = p_expected_state_version
+    returning true into v_saved;
+  end if;
 
   return coalesce(v_saved, false);
 end;
