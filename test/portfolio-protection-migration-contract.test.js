@@ -28,3 +28,10 @@ test("manual monitoring and manual closing remain separate database permissions"
   assert.match(portfolio, /close_manual_trades boolean not null default false/);
   assert.match(portfolio, /Separate explicit permission to close manual positions/);
 });
+
+test("DEMO BOT portfolio protection defaults on while manual management defaults off", () => {
+  assert.match(portfolio, /bot_trade_management boolean not null default true/);
+  assert.match(portfolio, /close_managed_positions boolean not null default true/);
+  assert.match(portfolio, /manual_trade_management boolean not null default false/);
+  assert.match(portfolio, /close_manual_trades boolean not null default false/);
+});
