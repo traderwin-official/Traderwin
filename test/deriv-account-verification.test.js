@@ -34,10 +34,10 @@ test("Deriv account verification migration adds separate demo and real account I
 
 test("Deriv OAuth callback uses shared AES-GCM encryption and bounded upstream requests", async () => {
   const source = await readFile(new URL("../api/deriv/callback.js", import.meta.url), "utf8");
-  assert.match(source, /import \\{ encryptToken \\} from "\.\.\/\.\.\/lib\/encryption\.js"/);
+  assert.ok(source.includes('import { encryptToken } from "../../lib/encryption.js"'));
   assert.match(source, /AbortSignal\.timeout\(15000\)/);
   assert.match(source, /tokenResponse\.json\(\)\.catch\(\(\) => \(\{\}\)\)/);
   assert.match(source, /typeof tokenData\.access_token !== "string"/);
-  assert.match(source, /stage,\\s*name:/);
-  assert.doesNotMatch(source, /function encryptToken\\(/);
+  assert.ok(source.includes("stage,\n      name:"));
+  assert.equal(source.includes("function encryptToken("), false);
 });
