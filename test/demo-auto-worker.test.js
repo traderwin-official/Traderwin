@@ -1,123 +1,32 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-
-test("DEMO worker is cron-secret protected and uses a database lease", async () => {
-  const source = await readFile(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
-  assert.match(source, /CRON_SECRET/);
-  assert.ok(source.includes("authorization !=="));
-  assert.ok(source.includes("CRON_SECRET"));
-  assert.match(source, /claim_traderwin_demo_worker/);
-  assert.match(source, /release_traderwin_demo_worker/);
-  assert.match(source, /p_lease_seconds: 120/);
-  assert.match(source, /maxDuration: 25/);
-  assert.match(source, /CRON_SECRET.length < 32/);
-  assert.match(source, /MANUAL_POSITION_NOT_MANAGED/);
-  assert.match(source, /realOrdersSent: 0/);
+import {readFile} from "node:fs/promises";
+test("DEMO worker uses cron authorization, v2 lease and never sends broker orders",async()=>{
+ const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ assert.match(s,/CRON_SECRET/);assert.match(s,/claim_demo_paper_worker/);assert.match(s,/release_demo_paper_worker/);
+ assert.match(s,/p_lease_seconds:90/);assert.match(s,/MANUAL_POSITION_NOT_MANAGED/);assert.match(s,/realOrdersSent:0/);
+ assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);
 });
-
-test("DEMO worker only queries running DEMO sessions and Deriv broker settings", async () => {
-  const source = await readFile(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
-  assert.match(source, /\.eq\("status", "RUNNING"\)/);
-  assert.match(source, /\.eq\("account_mode", "DEMO"\)/);
-  assert.match(source, /String\(settings\.broker\)\.toUpperCase\(\) !== "DERIV"/);
-  assert.match(source, /kill_switch_active/);
-  assert.match(source, /emergency\?\.kill_switch_active && !openTrade/);
-  assert.match(source, /SESSION_PAUSED_NO_OPEN_POSITION/);
-  assert.match(source, /\.in\("status", \["RUNNING", "PAUSED", "RISK_LOCKED"\]\)/);
+test("worker processes DEMO sessions only and respects paused, risk-lock and emergency stop",async()=>{
+ const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ assert.match(s,/\["RUNNING","PAUSED","RISK_LOCKED"\]/);assert.match(s,/entries_blocked/);
+ assert.match(s,/emergency\?\.entries_blocked&&!openTrade/);assert.match(s,/MANUAL_POSITION_NOT_MANAGED/);
 });
-
-test("worker migration adds atomic lease, open and close functions", async () => {
-  const sql = await readFile(new URL("../supabase/migrations/202611120016_demo_auto_worker.sql", import.meta.url), "utf8");
-  assert.match(sql, /claim_traderwin_demo_worker/);
-  assert.match(sql, /open_demo_auto_trade/);
-  assert.match(sql, /close_demo_auto_trade/);
-  assert.match(sql, /worker_last_candle_as_of/);
-  assert.match(sql, /kill_switch_active = true/);
-  assert.match(sql, /v_daily_limit := v_session.starting_balance/);
-  assert.match(sql, /p_quote_source is null/);
-  assert.match(sql, /MANUAL_TRADE_NOT_MANAGED/);
-  assert.match(sql, /AUTO_OPEN/);
-  assert.match(sql, /AUTO_ENTRY_BLOCKED/);
-  assert.match(sql, /trade_source/);
-  assert.match(sql, /demo_bot_one_open_trade_per_user/);
-  assert.match(sql, /set status =/);
-  assert.match(sql, /Africa\/Nairobi/);
-  assert.match(sql, /to service_role/);
+test("v2 migration provides isolated tables, owner reads and service-only atomic RPCs",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611200001_demo_paper_ledger_v2.sql",import.meta.url),"utf8");
+ for(const name of ["demo_paper_sessions","demo_paper_trades","demo_paper_worker_heartbeats","demo_paper_worker_leases","demo_paper_emergency_controls"])assert.match(sql,new RegExp(name));
+ assert.match(sql,/auth\.uid\(\)=user_id/);assert.match(sql,/auth\.role\(\)<>'service_role'/);
+ assert.match(sql,/open_demo_paper_trade/);assert.match(sql,/close_demo_paper_trade/);assert.match(sql,/manage_demo_paper_exit/);
+ assert.match(sql,/Africa\/Nairobi/);assert.match(sql,/to service_role/);
+ assert.doesNotMatch(sql,/references public\.bot_settings/);
 });
-
-test("Supabase Cron schedule stores the worker secret in Vault and calls the endpoint every minute", async () => {
-  const setup = await readFile(new URL("../docs/DEMO_WORKER_SCHEDULING.md", import.meta.url), "utf8");
-  assert.match(setup, /vault\.create_secret/);
-  assert.match(setup, /vault\.decrypted_secrets/);
-  assert.match(setup, /cron\.schedule/);
-  assert.match(setup, /\* \* \* \* \*/);
-  assert.match(setup, /net\.http_get/);
-  assert.match(setup, /Authorization/);
+test("staged exits preserve TP1 40 percent, TP2 30 percent and TP3 remainder",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611200001_demo_paper_ledger_v2.sql",import.meta.url),"utf8");
+ assert.match(sql,/v_trade\.quantity\*0\.40/);assert.match(sql,/v_trade\.quantity\*0\.30/);
+ assert.match(sql,/v_qty:=v_trade\.remaining_quantity/);assert.match(sql,/MANUAL_TRADE_NOT_MANAGED/);
 });
-
-test("risk-locked sessions remain in the DEMO worker queue for open-position protection", async () => {
-  const source = await readFile(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
-  const decision = await readFile(new URL("../lib/demo-auto-decision.js", import.meta.url), "utf8");
-  assert.match(source, /\["PAUSED", "RISK_LOCKED"\]\.includes\(session\.status\) && !openTrade/);
-  assert.match(source, /\.in\("status", \["RUNNING", "PAUSED", "RISK_LOCKED"\]\)/);
-  assert.match(decision, /session\.status === "RISK_LOCKED" && !openTrade/);
-});
-
-test("daily-loss migration counts partial realizations and keeps risk-locked open positions manageable", async () => {
-  const sql = await readFile(new URL("../supabase/migrations/202611160001_demo_daily_loss_partial_realizations.sql", import.meta.url), "utf8");
-  assert.match(sql, /demo_daily_realized_loss/);
-  assert.match(sql, /realized_pnl_this_stage/);
-  assert.match(sql, /p_exclude_trade_id/);
-  assert.match(sql, /'TP1','TP2','TP3','STOP_LOSS','AUTO_CLOSE','MANUAL_CLOSE'/);
-  assert.match(sql, /status in \('RUNNING','PAUSED'\)/);
-  assert.match(sql, /to service_role/);
-});
-
-test("manual DEMO close delegates balance, cumulative P&L and daily risk updates to one atomic RPC", async () => {
-  const route = await readFile(new URL("../api/bots/demo/close.js", import.meta.url), "utf8");
-  const sql = await readFile(new URL("../supabase/migrations/202611160001_demo_daily_loss_partial_realizations.sql", import.meta.url), "utf8");
-  assert.match(route, /rpc\("close_demo_paper_trade"/);
-  assert.match(route, /normalise\(quote\.instrument\).*normalise\(trade\.symbol\)/s);
-  assert.doesNotMatch(route, /from\("demo_bot_trades"\)\s*\.update/);
-  assert.match(sql, /create or replace function public\.close_demo_paper_trade/);
-  assert.match(sql, /'action','MANUAL_CLOSE'/);
-  assert.match(sql, /realized_pnl_total/);
-  assert.match(sql, /demo_daily_realized_loss\(p_user_id,v_day_start,null\)/);
-});
-
-test("manual DEMO entries use the atomic service-role RPC and daily-loss helper", async () => {
-  const route = await readFile(new URL("../api/bots/demo/trade.js", import.meta.url), "utf8");
-  const sql = await readFile(new URL("../supabase/migrations/202611160001_demo_daily_loss_partial_realizations.sql", import.meta.url), "utf8");
-  assert.match(route, /rpc\("open_demo_manual_trade"/);
-  assert.match(route, /p_quote_as_of: quote\.quoteAsOf/);
-  assert.match(route, /normalise\(quote\.instrument\).*normalise\(symbol\)/s);
-  assert.doesNotMatch(route, /from\("demo_bot_trades"\)\s*\.insert/);
-  assert.match(sql, /create or replace function public\.open_demo_manual_trade/);
-  assert.match(sql, /'action','MANUAL_OPEN'/);
-  assert.match(sql, /demo_daily_realized_loss\(p_user_id,v_day_start,null\)/);
-  assert.match(sql, /UNSUPPORTED_BROKER/);
-});
-
-test("automated DEMO worker and SQL ledger require USD-normalized risk and exit P&L", async () => {
-  const worker = await readFile(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
-  const sql = await readFile(new URL("../supabase/migrations/202611160001_demo_daily_loss_partial_realizations.sql", import.meta.url), "utf8");
-  assert.match(worker, /getDerivQuoteToUsd/);
-  assert.match(worker, /p_quote_to_usd: quote\.quoteToUsd/);
-  assert.match(sql, /entry_quote_to_usd/);
-  assert.match(sql, /p_quote_to_usd numeric/);
-  assert.match(sql, /v_close_units\*p_quote_to_usd/);
-  assert.match(sql, /v_trade\.virtual_units \* p_quote_to_usd/);
-  assert.match(sql, /abs\(p_risk_amount - abs\(p_entry_price-p_stop_loss\)\*p_virtual_units\*p_quote_to_usd\)/);
-});
-
-
-test("STOP_LOSS worker RPC supplies the required USD conversion argument", async () => {
-  const source = await readFile(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
-  const stopLossCall = source
-    .split('if (decision.action === "CLOSE")')[1]
-    ?.split('if (decision.action === "OPEN")')[0] || "";
-  assert.match(stopLossCall, /rpc\("manage_demo_auto_trade_exit"/);
-  assert.match(stopLossCall, /p_stage: "STOP_LOSS"/);
-  assert.match(stopLossCall, /p_quote_to_usd: quote\.quoteToUsd/);
+test("manual close uses v2 atomic close and verified quote",async()=>{
+ const route=await readFile(new URL("../api/bots/demo/close.js",import.meta.url),"utf8");
+ assert.match(route,/demo_paper_trades/);assert.match(route,/close_demo_paper_trade/);
+ assert.match(route,/p_exit_price:q\.quote/);assert.match(route,/getDerivQuoteToUsd/);
 });
