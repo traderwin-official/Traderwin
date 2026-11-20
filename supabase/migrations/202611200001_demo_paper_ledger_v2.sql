@@ -168,6 +168,7 @@ begin
  values(p_session_id,p_user_id,p_instrument,p_side,p_entry,p_stop,p_target,p_tp1,p_tp2,p_tp3,
    p_quantity,p_quantity,p_risk_amount,p_risk_pct,p_quote_to_usd,p_quote_source,p_quote_as_of,p_candle_as_of,p_trade_origin)
  returning id into v_id;
+ update public.demo_paper_sessions set last_candle_as_of=coalesce(p_candle_as_of,last_candle_as_of),updated_at=now() where id=p_session_id;
  return jsonb_build_object('ok',true,'trade_id',v_id,'status','OPEN','instrument',p_instrument,'side',p_side,
    'entry_price',p_entry,'stop_loss',p_stop,'take_profit',p_target,'quantity',p_quantity,'risk_amount_usd',p_risk_amount,'risk_pct',p_risk_pct,'opened_at',now());
 end $$;
