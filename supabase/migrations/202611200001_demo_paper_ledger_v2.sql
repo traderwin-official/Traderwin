@@ -104,7 +104,7 @@ grant select on public.demo_paper_sessions,public.demo_paper_trades,public.demo_
 
 create or replace function public.claim_demo_paper_worker(p_token uuid,p_lease_seconds integer default 90)
 returns boolean language plpgsql security definer set search_path=public,pg_temp as $$
-declare v_claimed boolean;
+declare v_claimed integer;
 begin
  if auth.role() <> 'service_role' or p_token is null or p_lease_seconds not between 15 and 180 then
    raise exception 'Unauthorized or invalid worker lease';
@@ -114,8 +114,8 @@ begin
     set lease_token=p_token,lease_until=now()+make_interval(secs=>p_lease_seconds),updated_at=now()
   where lease_key='global' and (lease_until is null or lease_until < now() or lease_token=p_token);
  get diagnostics v_claimed = row_count;
- return v_claimed;
-end $$;
+ return v_claimed=1;
+end $;
 
 create or replace function public.release_demo_paper_worker(p_token uuid)
 returns boolean language plpgsql security definer set search_path=public,pg_temp as $$
