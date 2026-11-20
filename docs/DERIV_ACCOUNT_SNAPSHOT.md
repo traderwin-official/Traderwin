@@ -31,3 +31,17 @@ The current balance and portfolio response schemas do not expose a provider even
 This adapter does not calculate daily realized P&L, account-level available margin, margin utilization, or cross-broker exposure. The current endpoint reads current balance, current open positions and fresh open-contract valuations only. Those missing inputs must be sourced and validated separately before any portfolio risk guardian or automated entry preflight can consume them.
 
 `open_unrealized_profit`, `open_stake_at_risk` and `balance` remain in the selected Deriv account currency. No USD FX conversion is applied. Do not feed these values into the platform-wide USD 20 profit-protection threshold until a fresh, trusted currency-conversion adapter and cross-account aggregation are implemented.
+
+## Daily realized P&L adapter (normalizer only)
+
+A separate strict normalizer now accepts authenticated `profit_table` response pages and calculates daily closed-contract P&L using each provider row's `sell_time`, `sell_price`, and `buy_price`:
+
+- Include a closed contract only when `sell_time` falls within the requested UTC half-open day interval.
+- Calculate its realized result as `sell_price - buy_price`; do not use purchase date to classify the closing day.
+- Require contiguous pagination from offset zero through a short terminal page. A full final page without a subsequent short/empty page is incomplete and blocks the result.
+- Validate page message type/count, numeric values, timestamps, transaction IDs, contract IDs, and duplicate identifiers. Keep the account's authenticated currency; no FX conversion is attempted.
+- The adapter is pure and read-only. It is not yet wired into the account endpoint, daily risk guardian, bot preflight, or profit-protection system.
+
+The public request schema exposes `date_from` and `date_to` but does not define whether they filter by purchase or sell time. Therefore this adapter deliberately does not rely on those filters: its caller must fetch the full paginated history and locally classify rows by the provider's `sell_time`. If pagination cannot be completed, the adapter returns BLOCKED rather than a partial daily total. The full-history pagination strategy is intentionally conservative and may be expensive for accounts with extensive history; a future server integration must respect Deriv's shared `profit_table` request limits and avoid frequent polling.
+
+This daily realized value is not yet suitable for portfolio-wide risk decisions: there is no trusted USD conversion, day-start equity baseline, MT5 adapter, or cross-broker aggregation. It must not be used as a substitute for current balance, available margin, or open-position stop risk.
