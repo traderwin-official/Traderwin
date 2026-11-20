@@ -1,81 +1,80 @@
-# Traderwin release readiness
+# Young Tiger Forex Platform — upgrade readiness
 
-This branch is isolated from the live main branch. PR #3 remains draft and unmerged.
+This document describes the isolated `upgrade/full-platform-build` branch. It is not the live production deployment. PR #3 remains a draft and unmerged. No production Supabase migration or Vercel deployment has been performed during this work.
 
 ## Current verified progress
-- Supabase email/password authentication and first-login DEMO/REAL preference flow.
-- Multi-market schema, separate bot mode profiles, per-user risk settings and audit records.
-- Server-side Deriv public quote adapter for a limited allow-list of supported instruments. DEMO entry, mark and close requests use fresh server quotes, not browser-entered prices.
-- Server-side Deriv OHLC candle adapter and authenticated rule-based market analyst (EMA, RSI, ATR, momentum and breakout confirmations). It returns research only and does not execute trades.
-- Deriv OAuth flow now requests the trade scope, verifies the user's active demo account through the Deriv accounts API, encrypts the token server-side and records its expiry.
-- M-Pesa payment ledger and STK Push scaffolding. REAL subscription price is USD 75 for the first paid month and USD 175 for subsequent monthly renewals; the server calculates KES at checkout and stores the FX snapshot.
-- Subscription status endpoint reports expiry and keeps manual renewal as the default.
-- Shared portfolio profit-protection calculation, persistent state schema, emergency-control foundations and tests.
-- GitHub Actions passes unit tests, serverless syntax checks and inline-script checks on Node 22.
 
-## Not yet operational
-- A scheduled DEMO-only auto worker is implemented on this branch. It requires migration 016, `CRON_SECRET` in Vercel, Supabase `pg_cron` + `pg_net` + Vault setup using `docs/DEMO_WORKER_SCHEDULING.md`, and a verified dashboard heartbeat before it can be called operational. It currently supports Deriv only, one open virtual position per user, and the validated multi-confirmation strategy. It does not manage manual positions or REAL trades. Stopping new entries pauses the session while an existing BOT position remains under stop/target management; the kill switch blocks new entries without disabling that risk-reducing management.
-- The live-market analyst is not an AI agent with broad global news/sentiment access; it is a rule-based technical analyst using Deriv candles. It does not place trades.
-- The 20% combined portfolio profit-protection monitor is not wired to a persistent worker or live broker adapters. Do not rely on it to close positions.
-- MT5 bridge/quotes/execution are not connected.
-- REAL broker order execution remains locked. Payment or selecting REAL never authorizes trading.
-- Automatic renewal is not enabled. The current M-Pesa STK Push requires customer confirmation for each payment; manual renewal is the default.
-- Daraja production credentials and callback URL are not confirmed.
-- Supabase migrations 002-016 are not confirmed applied to the live project; only migration 001 was previously confirmed by the owner.
-- Vercel deployment is currently blocked by the account deployment API rate limit. Wait for the provider's stated retry window; do not bypass it.
+- Young Tiger FX branding is applied across the public dashboard, authentication, onboarding and bot-shop pages.
+- Supabase authentication and the DEMO/REAL onboarding preference flow remain in the platform foundation.
+- Deriv public quote and OHLC adapters provide verified market data for a limited supported-instrument allow-list. Unsupported instruments or unavailable USD conversions fail closed.
+- The authenticated technical analyst (EMA, RSI, ATR, momentum and breakout confirmations) remains research-only; it does not execute trades.
+- Deriv OAuth/account verification and encrypted token storage are present in the foundation. The main branch's newer OAuth flow and `trade` / `account_manage` scopes must be preserved during the eventual PR conflict resolution.
+- M-Pesa payment ledger and STK Push scaffolding remain in place. REAL subscription pricing is USD 75 for the first paid month and USD 175 for subsequent monthly renewals. Payment grants eligibility only; it never authorizes live trading.
+- A new isolated DEMO paper ledger (`demo_paper_*`) is implemented without altering the legacy production `demo_bot_*` tables.
+- The ledger supports multiple open MANUAL virtual positions alongside one BOT-managed strategy position. Default cap is 3 simultaneous positions (maximum 10); combined open risk is capped at 2% of virtual balance.
+- The dashboard returns and displays `openTrades[]`, preserves the old `openTrade` response alias, and allows members to select a position to mark or close.
+- The combined DEMO portfolio giveback monitor is connected to the worker endpoint. It tracks the highest simultaneous combined unrealized USD P&L snapshot, activates at USD 20, and protects 80% of that peak. It does not sum independent position highs from different times.
+- Automatic BOT positions are included by default for DEMO. MANUAL positions are excluded until the member explicitly enables monitoring; automatic closing of manual positions requires a separate explicit permission.
+- Portfolio closes use a server-only RPC that locks the permission row, checks the exact instrument and account, and stores an idempotency key. Manual permission revocation and portfolio closing serialize safely.
+- `vercel.json` declares a Vercel Schedule that calls `POST /api/cron/demo-auto-worker` every 15 minutes. The route requires a server-side `CRON_SECRET` of at least 32 characters.
+- GitHub Actions validates 189 JavaScript tests, serverless syntax, inline page scripts, all four new SQL migrations against disposable PostgreSQL 16, and a SQL integration script that exercises multi-position caps, aggregate risk, TP1 partial close, full close, permission denial/authorization, idempotent retries and portfolio-state compare-and-swap.
 
-## BLOCKED: production Supabase schema reconciliation required
+## Current limitations — not yet operational
 
-**Do not run the migration list below against the existing production Supabase project yet.** The owner supplied a live table/column inventory that differs materially from this branch's original schema assumptions. In particular:
+- The new SQL migrations have passed disposable PostgreSQL CI, but they have **not** been applied to the owner's live Supabase project. Supabase Auth, PostgREST, RLS and actual project schema behavior still need verification in a disposable Supabase project.
+- The DEMO worker is Deriv-only and supports instruments for which a verified USD conversion exists. It currently allows one BOT strategy position per session plus multiple MANUAL virtual positions; multiple simultaneous BOT instruments are not yet supported.
+- Manual positions currently mean MANUAL virtual trades recorded in the DEMO paper ledger. The monitor does not yet import manually opened positions from a live Deriv or MT5 account.
+- The combined giveback monitor is DEMO-only. It does not send broker orders. REAL portfolio monitoring and closing remain locked until secure Deriv/MT5 account-position adapters and live close permissions are independently tested.
+- The Vercel Schedule is configured in source but is not active in production until this branch is deployed. On Hobby, the schedule has a 15-minute jitter window; actual invocations can arrive up to 15 minutes after the scheduled time. This cadence is for DEMO validation only, not a REAL trading execution clock.
+- The dashboard has CI/static validation but still needs browser preview testing against a disposable Supabase environment.
+- MT5 account connection, quotes and execution are not connected.
+- Daraja production credentials, callback URL, webhook verification and merchant approval are not confirmed.
+- Automatic subscription renewal is not enabled. M-Pesa STK Push requires customer confirmation; manual renewal remains the default.
+- The broad migration history from the original branch is not approved for production. Do not run historical migrations 005–016 against the owner's current Supabase schema.
 
-- Production `bot_settings.id` is BIGINT, while this branch's original migrations attempted to assign `gen_random_uuid()`; migrations 002 and 012 now guard that default so it is applied only when the column is UUID.
-- Production `demo_bot_sessions` uses the newer session model (`broker`, `broker_account_ref`, `instrument`, `strategy`, `status`, `risk_per_trade_pct`, `max_daily_loss_pct`, timestamps) and does not match the older paper-ledger model assumed by this branch (`bot_setting_id`, `account_mode`, `starting_balance`, `current_balance`, etc.).
-- Production `demo_bot_trades` uses `instrument/side/quantity/pnl`; this branch's DEMO worker expects `symbol/direction/virtual_units/realized_pnl/quote_source/quote_as_of` and other ledger fields.
-- Production `bot_activity` and `bot_mode_profiles` also have a different column contract from several branch endpoints and worker SQL functions.
+## Production schema compatibility
 
-The UUID-default guard is a narrow compatibility correction, **not** a complete schema migration. Do not deploy the DEMO endpoints or run migrations 005-016 until a new additive reconciliation migration has been designed against the complete live columns, constraints, indexes, and RLS policies. Never drop or rename existing production columns or tables to force compatibility.
+The owner supplied a production table/column inventory that differs from the original upgrade branch assumptions:
 
-## Historical branch migration sequence — NOT APPROVED FOR PRODUCTION
-The following is the original branch sequence for a clean/compatible database only. It is not an instruction to run these migrations against the owner's current Supabase project:
-1. `supabase/migrations/202611120001_trader_profiles.sql`
-2. `supabase/migrations/202611120002_platform_foundation.sql`
-3. `supabase/migrations/202611120003_deriv_connection_security.sql`
-4. `supabase/migrations/202611120004_service_catalog_security.sql`
-5. `supabase/migrations/202611120005_demo_paper_trading.sql`
-6. `supabase/migrations/202611120006_dual_modes_profit_protection.sql`
-7. `supabase/migrations/202611120007_shared_profit_protection.sql`
-8. `supabase/migrations/202611120008_portfolio_profit_protection.sql`
-9. `supabase/migrations/202611120009_portfolio_membership_tracking.sql`
-10. `supabase/migrations/202611120010_atomic_portfolio_state.sql`
-11. `supabase/migrations/202611120011_bot_emergency_controls.sql`
-12. `supabase/migrations/202611120012_legacy_schema_compatibility.sql`
-13. `supabase/migrations/202611120013_broker_metadata_write_lock.sql`
-14. `supabase/migrations/202611120014_usd_subscription_pricing.sql`
-15. `supabase/migrations/202611120015_deriv_account_verification.sql`
-16. `supabase/migrations/202611120016_demo_auto_worker.sql`
+- Production `bot_settings.id` is BIGINT, not UUID.
+- Production `demo_bot_sessions` and `demo_bot_trades` use the legacy deployed schema, not the earlier paper-ledger model.
+- Existing production `bot_activity`, `bot_mode_profiles` and broker tables have their own established contracts.
 
-Do not skip, reorder, or assume migrations have run because GitHub tests pass. The live Supabase project must be migrated before runtime verification.
+The new DEMO paper ledger is deliberately isolated in `demo_paper_sessions`, `demo_paper_trades`, worker lease/heartbeat tables and emergency-control storage. It does not drop, rename or retrofit the legacy DEMO tables. The portfolio migration adds columns to the existing `portfolio_profit_protection_state` foundation table and creates a new service-role-only `portfolio_trade_permissions` table.
 
-## Required Vercel environment variables
-- Supabase: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only; never in browser code).
-- Worker: `CRON_SECRET` (long random server-side secret; Supabase Cron reads the matching value from Vault and sends it as the authorization header).
-- Deriv: `DERIV_CLIENT_ID`, `DERIV_REDIRECT_URI`, `DERIV_OAUTH_SECRET`, `TOKEN_ENCRYPTION_KEY` (exactly 64 hex characters / 32 bytes). The Deriv OAuth application must allow the `trade` scope and the exact HTTPS callback URL.
-- M-Pesa: `MPESA_ENV`, `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, and optional `MPESA_TRANSACTION_TYPE`. Daraja merchant approval and a publicly reachable HTTPS callback are required.
+## New additive migration sequence — disposable Supabase first
 
-Never paste secrets into chat, GitHub source, or browser-visible environment variables. Add them only through Vercel's server-side environment settings.
+Apply these only to a disposable Supabase project after verifying that the existing foundation table matches the supplied production inventory:
+
+1. `supabase/migrations/202611200001_demo_paper_ledger_v2.sql`
+2. `supabase/migrations/202611200002_portfolio_protection_state_v2.sql`
+3. `supabase/migrations/202611200003_demo_multi_position_v3.sql`
+4. `supabase/migrations/202611200004_demo_portfolio_close_authorization.sql`
+
+Do not apply the historical branch migrations 005–016 to production. Never drop or rename existing production tables or columns to force compatibility. The disposable PostgreSQL CI bootstrap is a validation fixture, not a substitute for a disposable Supabase project.
+
+## Required server-side environment
+
+- Supabase: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
+- Worker: `CRON_SECRET` (at least 32 random characters). Vercel Schedules path targets send it as the Authorization bearer token.
+- Deriv: `DERIV_CLIENT_ID`, `DERIV_REDIRECT_URI`, `DERIV_OAUTH_SECRET`, `TOKEN_ENCRYPTION_KEY` (exactly 64 hex characters / 32 bytes).
+- M-Pesa: `MPESA_ENV`, `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, and optional `MPESA_TRANSACTION_TYPE`.
+
+Never paste secrets into chat, GitHub source, or browser-visible environment variables. Add them only through Vercel's server-side environment settings. Because Vercel stores the path schedule's CRON_SECRET with the current deployment, deploy after changing the secret.
 
 ## Safe release gates
-1. Apply and verify migrations 002-016 in Supabase.
-2. Configure server-side credentials and registered Deriv/M-Pesa callback URLs.
-3. Wait for Vercel's deployment rate limit to clear, then create a preview deployment.
-4. Test signup/login, onboarding, public market data, server-side DEMO quote entry/mark/close, strategy analysis, payment prompt, provider-confirmed payment and subscription expiry.
-5. Keep the PR draft until the preview and database runtime tests pass.
-6. Enable Supabase `pg_cron`, `pg_net` and Vault, store the worker URL/secret in Vault, schedule the one-minute job, then verify the DEMO worker heartbeat and test virtual open/mark/stop/target close, daily loss lock and kill-switch behaviour in the deployed preview.
-7. Do not merge or enable REAL execution until MT5/Deriv execution adapters, subscription enforcement, account-level risk controls, broker-native protective stops, portfolio giveback worker and independent end-to-end tests are complete.
+
+1. Apply the four additive migrations to a disposable Supabase project and verify Auth, RLS, PostgREST and service-role RPC behavior.
+2. Verify the new DEMO API routes and portfolio permission controls in a browser against that disposable project.
+3. Set Production Supabase and `CRON_SECRET` environment variables in Vercel.
+4. Create a preview deployment and verify public market data, virtual open/mark/partial-close/full-close, multi-position risk limits, manual permission revocation, portfolio giveback and worker lease behavior.
+5. Promote/deploy only after explicit production approval. The Vercel 15-minute schedule becomes active when the deployment becomes current in Production.
+6. Verify successful Vercel Schedule runs and worker heartbeat timestamps before enabling member DEMO automation.
+7. Keep REAL execution disabled until secure Deriv/MT5 execution adapters, subscription enforcement, account-level risk controls, broker-native protective stops, live manual-position permission gates and independent end-to-end tests are complete.
 
 ## Product safety
-DEMO is free and uses virtual balances. REAL subscription payment only grants eligibility to proceed through broker verification and explicit authorization; it never starts live trading. No profitability or win-rate guarantee is made.
 
-## DEMO paper ledger v2 implementation checkpoint (2026-11-20)
-
-The upgrade branch now contains an additive `demo_paper_*` ledger migration and coordinated DEMO route/worker changes. It is intentionally isolated from the deployed legacy DEMO tables. The branch remains a draft and must not be merged or deployed until the new migration is applied to a disposable copy of the production schema and SQL/API integration tests verify the full lifecycle. Production Supabase and Vercel have not been changed.
+- DEMO is free and uses virtual balances and virtual orders. Displayed prices are live only when backed by a verified market-data feed and must show source/timestamp/delay state.
+- REAL subscription payment only grants eligibility to proceed through broker verification, risk acknowledgements and explicit authorization; it never starts live trading.
+- No profitability, win-rate or return guarantee is made.
+- No production Supabase change, PR merge or Vercel deployment is authorized by this branch work.
