@@ -75,3 +75,7 @@ Never paste secrets into chat, GitHub source, or browser-visible environment var
 
 ## Product safety
 DEMO is free and uses virtual balances. REAL subscription payment only grants eligibility to proceed through broker verification and explicit authorization; it never starts live trading. No profitability or win-rate guarantee is made.
+
+## DEMO paper ledger v2 implementation checkpoint (2026-11-20)
+
+The upgrade branch now contains an additive `demo_paper_*` ledger migration and coordinated DEMO route/worker changes. It is intentionally isolated from the deployed legacy DEMO tables. The branch remains a draft and must not be merged or deployed until the new migration is applied to a disposable copy of the production schema and SQL/API integration tests verify the full lifecycle. Production Supabase and Vercel have not been changed.
