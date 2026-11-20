@@ -21,9 +21,9 @@ test("normalizes authenticated balance only for exact account and valid currency
  assert.equal(b.currency,"USD");
  assert.equal(normalizeDerivBalanceResponse(balancePayload,"VRTC99999",at).ok,false);
  assert.equal(normalizeDerivBalanceResponse({...balancePayload,msg_type:"portfolio"},accountId,at).ok,false);
- assert.equal(normalizeDerivBalanceResponse({balance:{account_id:accountId,balance:1,currency:"USD"}},accountId,at).ok,false);
- assert.equal(normalizeDerivBalanceResponse({balance:{loginid:accountId,balance:-1,currency:"USD"}},accountId,at).ok,false);
- assert.equal(normalizeDerivBalanceResponse({balance:{loginid:accountId,balance:5,currency:"US"}},accountId,at).ok,false);
+ assert.equal(normalizeDerivBalanceResponse({msg_type:"balance",balance:{account_id:accountId,balance:1,currency:"USD"}},accountId,at).ok,false);
+ assert.equal(normalizeDerivBalanceResponse({msg_type:"balance",balance:{loginid:accountId,balance:-1,currency:"USD"}},accountId,at).ok,false);
+ assert.equal(normalizeDerivBalanceResponse({msg_type:"balance",balance:{loginid:accountId,balance:5,currency:"US"}},accountId,at).ok,false);
 });
 
 test("normalizes open portfolio contracts and rejects malformed or duplicate entries",()=>{
