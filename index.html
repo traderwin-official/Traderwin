@@ -1150,6 +1150,24 @@ calculateRisk();
     const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
     renderOpenPaperPositions(status.openTrades||(status.openTrade?[status.openTrade]:[]));
    }
+   const monitorManualInput=document.getElementById("monitorManualTrades");
+   const closeManualInput=document.getElementById("closeManualTrades");
+   const savePortfolioPermissions=document.getElementById("saveDemoPortfolioPermissions");
+   const portfolioPermissionMessage=document.getElementById("demoPortfolioPermissionMessage");
+   monitorManualInput.addEventListener("change",()=>{
+    closeManualInput.disabled=!monitorManualInput.checked;
+    if(!monitorManualInput.checked)closeManualInput.checked=false;
+   });
+   savePortfolioPermissions.addEventListener("click",async()=>{
+    savePortfolioPermissions.disabled=true;portfolioPermissionMessage.textContent="Saving permissions...";
+    try{
+     const result=await callDemoApi("/api/bots/demo/portfolio-permissions",{
+      action:"UPDATE",monitorManualTrades:monitorManualInput.checked,closeManualTrades:closeManualInput.checked
+     });
+     portfolioPermissionMessage.textContent=result.message;
+    }catch(error){portfolioPermissionMessage.textContent=error.message;}
+    finally{savePortfolioPermissions.disabled=false;}
+   });
 
    {
     callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
@@ -1171,6 +1189,14 @@ calculateRisk();
       startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
      }
      renderOpenPaperPositions(r.openTrades||(r.openTrade?[r.openTrade]:[]));
+     if(r.session){
+      try{
+       const permission=await callDemoApi("/api/bots/demo/portfolio-permissions",{action:"STATUS"});
+       monitorManualInput.checked=permission.manualTradeManagement;
+       closeManualInput.checked=permission.closeManualTrades;
+       closeManualInput.disabled=!monitorManualInput.checked;
+      }catch(error){portfolioPermissionMessage.textContent=error.message;}
+     }
     }).catch(e=>{demoMessage.textContent=e.message;});
    }
 
