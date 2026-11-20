@@ -90,3 +90,17 @@ test("new BOT entries re-fetch the Deriv quote and emergency controls immediatel
  assert.ok(openBlock.indexOf("const rechecked=")<openBlock.indexOf('db.rpc("open_demo_paper_trade"'));
  assert.match(openBlock,/ENTRY_RECHECK_NO_LONGER_VALID/);
 });
+
+test("manual DEMO entries refresh the quote, recalculate size, and recheck both emergency controls before RPC",async()=>{
+ const s=await readFile(new URL("../api/bots/demo/trade.js",import.meta.url),"utf8");
+ const rpc=s.slice(s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"'));
+ const finalCheck=s.slice(s.indexOf("// Refresh server-owned market"));
+ assert.match(finalCheck,/finalQuote=await getDerivPublicQuote\(symbol\)/);
+ assert.match(finalCheck,/getDerivQuoteToUsd\(symbol,finalQuote\)/);
+ assert.match(finalCheck,/calculatePaperPosition\(\{balance:Number\(session\.current_balance\),riskPct,entry:finalQuote\.quote/);
+ assert.match(finalCheck,/finalEmergencyError\|\|finalLegacyError/);
+ assert.match(finalCheck,/finalEmergency\?\.entries_blocked\|\|finalLegacy\?\.kill_switch_active/);
+ assert.ok(s.indexOf("const finalCheck=")<s.indexOf('db.rpc("open_demo_paper_trade"'));
+ assert.match(rpc,/p_entry:entry,p_stop:stop,p_target:target/);
+ assert.match(rpc,/p_quote_as_of:quote\.quoteAsOf/);
+});
