@@ -156,6 +156,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       account_id: accountId,
       account_mode: "DEMO",
+      proposal_kind: "ONE_TIME_READ_ONLY",
+      proposal_usable_for_buy: false,
       currency: normalized.currency,
       symbol: normalized.symbol,
       contract_type: normalized.contractType,
