@@ -2,37 +2,7 @@
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeVerifiedDerivAccounts, selectUnambiguousAccountId } from "../../lib/deriv-accounts.js";
-
-// Encrypt Deriv access tokens using AES-256-GCM.
-function encryptToken(token) {
-  const key = process.env.TOKEN_ENCRYPTION_KEY;
-
-  if (!key || !/^[0-9a-fA-F]{64}$/.test(key)) {
-    throw new Error("Invalid token encryption key configuration.");
-  }
-
-  const encryptionKey = Buffer.from(key, "hex");
-  const iv = crypto.randomBytes(12);
-
-  const cipher = crypto.createCipheriv(
-    "aes-256-gcm",
-    encryptionKey,
-    iv
-  );
-
-  const encrypted = Buffer.concat([
-    cipher.update(token, "utf8"),
-    cipher.final()
-  ]);
-
-  const authTag = cipher.getAuthTag();
-
-  return [
-    iv.toString("hex"),
-    authTag.toString("hex"),
-    encrypted.toString("hex")
-  ].join(":");
-}
+import { encryptToken } from "../../lib/encryption.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -65,6 +35,7 @@ export default async function handler(req, res) {
     return res.redirect(303, "/?deriv=" + status);
   };
 
+  let stage = "configuration";
   try {
     if (
       !DERIV_CLIENT_ID ||
@@ -134,6 +105,7 @@ export default async function handler(req, res) {
       return finish("error");
     }
 
+    stage = "deriv_token_exchange";
     const tokenResponse = await fetch(
       "https://auth.deriv.com/oauth2/token",
       {
@@ -147,26 +119,28 @@ export default async function handler(req, res) {
           code,
           code_verifier: session.verifier,
           redirect_uri: DERIV_REDIRECT_URI
-        })
+        }),
+        signal: AbortSignal.timeout(15000)
       }
     );
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenResponse.json().catch(() => ({}));
 
-    if (!tokenResponse.ok || !tokenData.access_token ||
+    if (!tokenResponse.ok || typeof tokenData.access_token !== "string" || tokenData.access_token.length === 0 ||
         !Number.isFinite(Number(tokenData.expires_in)) || Number(tokenData.expires_in) <= 0) {
       console.error("Deriv token exchange failed or returned no valid expiry.");
       return finish("error");
     }
 
     // Verify the user's actual Deriv accounts before marking the connection complete.
+    stage = "deriv_account_discovery";
     const accountsResponse = await fetch("https://api.derivws.com/trading/v1/options/accounts", {
-      headers: { Authorization: "Bearer " + tokenData.access_token },
-      signal: AbortSignal.timeout(12000)
+      headers: { Authorization: "Bearer " + tokenData.access_token, Accept: "application/json" },
+      signal: AbortSignal.timeout(15000)
     });
     const accountsPayload = await accountsResponse.json().catch(() => ({}));
     const accounts = normalizeVerifiedDerivAccounts(accountsPayload);
-    if (!accountsResponse.ok || !accounts.some((account) => account.account_type === "demo")) {
+    if (!accountsResponse.ok || !accounts.some((account) => account.account_type === "demo" && account.status === "active")) {
       console.error("Deriv account verification failed or no active DEMO account was returned.");
       return finish("error");
     }
@@ -176,9 +150,11 @@ export default async function handler(req, res) {
     const demoAccountId = selectUnambiguousAccountId(accounts, "demo");
     const realAccountId = selectUnambiguousAccountId(accounts, "real");
 
+    stage = "token_encryption";
     const encryptedToken = encryptToken(tokenData.access_token);
     const tokenExpiresAt = new Date(Date.now() + Number(tokenData.expires_in) * 1000).toISOString();
 
+    stage = "supabase_save";
     const supabase = createClient(
       SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY,
@@ -219,10 +195,11 @@ export default async function handler(req, res) {
     return finish("connected");
 
   } catch (error) {
-    console.error(
-      "Deriv callback processing failed:",
-      error.message
-    );
+    console.error("Deriv callback processing failed:", {
+      stage,
+      name: error?.name || null,
+      message: error?.message || "unknown_error"
+    });
 
     return finish("error");
   }
