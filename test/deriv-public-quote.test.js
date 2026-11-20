@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getDerivPublicQuote } from "../lib/deriv-public-quote.js";
 
-function mockSocket({ quote = 2345.67, epoch = 1_800_000_000, symbols = ["frxXAUUSD"] } = {}) {
+function mockSocket({ quote = 2345.67, epoch = 1_800_000_000, bid, ask, symbols = ["frxXAUUSD"] } = {}) {
   return class MockWebSocket {
     constructor(url) {
       this.url = url;
@@ -18,7 +18,7 @@ function mockSocket({ quote = 2345.67, epoch = 1_800_000_000, symbols = ["frxXAU
       } else if (request.ticks) {
         queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({
           msg_type: "tick",
-          tick: { symbol: request.ticks, quote, epoch }
+          tick: { symbol: request.ticks, quote, epoch, ...(bid === undefined ? {} : { bid }), ...(ask === undefined ? {} : { ask }) }
         }) }));
       }
     }
@@ -74,4 +74,25 @@ test("resolves additional six-letter currency pairs only when Deriv lists them a
     now: () => now
   });
   assert.equal(result.providerSymbol, "frxUSDNOK");
+});
+
+test("preserves genuine optional Deriv bid and ask values with the source tick timestamp", async () => {
+  const now = 1_800_000_000_000;
+  const result = await getDerivPublicQuote("XAUUSD", {
+    WebSocketImpl: mockSocket({ bid: 2345.65, ask: 2345.69 }),
+    now: () => now
+  });
+  assert.equal(result.bid, 2345.65);
+  assert.equal(result.ask, 2345.69);
+  assert.equal(result.bidAsOf, result.quoteAsOf);
+  assert.equal(result.askAsOf, result.quoteAsOf);
+});
+
+test("does not invent bid or ask when Deriv omits optional fields", async () => {
+  const result = await getDerivPublicQuote("XAUUSD", {
+    WebSocketImpl: mockSocket(),
+    now: () => 1_800_000_000_000
+  });
+  assert.equal(Object.hasOwn(result, "bid"), false);
+  assert.equal(Object.hasOwn(result, "ask"), false);
 });
