@@ -46,7 +46,7 @@ export default async function handler(req, res) {
       endsAt: data?.ends_at || null,
       renewalMode: "MANUAL",
       realExecutionAuthorized: false,
-      message: active
+      message: entitlement.active
         ? "Subscription is active. Broker verification and separate REAL-trading authorization are still required."
         : "No active REAL trading subscription. DEMO access remains free."
     });
