@@ -38,8 +38,8 @@ test("a TP partial close scales the peak by the position's remaining units", asy
   const a = adapters({
     loadSnapshot: async () => ({
       positions: [
-        { ...positions[0], units: 0.6, profitUsd: 60 },
-        { ...positions[1], units: 1, profitUsd: 30 }
+        { ...positions[0], units: 0.6, profitUsd: 30 },
+        { ...positions[1], units: 1, profitUsd: 20 }
       ],
       source: "verified-test-feed", asOf: new Date(1_000_000).toISOString(), maxAgeMs: 10_000,
       emergency: { marketDataConnected: true, brokerConnected: true, killSwitchActive: false, brokerHeartbeatAsOf: new Date(1_000_000).toISOString(), maxBrokerHeartbeatAgeMs: 10_000 }
@@ -48,16 +48,16 @@ test("a TP partial close scales the peak by the position's remaining units", asy
       peakProfitUsd: 100, includedPositionIds: ["p1", "p2"],
       positionPeakState: {
         p1: { peakProfitPerUnitUsd: 100, units: 1 },
-        p2: { peakProfitPerUnitUsd: 50, units: 1 }
+        p2: { peakProfitPerUnitUsd: 0, units: 1 }
       },
       membershipVersion: 4, stateVersion: 7
     })
   });
   const result = await monitorPortfolio(scope, a, { now: 1_005_000 });
   assert.equal(result.status, "MONITORED");
-  assert.equal(result.calculation.peakProfitUsd, 110);
-  assert.equal(result.calculation.currentProfitUsd, 90);
-  assert.equal(result.calculation.protectedFloorUsd, 88);
+  assert.equal(result.calculation.peakProfitUsd, 60);
+  assert.equal(result.calculation.currentProfitUsd, 50);
+  assert.equal(result.calculation.protectedFloorUsd, 48);
   assert.equal(result.calculation.shouldClose, false);
   assert.equal(a.calls.saved[0].state.positionPeakState.p1.units, 0.6);
 });
