@@ -6,6 +6,7 @@
 create or replace function public.close_demo_portfolio_trade(
   p_user_id uuid,
   p_trade_id uuid,
+  p_instrument text,
   p_exit_price numeric,
   p_quote_to_usd numeric,
   p_quote_source text,
@@ -26,6 +27,7 @@ begin
     raise exception 'Service role required';
   end if;
   if p_user_id is null or p_trade_id is null
+     or p_instrument is null or nullif(trim(p_instrument),'') is null
      or p_exit_price is null or p_exit_price <= 0
      or p_quote_to_usd is null or p_quote_to_usd <= 0
      or p_quote_source is distinct from 'DERIV'
@@ -42,6 +44,9 @@ begin
    for update;
   if not found then
     return jsonb_build_object('ok',false,'reason','TRADE_NOT_FOUND');
+  end if;
+  if upper(v_trade.instrument) <> upper(p_instrument) then
+    return jsonb_build_object('ok',false,'reason','INSTRUMENT_MISMATCH');
   end if;
 
   if v_trade.status = 'CLOSED' then
@@ -112,5 +117,5 @@ revoke all on function public.close_demo_portfolio_trade(uuid,uuid,numeric,numer
 grant execute on function public.close_demo_portfolio_trade(uuid,uuid,numeric,numeric,text,timestamptz,text)
   to service_role;
 
-comment on function public.close_demo_portfolio_trade(uuid,uuid,numeric,numeric,text,timestamptz,text)
+comment on function public.close_demo_portfolio_trade(uuid,uuid,text,numeric,numeric,text,timestamptz,text)
   is 'Permission-locked, idempotent DEMO portfolio close. Manual positions require both monitoring and explicit close permission; no broker order is sent.';
