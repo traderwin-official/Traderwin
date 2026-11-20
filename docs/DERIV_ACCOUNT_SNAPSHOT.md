@@ -57,3 +57,18 @@ The full-history pagination requirement is conservative but costly; it is a norm
 The proposal is a price quote, not an order. The adapter deliberately does not send `buy`, does not retain or expose the proposal ID in its normalized result, and always reports `sizingAuthorized:false` and `executionAuthorized:false`. If provider stake limits are absent, it returns no limits and does not treat the requested amount as validated. The proposal's `display_number_of_contracts` is not converted into lots or quantity.
 
 This is currently a pure adapter plus unit tests. It is not connected to a live Deriv WebSocket, the bot's sizing path, paper-trade entry, or REAL execution. Contract duration bounds are retained exactly as Deriv supplied them; do not compare them numerically until the provider's unit semantics are verified for the specific expiry type. The active instrument approval registry remains a separate mandatory gate.
+
+
+## Authenticated DEMO proposal retrieval endpoint
+
+`POST /api/deriv/proposal` now connects the pure proposal adapter to a short-lived authenticated account-scoped DEMO WebSocket:
+
+1. It authenticates the Supabase member and loads only that member's encrypted Deriv token and explicitly selected DEMO account.
+2. It rechecks the selected account against Deriv's current authenticated Options account list, including exact account ID, DEMO status and account currency.
+3. It requests a one-time OTP and accepts only the documented Deriv DEMO WebSocket host/path.
+4. The WebSocket helper requests `contracts_for` first, validates the exact symbol response, then builds and requests `proposal: 1` using the verified account currency. Request IDs are correlated and provider errors, malformed messages, unexpected close and timeout fail closed.
+5. The endpoint returns sanitized quote details only. It never returns the access token, OTP, proposal ID or raw provider payload, and it never sends `buy` or `sell`.
+
+Request fields are symbol, catalogue-listed contract type, amount, stake/payout basis, duration, optional duration unit and any required barrier values. Currency is never accepted from the browser. Proposal retrieval is informational and is not instrument approval, position sizing, paper-trade entry or order authorization. `sizing_authorized` and `execution_authorized` are always false; REAL trading remains disabled.
+
+The route and WebSocket helper have regression tests, but the flow has not yet been exercised against Deriv's live DEMO sandbox or connected to the existing bot entry path. Provider duration semantics remain unverified and are not inferred. The active instrument approval registry remains mandatory for any future trading integration.
