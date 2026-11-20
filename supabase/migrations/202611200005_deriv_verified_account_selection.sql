@@ -9,6 +9,6 @@ alter table public.deriv_connections
 comment on column public.deriv_connections.accounts is
   'Sanitized, active Deriv account identifiers and types verified by the server. Never contains OAuth access tokens or balances.';
 comment on column public.deriv_connections.requested_scopes is
-  'OAuth scopes requested by Tiger Scheme; trading authorization is not live-trading approval.';
+  'OAuth scopes requested by Young Tiger FX; trading authorization is not live-trading approval.';
 comment on column public.deriv_connections.connected_at is
   'Timestamp when the server completed Deriv OAuth token and account verification.';
