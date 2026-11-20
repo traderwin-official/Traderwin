@@ -13,8 +13,8 @@ test("DEMO portfolio valuation aggregates BOT and MANUAL positions in USD", () =
   ];
   const positions = buildDemoPortfolioPositions(trades, { EURUSD: { quote, conversion } }, scope);
   assert.equal(positions.length, 2);
-  assert.equal(positions[0].profitUsd, 0.5);
-  assert.equal(positions[1].profitUsd, 0.25);
+  assert.ok(Math.abs(positions[0].profitUsd - 0.5) < 1e-9);
+  assert.ok(Math.abs(positions[1].profitUsd - 0.25) < 1e-9);
   assert.deepEqual(positions.map(p => p.source), ["BOT", "MANUAL"]);
   assert.ok(positions.every(p => p.accountRef === "DEMO:u1" && p.accountMode === "DEMO"));
 });
