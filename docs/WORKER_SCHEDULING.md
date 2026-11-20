@@ -30,7 +30,7 @@ This cadence is deliberately compatible with Vercel Hobby and Pro:
 - Hobby supports schedules no more frequent than every 15 minutes, uses a 15-minute jitter window, and includes 5,000 schedule runs per billing period. One 15-minute schedule uses about 2,880 runs in a 30-day month.
 - Pro and Enterprise support every-minute schedules with a default one-minute jitter window. The current repository keeps the 15-minute cadence until a faster interval is explicitly selected.
 
-On Hobby, the 15-minute jitter means an invocation can arrive up to 15 minutes after its scheduled time. This worker is therefore DEMO-only and is not a suitable real-money execution clock. Do not unlock REAL trading based on this scheduler.
+On Hobby, the 15-minute jitter means an invocation can arrive up to 15 minutes after its scheduled time. Preview-branch schedules start inactive by default; the Production schedule is active once the deployment becomes current. This worker is therefore DEMO-only and is not a suitable real-money execution clock. Do not unlock REAL trading based on this scheduler.
 
 ## Activation gates
 
