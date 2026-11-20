@@ -57,6 +57,9 @@ export default async function handler(req,res){
     const nairobiNow=new Date(Date.now()+3*60*60*1000);nairobiNow.setUTCHours(0,0,0,0);
     const nairobiDayStart=new Date(nairobiNow.getTime()-3*60*60*1000);
     if(!latest.risk_locked_at||new Date(latest.risk_locked_at)>=nairobiDayStart)return res.status(403).json({error:"Your DEMO daily-loss lock remains active until the next Nairobi trading day."});
+    const {data:lockedOpen,error:lockedOpenError}=await db.from("demo_paper_trades").select("id").eq("session_id",latest.id).eq("user_id",uid).eq("status","OPEN").eq("trade_origin","BOT").maybeSingle();
+    if(lockedOpenError)return res.status(503).json({error:"Could not verify the risk-locked BOT position."});
+    if(lockedOpen)return res.status(409).json({error:"The daily lock has expired, but your existing BOT position is still open. The worker will continue protecting it; wait for it to close before starting a new session."});
     const {error:unlockError}=await db.from("demo_paper_sessions").update({status:"STOPPED",stopped_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",latest.id).eq("status","RISK_LOCKED");
     if(unlockError)return res.status(503).json({error:"Could not safely close the previous risk-locked session."});
    }
