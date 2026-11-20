@@ -38,7 +38,7 @@ create table if not exists public.demo_paper_trades (
   tp1_price numeric(24,10), tp2_price numeric(24,10), tp3_price numeric(24,10),
   tp1_done boolean not null default false, tp2_done boolean not null default false, tp3_done boolean not null default false,
   quantity numeric(28,12) not null check (quantity > 0),
-  remaining_quantity numeric(28,12) not null check (remaining_quantity > 0),
+  remaining_quantity numeric(28,12) not null check (remaining_quantity >= 0),
   risk_amount_usd numeric(18,2) not null check (risk_amount_usd > 0),
   risk_pct numeric(5,2) not null check (risk_pct > 0 and risk_pct <= 2),
   quote_to_usd numeric(24,12) not null check (quote_to_usd > 0),
@@ -55,7 +55,8 @@ create table if not exists public.demo_paper_trades (
   closed_at timestamptz,
   created_at timestamptz not null default now(),
   check ((side='BUY' and stop_loss<entry_price and take_profit>entry_price) or
-         (side='SELL' and stop_loss>entry_price and take_profit<entry_price))
+         (side='SELL' and stop_loss>entry_price and take_profit<entry_price)),
+  check ((status='OPEN' and remaining_quantity>0) or (status='CLOSED' and remaining_quantity=0))
 );
 create unique index if not exists demo_paper_one_open_trade_per_session
   on public.demo_paper_trades(session_id) where status='OPEN';
