@@ -15,7 +15,7 @@ const portfolioPayload={portfolio:{contracts:[{
 
 test("normalizes authenticated balance only for exact account and valid currency",()=>{
  const b=normalizeDerivBalanceResponse(balancePayload,accountId,at);
- assert.equal(b.ok===false,false);
+ assert.equal(b.ok,true);
  assert.equal(b.accountId,accountId);
  assert.equal(b.balance,10000);
  assert.equal(b.currency,"USD");
