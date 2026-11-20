@@ -1,52 +1,43 @@
 # DEMO worker scheduling
 
-The account-level DEMO portfolio monitor is executed inside `GET /api/cron/demo-auto-worker`. The endpoint requires:
+The account-level DEMO portfolio monitor runs inside `POST /api/cron/demo-auto-worker`. The repository now declares a Vercel Schedule in `vercel.json` that calls this path every 15 minutes.
+
+The worker endpoint requires:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `CRON_SECRET` (at least 32 characters)
+- `CRON_SECRET`
 
-The endpoint checks `Authorization: Bearer <CRON_SECRET>`, acquires the database worker lease, processes a bounded set of DEMO sessions, runs the combined portfolio monitor, and releases the lease. It is safe against overlapping invocations through the shared database lease and atomic position-close RPCs.
+Vercel Schedules path targets send `Authorization: Bearer <CRON_SECRET>` automatically when the environment variable is configured. The endpoint acquires the shared database worker lease, processes a bounded set of DEMO sessions, runs the combined portfolio monitor, and releases the lease.
 
-## Current repository state
-
-There is not yet a `vercel.json` cron declaration in this repository. The worker endpoint is implemented, but a recurring scheduler has not been configured. Do not describe the worker as running continuously until the scheduler is installed and a production heartbeat is observed.
-
-## Scheduling choices
-
-### Vercel Pro / Enterprise
-
-Vercel's static Cron configuration supports a one-minute schedule on Pro and Enterprise. After confirming the project's plan and applying the database migrations, the production config can register:
+## Current schedule
 
 ```json
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    {
+  "schedules": {
+    "demo-auto-worker": {
+      "schedule": "*/15 * * * *",
       "path": "/api/cron/demo-auto-worker",
-      "schedule": "* * * * *"
+      "requestMethod": "POST",
+      "timezone": "Etc/UTC"
     }
-  ]
+  }
 }
 ```
 
-Vercel invokes the production route with the configured `CRON_SECRET` bearer token. Cron schedules use UTC.
+This cadence is deliberately compatible with Vercel Hobby and Pro:
 
-### Vercel Hobby
+- Hobby supports schedules no more frequent than every 15 minutes, uses a 15-minute jitter window, and includes 5,000 schedule runs per billing period. One 15-minute schedule uses about 2,880 runs in a 30-day month.
+- Pro and Enterprise support every-minute schedules with a default one-minute jitter window. The current repository keeps the 15-minute cadence until a faster interval is explicitly selected.
 
-Hobby Cron Jobs are limited to once per day and are not suitable for a one-minute trading worker. Do not add the one-minute schedule to a Hobby deployment because it can make deployment validation fail. A separate scheduler would be required; a GitHub Actions schedule can call the same endpoint at a coarser interval, but should be treated as best-effort and is not an acceptable execution clock for REAL trading.
-
-### Vercel Schedules
-
-Vercel announced Schedules in public beta in November 2026. This may be another option if the project has access, but availability and setup must be verified in the actual Vercel project before relying on it.
+On Hobby, the 15-minute jitter means an invocation can arrive up to 15 minutes after its scheduled time. This worker is therefore DEMO-only and is not a suitable real-money execution clock. Do not unlock REAL trading based on this scheduler.
 
 ## Activation gates
 
 1. Apply migrations `202611200001` through `202611200004` to a disposable Supabase project and verify Auth, RLS, and PostgREST behavior.
-2. Configure the scheduler only after confirming the Vercel plan or approved alternative.
-3. Set `CRON_SECRET` and the Supabase service-role key as server-side environment variables only; never commit either value.
-4. Deploy the upgrade branch only after explicit production approval.
-5. Verify worker invocations and heartbeat timestamps before enabling member DEMO automation.
-6. Keep REAL execution disabled until secure Deriv/MT5 execution adapters, account authorization and live risk controls are independently validated.
+2. Set `CRON_SECRET`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` as server-side Production environment variables in Vercel. Never commit any secret.
+3. Deploy the upgrade only after explicit production approval; Vercel applies the static schedule when the deployment becomes current.
+4. Verify successful schedule runs and worker heartbeat timestamps in Vercel before enabling member DEMO automation.
+5. Keep REAL execution disabled until secure Deriv/MT5 execution adapters, account authorization and live risk controls are independently validated.
 
-No scheduler, Supabase migration, or Vercel deployment was changed as part of this source implementation.
+The source schedule is configured in this branch, but it has not been activated in production because no merge or Vercel deployment has occurred.
