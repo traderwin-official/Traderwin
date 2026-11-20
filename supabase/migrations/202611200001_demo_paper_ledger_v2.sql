@@ -204,11 +204,64 @@ begin
  return found;
 end $$;
 
+
+create or replace function public.manage_demo_paper_exit(
+ p_user_id uuid,p_trade_id uuid,p_stage text,p_exit_price numeric,p_quote_to_usd numeric,
+ p_quote_source text,p_quote_as_of timestamptz
+) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $
+declare v_trade public.demo_paper_trades%rowtype; v_qty numeric(28,12); v_pnl numeric(18,2);
+ v_remaining numeric(28,12); v_closed boolean; v_balance numeric(18,2);
+begin
+ if auth.role()<>'service_role' then raise exception 'Service role required'; end if;
+ if p_stage not in('TP1','TP2','TP3','STOP_LOSS') or p_exit_price<=0 or p_quote_to_usd<=0
+   or p_quote_source<>'DERIV' or p_quote_as_of is null or p_quote_as_of>now()
+   or p_quote_as_of<now()-interval '30 seconds' then raise exception 'Invalid or stale exit'; end if;
+ select * into v_trade from public.demo_paper_trades
+  where id=p_trade_id and user_id=p_user_id and status='OPEN' for update;
+ if not found then return jsonb_build_object('ok',false,'reason','TRADE_NOT_OPEN'); end if;
+ if v_trade.trade_origin<>'BOT' then return jsonb_build_object('ok',false,'reason','MANUAL_TRADE_NOT_MANAGED'); end if;
+ if p_stage='TP1' then
+   if v_trade.tp1_done or v_trade.tp1_price is null or
+     not ((v_trade.side='BUY' and p_exit_price>=v_trade.tp1_price) or (v_trade.side='SELL' and p_exit_price<=v_trade.tp1_price))
+     then return jsonb_build_object('ok',false,'reason','TP1_NOT_REACHED'); end if;
+   v_qty:=least(v_trade.remaining_quantity,v_trade.quantity*0.40);
+ elsif p_stage='TP2' then
+   if not v_trade.tp1_done or v_trade.tp2_done or v_trade.tp2_price is null or
+     not ((v_trade.side='BUY' and p_exit_price>=v_trade.tp2_price) or (v_trade.side='SELL' and p_exit_price<=v_trade.tp2_price))
+     then return jsonb_build_object('ok',false,'reason','TP2_NOT_REACHED'); end if;
+   v_qty:=least(v_trade.remaining_quantity,v_trade.quantity*0.30);
+ elsif p_stage='TP3' then
+   if not v_trade.tp2_done or v_trade.tp3_done or v_trade.tp3_price is null or
+     not ((v_trade.side='BUY' and p_exit_price>=v_trade.tp3_price) or (v_trade.side='SELL' and p_exit_price<=v_trade.tp3_price))
+     then return jsonb_build_object('ok',false,'reason','TP3_NOT_REACHED'); end if;
+   v_qty:=v_trade.remaining_quantity;
+ else
+   if not ((v_trade.side='BUY' and p_exit_price<=v_trade.stop_loss) or (v_trade.side='SELL' and p_exit_price>=v_trade.stop_loss))
+     then return jsonb_build_object('ok',false,'reason','STOP_NOT_REACHED'); end if;
+   v_qty:=v_trade.remaining_quantity;
+ end if;
+ v_pnl:=round((case when v_trade.side='BUY' then p_exit_price-v_trade.entry_price else v_trade.entry_price-p_exit_price end)*v_qty*p_quote_to_usd,2);
+ v_remaining:=greatest(0,v_trade.remaining_quantity-v_qty);
+ v_closed:=v_remaining<=0.000000000001;
+ update public.demo_paper_trades set remaining_quantity=v_remaining,
+  tp1_done=tp1_done or p_stage='TP1',tp2_done=tp2_done or p_stage='TP2',tp3_done=tp3_done or p_stage='TP3',
+  realized_pnl_usd=realized_pnl_usd+v_pnl,last_mark_price=p_exit_price,last_mark_at=p_quote_as_of,
+  status=case when v_closed then 'CLOSED' else 'OPEN' end,closed_at=case when v_closed then now() else null end
+  where id=v_trade.id;
+ update public.demo_paper_sessions set current_balance=greatest(0,current_balance+v_pnl),updated_at=now()
+  where id=v_trade.session_id returning current_balance into v_balance;
+ return jsonb_build_object('ok',true,'stage',p_stage,'trade_id',v_trade.id,'closed',v_closed,
+  'closed_units',v_qty,'remaining_units',v_remaining,'realized_pnl_this_stage',v_pnl,
+  'realized_pnl_total',v_trade.realized_pnl_usd+v_pnl,'balance',v_balance);
+end $;
+
 revoke all on function public.claim_demo_paper_worker(uuid,integer),public.release_demo_paper_worker(uuid),
  public.open_demo_paper_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,text,timestamptz,numeric,numeric,numeric),
  public.close_demo_paper_trade(uuid,uuid,numeric,numeric,text,timestamptz,text),
- public.mark_demo_paper_trade(uuid,uuid,numeric,timestamptz) from public,anon,authenticated;
+ public.mark_demo_paper_trade(uuid,uuid,numeric,timestamptz),
+ public.manage_demo_paper_exit(uuid,uuid,text,numeric,numeric,text,timestamptz) from public,anon,authenticated;
 grant execute on function public.claim_demo_paper_worker(uuid,integer),public.release_demo_paper_worker(uuid),
  public.open_demo_paper_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,text,timestamptz,numeric,numeric,numeric),
  public.close_demo_paper_trade(uuid,uuid,numeric,numeric,text,timestamptz,text),
- public.mark_demo_paper_trade(uuid,uuid,numeric,timestamptz) to service_role;
+ public.mark_demo_paper_trade(uuid,uuid,numeric,timestamptz),
+ public.manage_demo_paper_exit(uuid,uuid,text,numeric,numeric,text,timestamptz) to service_role;
