@@ -251,6 +251,7 @@ begin
  v_pnl:=round((case when v_trade.side='BUY' then p_exit_price-v_trade.entry_price else v_trade.entry_price-p_exit_price end)*v_qty*p_quote_to_usd,2);
  v_remaining:=greatest(0,v_trade.remaining_quantity-v_qty);
  v_closed:=v_remaining<=0.000000000001;
+ if v_closed then v_remaining:=0; end if;
  update public.demo_paper_trades set remaining_quantity=v_remaining,
   tp1_done=tp1_done or p_stage='TP1',tp2_done=tp2_done or p_stage='TP2',tp3_done=tp3_done or p_stage='TP3',
   realized_pnl_usd=realized_pnl_usd+v_pnl,last_mark_price=p_exit_price,last_mark_at=p_quote_as_of,
