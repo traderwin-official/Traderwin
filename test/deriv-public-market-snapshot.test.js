@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getDerivPublicMarketSnapshot } from "../lib/deriv/public-market-snapshot.js";
+import { validateDemoMarketSnapshot } from "../lib/demo/market-snapshot-validator.js";
 
 const now = 1_800_000_000_000;
 const baseTick = {
@@ -69,4 +70,19 @@ test("blocks bid/ask values with timestamps that do not match the same tick", as
   await assert.rejects(getDerivPublicMarketSnapshot("EURUSD", {
     ...options, getQuote: async () => ({ ...baseTick, askAsOf: new Date(now - 1000).toISOString() })
   }), /did not provide a valid same-tick bid\/ask/);
+});
+
+test("snapshot satisfies the isolated validator only with server-confirmed active instrument status", async () => {
+  const snapshot = await getDerivPublicMarketSnapshot("EURUSD", options);
+  const accepted = validateDemoMarketSnapshot({
+    snapshot, expectedInstrument: "EURUSD", instrumentActive: true, nowEpoch: now / 1000
+  });
+  assert.equal(accepted.valid, true);
+  assert.equal(accepted.bid, 1.0999);
+  assert.equal(accepted.ask, 1.1001);
+  const blocked = validateDemoMarketSnapshot({
+    snapshot, expectedInstrument: "EURUSD", instrumentActive: false, nowEpoch: now / 1000
+  });
+  assert.equal(blocked.valid, false);
+  assert.equal(blocked.reason, "INSTRUMENT_NOT_ACTIVE");
 });
