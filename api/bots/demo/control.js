@@ -23,7 +23,7 @@ export default async function handler(req,res){
     db.from("demo_paper_worker_heartbeats").select("last_tick_at,last_action,last_reason,last_error").eq("session_id",latest.id).eq("user_id",uid).maybeSingle()
    ]);
    if(tradeError||beatError)return res.status(503).json({error:"Could not load DEMO position or worker health."});
-   return res.status(200).json({ok:true,session:latest,openTrade:openTrade||null,workerHeartbeat:workerHeartbeat||null,message:"DEMO paper status loaded."});
+   const compatibleTrade=openTrade?{...openTrade,symbol:openTrade.instrument,direction:openTrade.side,virtual_units:openTrade.remaining_quantity}:null;\n   return res.status(200).json({ok:true,session:latest,openTrade:compatibleTrade,workerHeartbeat:workerHeartbeat||null,message:"DEMO paper status loaded."});
   }
   if(action==="START"){
    const {data:p,error:pe}=await db.from("trader_profiles").select("account_mode,max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).maybeSingle();
