@@ -287,6 +287,14 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <button type="button" class="secondary" id="markPaperTrade" disabled>Refresh Verified Quote</button>
   <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="card" style="margin-top:12px">
+   <h4>Manual position portfolio protection</h4>
+   <p class="muted">Automatic BOT positions are included in the combined DEMO profit guard by default. Manual positions are excluded unless you opt in below. Monitoring and permission to automatically close manual positions are separate choices.</p>
+   <label class="field"><input id="monitorManualTrades" type="checkbox"> Include my manual DEMO positions in combined portfolio monitoring</label>
+   <label class="field"><input id="closeManualTrades" type="checkbox" disabled> Allow the portfolio guard to automatically close my manual DEMO positions after the 20% giveback trigger</label>
+   <button type="button" class="secondary" id="saveDemoPortfolioPermissions">Save manual-position permissions</button>
+   <p id="demoPortfolioPermissionMessage" class="muted" role="status" aria-live="polite"></p>
+  </div>
  </div>
 
  <div class="grid" style="margin-top:15px">
