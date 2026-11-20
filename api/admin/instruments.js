@@ -73,7 +73,7 @@ export default async function handler(req, res) {
     catch { return res.status(400).json({ error: "Request body must be valid JSON." }); }
     const action = cleanText(body.action, 20).toLowerCase();
     const broker = cleanText(body.broker, 10).toUpperCase();
-    const instrument = cleanText(body.instrument, 30);
+    const instrument = cleanText(body.instrument, 30).toUpperCase();
     const provider = cleanText(body.provider, 10).toUpperCase();
     const providerSymbol = cleanText(body.providerSymbol, 40);
     const reason = cleanText(body.reason, 500);
