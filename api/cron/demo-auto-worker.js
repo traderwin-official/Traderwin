@@ -3,6 +3,7 @@ import {createClient} from "@supabase/supabase-js";
 import {getDerivPublicQuote} from "../../lib/deriv-public-quote.js";
 import {getDerivCandles} from "../../lib/deriv-candles.js";
 import {getDerivQuoteToUsd} from "../../lib/usd-conversion.js";
+import {loadApprovedInstrument} from "../../lib/deriv/load-approved-instrument.js";
 import {decideDemoAutoAction} from "../../lib/demo-auto-decision.js";
 import {runDemoPortfolioProtection} from "../../lib/demo-portfolio-protection-runner.js";
 export const config={maxDuration:25};
@@ -75,6 +76,8 @@ async function processSession(db,raw){
   if(rechecked.action!=="OPEN"||rechecked.symbol!==decision.symbol||rechecked.direction!==decision.direction){
    return {sessionId:raw.id,action:"SKIP",reason:"ENTRY_RECHECK_NO_LONGER_VALID",detail:rechecked.reason||rechecked.action};
   }
+  const approval=await loadApprovedInstrument(db,{broker:"DERIV",instrument:decision.symbol,providerSymbol:entryQuote.providerSymbol});
+  if(!approval.approved)return {sessionId:raw.id,action:"BLOCK",reason:"INSTRUMENT_NOT_APPROVED",detail:approval.reason};
   decision=rechecked;
   quote=entryQuote;
   const distance=Math.abs(decision.entry-decision.stop);
