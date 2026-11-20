@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchAccountScopedWsSnapshot } from "../api/deriv/account-snapshot.js";
+import { fetchAccountScopedWsSnapshot } from "../lib/deriv/account-snapshot-websocket.js";
 
 class FakeWebSocket extends EventTarget {
   constructor(url, fail = false) {
