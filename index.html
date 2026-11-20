@@ -256,7 +256,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 
  <div class="card" id="demoSimulator" style="margin-top:15px">
   <h3>DEMO Paper-Trading Simulator</h3>
-  <p class="muted">Virtual practice only. The Smart Auto worker analyses supported Deriv DEMO instruments on scheduled runs, opens virtual positions on confirmed new candles, and manages bot-originated positions at their stop-loss or take-profit. Manual paper positions are not managed by the auto worker. This requires migration 016, the Vercel CRON_SECRET and a deployment plan that supports the configured one-minute cron. MT5 automation is not connected. Virtual units and P/L are simplified learning estimates, not broker lot sizes or executable quotes.</p>
+  <p class="muted">Virtual practice only. The Smart Auto worker analyses supported Deriv DEMO instruments on scheduled runs, opens virtual positions on confirmed new candles, and manages BOT positions at their stop-loss or take-profit. The combined portfolio guard tracks supported open positions using fresh Deriv quotes and USD conversion. Manual positions are excluded unless you opt in below; automatic closing requires a separate permission. Activation requires the isolated DEMO ledger and portfolio migrations, Vercel CRON_SECRET and the scheduled worker deployment. MT5 automation is not connected. Virtual units and P/L are simplified learning estimates, not broker lot sizes or executable quotes.</p>
   <p class="status" id="demoSessionStatus">Session: Not started</p>
   <p class="muted" id="demoWorkerHealth">Worker status: waiting for a scheduled check.</p>
   <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh worker status</button>
@@ -283,7 +283,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <button type="button" class="secondary" id="closePaperTrade" disabled>Close at Latest Verified Quote</button>
   <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
   <div class="grid">
-   <p class="muted">Refresh uses a new server-side Deriv quote. Portfolio-wide 20% profit protection is not active until its persistent monitor is connected and tested.</p>
+   <p class="muted">The combined DEMO portfolio guard activates at USD 20 peak unrealised profit and protects 80% of the peak. It becomes operational after the upgrade migrations and scheduled worker are deployed; this dashboard preview does not send broker orders.</p>
   </div>
   <button type="button" class="secondary" id="markPaperTrade" disabled>Refresh Verified Quote</button>
   <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
