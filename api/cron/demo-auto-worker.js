@@ -86,7 +86,8 @@ export default async function handler(req,res){
   if(claimError){console.error("DEMO worker lease:",claimError.message);return res.status(503).json({error:"Could not acquire the DEMO paper worker lease. Install ledger v2 migration."});}
   if(!claimed)return res.status(200).json({ok:true,skipped:true,reason:"WORKER_ALREADY_RUNNING"});
   let results=[];
-  try{
+  let portfolioProtection={processed:0,results:[]};
+   try{
    const {data:sessions,error}=await db.from("demo_paper_sessions").select("*").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(MAX_SESSIONS_PER_TICK);
    if(error)throw new Error("Could not load DEMO paper sessions.");
    results=await Promise.all((sessions||[]).map(s=>processSession(db,s).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}))));
@@ -94,13 +95,12 @@ export default async function handler(req,res){
    const beats=(sessions||[]).map(s=>{const r=results.find(x=>x.sessionId===s.id);return {session_id:s.id,user_id:s.user_id,last_tick_at:tick,last_action:r?.action||"UNKNOWN",last_reason:r?.reason||null,last_error:["ERROR","BLOCK"].includes(r?.action)?(r.detail||r.reason):null,updated_at:tick};});
    if(beats.length){const {error:e}=await db.from("demo_paper_worker_heartbeats").upsert(beats,{onConflict:"session_id"});if(e)console.error("DEMO heartbeat:",e.message);}
    await Promise.all((sessions||[]).map(s=>db.from("demo_paper_sessions").update({updated_at:tick}).eq("id",s.id).in("status",["RUNNING","PAUSED","RISK_LOCKED"])));
-  }finally{
+     try{portfolioProtection=await runDemoPortfolioProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK});}
+   catch(e){portfolioProtection={processed:0,results:[],error:safeError(e)};}
+   }finally{
    const {error}=await db.rpc("release_demo_paper_worker",{p_token:token});if(error)console.error("DEMO lease release:",error.message);
   }
-  let portfolioProtection={processed:0,results:[]};
-  try{portfolioProtection=await runDemoPortfolioProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK});}
-  catch(e){portfolioProtection={processed:0,results:[],error:safeError(e)};}
-  const counts=results.reduce((o,r)=>(o[r.action]=(o[r.action]||0)+1,o),{});
+   const counts=results.reduce((o,r)=>(o[r.action]=(o[r.action]||0)+1,o),{});
   return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
  }catch(e){console.error("DEMO paper worker:",e.message);return res.status(500).json({error:"DEMO paper worker failed safely."});}
 }
