@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { evaluateSubscriptionWindow } from "../../lib/subscription-window.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -31,13 +32,16 @@ export default async function handler(req, res) {
       console.error("Subscription status lookup failed:", error.message);
       return res.status(503).json({ error: "Could not load subscription status." });
     }
-    const now = Date.now();
-    const end = data?.ends_at ? new Date(data.ends_at).getTime() : null;
-    const active = data?.status === "ACTIVE" && Number.isFinite(end) && end > now;
+    const entitlement = evaluateSubscriptionWindow({
+      status: data?.status,
+      startsAt: data?.starts_at,
+      endsAt: data?.ends_at,
+      now: Date.now()
+    });
     return res.status(200).json({
       serviceCode: "REAL_TRADING",
-      status: active ? "ACTIVE" : data?.status === "ACTIVE" ? "EXPIRED" : (data?.status || "NOT_PURCHASED"),
-      active,
+      status: entitlement.status,
+      active: entitlement.active,
       startsAt: data?.starts_at || null,
       endsAt: data?.ends_at || null,
       renewalMode: "MANUAL",
