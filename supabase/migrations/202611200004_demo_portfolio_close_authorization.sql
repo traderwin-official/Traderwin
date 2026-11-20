@@ -112,9 +112,9 @@ begin
 end;
 $$;
 
-revoke all on function public.close_demo_portfolio_trade(uuid,uuid,numeric,numeric,text,timestamptz,text)
+revoke all on function public.close_demo_portfolio_trade(uuid,uuid,text,numeric,numeric,text,timestamptz,text)
   from public, anon, authenticated;
-grant execute on function public.close_demo_portfolio_trade(uuid,uuid,numeric,numeric,text,timestamptz,text)
+grant execute on function public.close_demo_portfolio_trade(uuid,uuid,text,numeric,numeric,text,timestamptz,text)
   to service_role;
 
 comment on function public.close_demo_portfolio_trade(uuid,uuid,text,numeric,numeric,text,timestamptz,text)
