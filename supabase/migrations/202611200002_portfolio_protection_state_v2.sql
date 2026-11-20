@@ -176,7 +176,7 @@ grant execute on function public.save_portfolio_profit_protection_state_v2(
 ) to service_role;
 
 comment on column public.portfolio_profit_protection_state.position_peak_state is
-  'Per-position USD peak profit per unit and remaining units; updated atomically by the server-only portfolio monitor.';
+  'Per-position USD P&L contributions per unit at the same combined portfolio-peak snapshot, with remaining units; updated atomically by the server-only portfolio monitor.';
 comment on column public.portfolio_trade_permissions.close_manual_trades is
   'Separate explicit permission to close manual positions. Monitoring or inclusion permission alone never authorizes a close.';
 comment on function public.save_portfolio_profit_protection_state_v2(
