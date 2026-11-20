@@ -45,3 +45,15 @@ A separate strict normalizer now accepts authenticated `profit_table` response p
 The public request schema exposes `date_from` and `date_to` but does not define whether they filter by purchase or sell time. Therefore this adapter deliberately does not rely on those filters: its caller must fetch the full paginated history and locally classify rows by the provider's `sell_time`. If pagination cannot be completed, the adapter returns BLOCKED rather than a partial daily total. The full-history pagination strategy is intentionally conservative and may be expensive for accounts with extensive history; a future server integration must respect Deriv's shared `profit_table` request limits and avoid frequent polling.
 
 The full-history pagination requirement is conservative but costly; it is a normalizer only and does not yet call Deriv or persist history. No live account has been used to validate its output.\n\nThis daily realized value is not yet suitable for portfolio-wide risk decisions: there is no trusted USD conversion, day-start equity baseline, MT5 adapter, or cross-broker aggregation. It must not be used as a substitute for current balance, available margin, or open-position stop risk.
+
+## Provider-driven options contract metadata and proposal adapter
+
+`lib/deriv/options-contract-adapter.js` adds three pure functions:
+
+1. `normalizeDerivContractsForResponse` accepts only a `contracts_for` response for the exact requested symbol, validates required provider metadata and unique contract types, and preserves provider duration bounds as raw strings. It does not infer duration units or activate instruments.
+2. `buildDerivProposalRequest` builds a schema-constrained `proposal: 1` pricing request only when the contract type is present in that symbol's provider catalogue, the account currency and stake/payout basis are valid, and barrier inputs match the provider's barrier count.
+3. `normalizeDerivProposalResponse` checks the exact echoed request, provider proposal fields, quote spot timestamp freshness and any provider stake bounds. It rejects mismatched, stale, malformed or contradictory responses.
+
+The proposal is a price quote, not an order. The adapter deliberately does not send `buy`, does not retain or expose the proposal ID in its normalized result, and always reports `sizingAuthorized:false` and `executionAuthorized:false`. If provider stake limits are absent, it returns no limits and does not treat the requested amount as validated. The proposal's `display_number_of_contracts` is not converted into lots or quantity.
+
+This is currently a pure adapter plus unit tests. It is not connected to a live Deriv WebSocket, the bot's sizing path, paper-trade entry, or REAL execution. Contract duration bounds are retained exactly as Deriv supplied them; do not compare them numerically until the provider's unit semantics are verified for the specific expiry type. The active instrument approval registry remains a separate mandatory gate.
