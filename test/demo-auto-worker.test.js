@@ -63,5 +63,6 @@ test("DEMO portfolio queue rotates blocked and failed accounts while retrying CA
  const s=await readFile(new URL("../lib/demo-portfolio-protection-runner.js",import.meta.url),"utf8");
  assert.match(s,/CLOSE_BLOCKED", "BLOCKED"/);
  assert.match(s,/PORTFOLIO_QUEUE_UPDATE_FAILED/);
- assert.match(s,/status === "RETRY"/);
+ assert.match(s,/CLOSE_BLOCKED", "BLOCKED"\]\s*\.includes\(result\.status\)/);
+ assert.doesNotMatch(s,/RETRY.*includes\(result\.status\)/);
 });
