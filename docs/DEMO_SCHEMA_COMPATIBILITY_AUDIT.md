@@ -78,6 +78,17 @@ An additive v2 paper-ledger migration is now present on `upgrade/full-platform-b
 
 ## Remaining DEMO integration gaps
 
-- The v2 worker currently manages one open paper position per user and implements staged TP exits and daily-loss locking. It does **not** yet implement the agreed combined 20% portfolio giveback monitor (USD 20 activation) across multiple positions, nor the explicit manual-trade monitoring/close permission workflow. Those must be added before claiming full portfolio risk protection.
-- The SQL migration has not been executed against a disposable PostgreSQL/Supabase instance in this environment. GitHub CI validates JavaScript tests and syntax only; it does not compile or execute this SQL migration.
+- The repository already contains a generic portfolio aggregation/monitoring library (`lib/portfolio-profit-protection.js` and `lib/portfolio-monitor.js`) with unit tests. It applies the USD 20 activation threshold, 20% giveback, per-position peak tracking and one-account/mode scoping. However, it is **not wired into the v2 DEMO worker or a persistence/API adapter**, and its state shape is not yet stored by the existing production `portfolio_profit_protection_state` table.
+- The v2 paper ledger still enforces one open trade per user and one open trade per session; the worker and dashboard use `.maybeSingle()` for the open trade. This is incompatible with true multi-position portfolio aggregation. Do not merely drop the unique index: the worker, atomic RPCs, API status/close/mark routes and dashboard must all be redesigned together to process multiple open positions safely.
+- The generic portfolio monitor now requires a separate `closeManualTrades` permission. A manual position can be included in portfolio monitoring through `manageManualTrades`, but the monitor will not send a close request for it unless `closeManualTrades` is independently true. This is helper-level logic only; the production permissions adapter and user-facing settings are not yet connected.
+- A source review found malformed PL/pgSQL dollar-quote delimiters in the v2 migration. These delimiters have been corrected on this upgrade branch, but the SQL still has **not** been executed against a disposable PostgreSQL/Supabase instance. GitHub JavaScript CI does not compile or execute this SQL migration.
 - The dashboard still needs a live preview check against the new response fields, and the new worker needs end-to-end testing with mocked/verified quote adapters and a disposable Supabase schema.
+
+
+## 2026-11-20 follow-up review
+
+The v2 migration's PL/pgSQL function-body delimiters were corrected after static inspection. This is a source correction, not proof that PostgreSQL accepts the full migration. No SQL was run and no database was changed.
+
+The portfolio helper's manual-trade permission boundary was strengthened: monitoring/inclusion and the ability to close a manual position are now separate booleans. The helper unit test verifies that a manual position may contribute to combined portfolio P&L while only BOT positions are closed if the separate manual-close grant is absent.
+
+Before portfolio protection can be activated, implement the additive persistence contract and a single-account DEMO adapter, then replace the one-open-position model end-to-end. Preserve account-mode and broker-account isolation, use optimistic state versions/idempotent close requests, and require explicit manual-close authorization. The helper library alone is not an operational protection service.
