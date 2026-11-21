@@ -25,6 +25,23 @@ test("DEMO valuation fails closed when a quote or conversion is missing", () => 
   assert.throws(() => buildDemoPortfolioPositions([trade], { EURUSD: { quote, conversion: { rate: 0 } } }, scope), /verified quote/);
 });
 
+test("DEMO portfolio close rejects a stale or mismatched USD conversion before the RPC", async () => {
+  let rpcCalls = 0;
+  const db = {
+    from() { return { select() { return this; }, eq() { return this; }, maybeSingle: async () => ({ data: null, error: null }) }; },
+    async rpc() { rpcCalls += 1; return { data: { ok: true }, error: null }; }
+  };
+  const adapters = createDemoPortfolioAdapters(db, {
+    getQuote: async () => quote,
+    getQuoteToUsd: async () => ({ ...conversion, asOf: "2026-11-20T03:01:00.001Z" })
+  });
+  await assert.rejects(() => adapters.closePosition({
+    id: "p1", userId: "u1", accountMode: "DEMO", broker: "DERIV",
+    accountRef: "DEMO:u1", instrument: "EURUSD"
+  }), /matching DEMO quote and USD conversion/);
+  assert.equal(rpcCalls, 0);
+});
+
 test("DEMO portfolio close uses only the atomic virtual-ledger RPC and a fresh quote", async () => {
   const calls = [];
   const db = {
