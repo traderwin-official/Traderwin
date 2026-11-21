@@ -30,7 +30,7 @@ test("rejects absent, stale-shaped, mismatched, or incomplete specifications", (
     { tickSize: -0.00001 },
     { verifiedAt: "not-a-date" },
     { profitCurrency: "USDT" },
-    { quantityStep: 0.03 },
+    { quantityStep: 0.04 },
     { maxQuantity: 0.015 }
   ]) {
     const result = validateContractSpecification({ ...fx, ...patch }, { broker: "MT5", instrument: "EURUSD" });
