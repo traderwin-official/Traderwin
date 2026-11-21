@@ -32,6 +32,19 @@ test("DEMO valuation rejects a conversion whose source or pair metadata does not
   }, scope), /verified quote/);
 });
 
+test("DEMO valuation requires the exact USD conversion pair, including inverse JPY quotes", () => {
+  const trade = { id: "p2", user_id: "u1", instrument: "EURJPY", side: "BUY", entry_price: 160, remaining_quantity: 1, status: "OPEN", trade_origin: "BOT" };
+  const jpyQuote = { instrument: "EURJPY", providerSymbol: "frxEURJPY", quote: 160.2, quoteAsOf: quote.quoteAsOf, source: "DERIV" };
+  const jpyConversion = { rate: 1 / 150, source: "DERIV_FX_CONVERSION", instrument: "USDJPY", asOf: quote.quoteAsOf };
+  const positions = buildDemoPortfolioPositions([trade], {
+    EURJPY: { quote: jpyQuote, conversion: jpyConversion }
+  }, scope);
+  assert.ok(Math.abs(positions[0].profitUsd - (0.2 / 150)) < 1e-9);
+  assert.throws(() => buildDemoPortfolioPositions([trade], {
+    EURJPY: { quote: jpyQuote, conversion: { ...jpyConversion, instrument: "EURUSD" } }
+  }, scope), /verified quote/);
+});
+
 test("DEMO portfolio close rejects a stale or mismatched USD conversion before the RPC", async () => {
   let rpcCalls = 0;
   const db = {
