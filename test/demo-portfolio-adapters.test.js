@@ -4,7 +4,7 @@ import { buildDemoPortfolioPositions, createDemoPortfolioAdapters } from "../lib
 
 const scope = { userId: "u1", accountMode: "DEMO", broker: "DERIV", accountRef: "DEMO:u1" };
 const quote = { instrument: "EURUSD", providerSymbol: "frxEURUSD", quote: 1.105, quoteAsOf: "2026-11-20T03:00:00.000Z", source: "DERIV" };
-const conversion = { rate: 1, source: "USD_QUOTED_INSTRUMENT", asOf: quote.quoteAsOf };
+const conversion = { rate: 1, source: "USD_QUOTED_INSTRUMENT", instrument: "USD", asOf: quote.quoteAsOf };
 
 test("DEMO portfolio valuation aggregates BOT and MANUAL positions in USD", () => {
   const trades = [
@@ -23,6 +23,13 @@ test("DEMO valuation fails closed when a quote or conversion is missing", () => 
   const trade = { id: "p1", user_id: "u1", instrument: "EURUSD", side: "BUY", entry_price: 1.1, remaining_quantity: 1, status: "OPEN", trade_origin: "BOT" };
   assert.throws(() => buildDemoPortfolioPositions([trade], {}, scope), /verified quote/);
   assert.throws(() => buildDemoPortfolioPositions([trade], { EURUSD: { quote, conversion: { rate: 0 } } }, scope), /verified quote/);
+});
+
+test("DEMO valuation rejects a conversion whose source or pair metadata does not match", () => {
+  const trade = { id: "p1", user_id: "u1", instrument: "EURUSD", side: "BUY", entry_price: 1.1, remaining_quantity: 1, status: "OPEN", trade_origin: "BOT" };
+  assert.throws(() => buildDemoPortfolioPositions([trade], {
+    EURUSD: { quote, conversion: { ...conversion, source: "UNVERIFIED_FEED" } }
+  }, scope), /verified quote/);
 });
 
 test("DEMO portfolio close rejects a stale or mismatched USD conversion before the RPC", async () => {
