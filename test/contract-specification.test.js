@@ -54,7 +54,7 @@ test("does not treat Deriv options contracts as CFD lots", () => {
 
 test("rejects Deriv options represented as lots or an MT5 options contract", () => {
   const options = {
-    broker: "DERIV", instrument: "R__100", productType: "DERIV_OPTIONS",
+    broker: "DERIV", instrument: "R_100", productType: "DERIV_OPTIONS",
     quantityUnit: "LOTS", profitCurrency: "USD", quoteCurrency: "USD",
     contractMultiplier: 1, tickSize: 0.01, pricePrecision: 2,
     minQuantity: 1, maxQuantity: 100, quantityStep: 1,
