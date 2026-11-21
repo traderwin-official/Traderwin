@@ -66,3 +66,18 @@ test("rejects Deriv options represented as lots or an MT5 options contract", () 
     ...options, broker: "MT5", quantityUnit: "CONTRACTS"
   }, { broker: "MT5", instrument: "R_100" }).reason, "UNSUPPORTED_CONTRACT_QUANTITY_SEMANTICS");
 });
+
+test("rejects stale or future-dated broker specifications", () => {
+  const now = Date.parse("2026-11-21T10:05:00.000Z");
+  const stale = { ...fx, verifiedAt: "2026-11-19T10:00:00.000Z" };
+  const future = { ...fx, verifiedAt: "2026-11-21T10:07:00.000Z" };
+  assert.equal(validateContractSpecification(fx, {
+    broker: "MT5", instrument: "EURUSD"
+  }, now).ok, true);
+  assert.equal(validateContractSpecification(stale, {
+    broker: "MT5", instrument: "EURUSD"
+  }, now).reason, "CONTRACT_SPECIFICATION_STALE_OR_FUTURE_DATED");
+  assert.equal(validateContractSpecification(future, {
+    broker: "MT5", instrument: "EURUSD"
+  }, now).reason, "CONTRACT_SPECIFICATION_STALE_OR_FUTURE_DATED");
+});
