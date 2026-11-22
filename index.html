@@ -516,7 +516,7 @@ smartButton.addEventListener("click",async()=>{
    ?" · H1 trend "+(ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+" · SL "+fmt(ind.stopLoss)+" · TP "+fmt(ind.takeProfit)+fib
    :"";
   output.hidden=false;
-  output.textContent="Profile: "+document.getElementById("profileMode").value+" · "+r.direction+" · Confidence "+r.confidence+"/95 · "+r.strategy+". "+r.explanation+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Analysis only; no trade was executed.";
+  output.textContent="Profile: "+document.getElementById("profileMode").value+" · "+r.direction+" · Confidence "+r.confidence+"/95 · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Analysis only; no trade was executed.";
   status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
  }catch(error){status.textContent=error.message||"Could not analyse the market.";}
  finally{smartButton.disabled=false;}
