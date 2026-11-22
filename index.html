@@ -496,6 +496,16 @@ function loadChart(){
 }
 
 document.getElementById("symbol").addEventListener("change",loadChart);
+document.getElementById("demoTimeframe").addEventListener("change",event=>{
+ const intervalByTimeframe={M5:"5",M15:"15",H1:"60",H4:"240"};
+ const next=intervalByTimeframe[event.target.value];
+ if(!next)return;
+ selectedTime=next;
+ document.querySelectorAll("#timeTabs button").forEach(button=>{
+  button.classList.toggle("active",button.dataset.time===next);
+ });
+ loadChart();
+});
 
 document.querySelectorAll("#timeTabs button").forEach(button=>{
  button.addEventListener("click",()=>{
