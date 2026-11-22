@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d17">
+<title>TIGER SCHEME AI BOT | Young Tiger Forex Platform</title>
+<style>
+:root{color-scheme:dark;--bg:#080d17;--panel:#111b2b;--gold:#f5bd45;--muted:#9eabc0;--line:#26364b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f4f6fa;font:16px Arial,sans-serif;line-height:1.6}
+header{padding:16px 5%;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:#101a29;border-bottom:1px solid var(--line)}
+a{color:var(--gold)}nav{display:flex;gap:16px;flex-wrap:wrap}nav a{text-decoration:none;color:#dbe3ef;font-size:14px}
+main{max-width:1050px;margin:auto;padding:28px 5%}.hero,.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:20px}
+.eyebrow{color:var(--gold);font-weight:bold;letter-spacing:2px;font-size:12px}.hero h1{font-size:clamp(30px,6vw,52px);line-height:1.1;margin:10px 0}
+.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.product{background:#0b1320;border:1px solid var(--line);border-radius:14px;padding:18px}.product h3{margin:0 0 6px;color:var(--gold)}
+.status{padding:12px 14px;border-radius:10px;background:#1b2637;border:1px solid #40516b;margin-top:16px}
+ul{padding-left:20px}.pill{display:inline-block;border:1px solid #65758d;border-radius:30px;padding:3px 10px;font-size:12px;color:#dbe3ef}
+footer{padding:24px 5%;text-align:center;color:var(--muted);border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header><strong>YOUNG TIGER FX</strong><nav><a href="/">Trading Platform</a><a href="/#demoSimulator">Website DEMO</a><a href="/#academy">Academy</a></nav></header>
+<main>
+<section class="hero">
+<div class="eyebrow">STANDALONE EXPERT ADVISOR</div>
+<h1>TIGER SCHEME AI BOT</h1>
+<p>Independent MetaTrader 5 bot experience, separate from the website's manual and automated DEMO trading. Built around disciplined multi-confirmation analysis, momentum and controlled execution.</p>
+<p><span class="pill">Standalone product</span> <span class="pill">MT5-first</span> <span class="pill">DEMO testing before REAL</span></p>
+<div class="status" id="shopStatus" role="status">Standalone bot page restored. Checking product catalogue…</div>
+</section>
+<section class="panel">
+<h2>Bot capabilities planned for release</h2>
+<div class="grid">
+<div class="product"><h3>Smart Multi-Confirmation</h3><p class="muted">EMA, RSI, ATR, momentum and breakout confirmation. Signals can be BUY, SELL or WAIT; no forced entries.</p></div>
+<div class="product"><h3>Tiger Fibonacci Psychology</h3><p class="muted">Trend structure, Fibonacci retracements, round-number psychology, support/resistance and rejection confirmation.</p></div>
+<div class="product"><h3>Momentum Scalping</h3><p class="muted">Event-driven monitoring, qualified momentum entries, protective stops and disciplined exits. Execution speed depends on broker, VPS, spread and market conditions.</p></div>
+<div class="product"><h3>Risk Protection</h3><p class="muted">Position sizing, daily loss limits, exposure controls, emergency entry stop and no martingale or loss-chasing.</p></div>
+</div>
+</section>
+<section class="panel">
+<h2>Packages</h2>
+<div class="grid">
+<div class="product"><h3>MT5 Lifetime</h3><p class="muted">One licensed MT5 trading account.</p><strong>Release validation pending</strong></div>
+<div class="product"><h3>MT5 Monthly</h3><p class="muted">Monthly license for one MT5 trading account.</p><strong>Release validation pending</strong></div>
+<div class="product"><h3>Deriv Edition</h3><p class="muted">Only instruments and contracts supported by a verified execution adapter will be offered.</p><strong>Not yet released</strong></div>
+</div>
+<p class="muted">The product catalogue will show verified availability and pricing when the release is ready.</p>
+</section>
+<section class="panel">
+<h2>Important release status</h2>
+<ul>
+<li>The standalone bot storefront is restored, but no compiled and verified MT5 <code>.ex5</code> release is being offered yet.</li>
+<li>Purchases and M-Pesa checkout remain disabled until the EA, license activation, pricing schema and payment delivery are fully tested.</li>
+<li>Test on a broker DEMO account first. A small balance such as $3 cannot be guaranteed to grow; spreads, commissions, minimum trade size and margin can make it unsuitable.</li>
+<li>Never share your MT5 master password. License activation must not require it.</li>
+</ul>
+<p><a href="/">Return to Young Tiger Forex Platform</a></p>
+</section>
+</main>
+<footer>Young Tiger Forex Platform · Trade with a plan. Move like a Tiger.</footer>
+<script>
+(async function(){
+ const target=document.getElementById("shopStatus");
+ try{
+  const response=await fetch("/api/bot-shop",{headers:{"Accept":"application/json"},cache:"no-store"});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok){target.textContent="Catalogue connection is not ready yet. The storefront is visible; purchases remain disabled pending release checks.";return;}
+  const count=Array.isArray(data.products)?data.products.length:0;
+  target.textContent=count>0?"Catalogue connected. "+count+" configured product(s) found. Checkout remains disabled until the standalone EA release is certified.":"Catalogue connected. No products are published yet. Checkout remains disabled.";
+ }catch(error){target.textContent="Storefront is restored. Product catalogue connection is pending; no payments are accepted from this page.";}
+})();
+</script>
+</body></html>
