@@ -5,9 +5,10 @@ import { readFile } from "node:fs/promises";
 test("website DEMO session starts from the selected instrument without bot settings", async () => {
   const route = await readFile(new URL("../handlers/bots/demo/control.js", import.meta.url), "utf8");
   assert.match(route, /requestedInstrument=String\(b\.instrument/);
-  assert.match(route, /strategy:"MANUAL"/);
-  assert.match(route, /config_snapshot:.*WEBSITE_PAPER_ONLY/);
-  assert.doesNotMatch(route, /from\("bot_settings"\)/);
+  assert.match(route, /let selectedStrategy="MANUAL"/);
+  assert.match(route, /executionMode==="AUTO"/);
+  assert.match(route, /config_snapshot:.*executionMode==="AUTO"/);
+  assert.match(route, /from\("bot_settings"\)/);
 });
 
 test("manual website DEMO entries use the session risk limits and no external bot settings", async () => {
@@ -39,6 +40,8 @@ test("dashboard keeps website DEMO trading separate and links to the standalone 
   const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const shop = await readFile(new URL("../bot-shop.html", import.meta.url), "utf8");
   assert.match(page, /Website DEMO Trading/);
+  assert.match(page, /id="demoExecutionMode"/);
+  assert.match(page, /Auto-select best validated strategy/);
     assert.match(page, /action:"START"/);
       assert.match(page, /bot-shop/);
   assert.match(shop, /TIGER SCHEME AI BOT/);
