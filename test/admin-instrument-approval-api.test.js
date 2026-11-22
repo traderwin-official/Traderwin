@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const api = readFileSync(new URL("../api/admin/instruments.js", import.meta.url), "utf8");
+const api = readFileSync(new URL("../handlers/admin/instruments.js", import.meta.url), "utf8");
 
 test("instrument administration requires a verified bearer session and ADMIN role", () => {
   assert.match(api, /req\.headers\.authorization/);
