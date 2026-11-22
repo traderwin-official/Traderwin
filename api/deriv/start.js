@@ -1,3 +1,4 @@
+
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
@@ -87,7 +88,7 @@ export default async function handler(req, res) {
 
     res.setHeader(
       "Set-Cookie",
-      `deriv_oauth=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`
+      `deriv_oauth=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/api/deriv; Max-Age=600`
     );
 
     const url = new URL("https://auth.deriv.com/oauth2/auth");
@@ -95,8 +96,6 @@ export default async function handler(req, res) {
     url.searchParams.set("response_type", "code");
     url.searchParams.set("client_id", DERIV_CLIENT_ID);
     url.searchParams.set("redirect_uri", DERIV_REDIRECT_URI);
-    // Request only scopes used by the platform: account discovery/management
-    // and trading. Payment-agent permissions are deliberately excluded.
     url.searchParams.set("scope", "trade account_manage");
     url.searchParams.set("state", state);
     url.searchParams.set("code_challenge", challenge);

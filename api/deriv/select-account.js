@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
@@ -12,63 +13,71 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: "Server configuration incomplete." });
   }
 
-  const authHeader = req.headers.authorization || "";
-  if (!authHeader.startsWith("Bearer ")) {
+  const header = req.headers.authorization || "";
+  if (!header.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Login required." });
   }
 
   const accountId = req.body?.account_id;
-  if (typeof accountId !== "string" || accountId.length < 1 || accountId.length > 128) {
+  if (typeof accountId !== "string" || !accountId.trim() || accountId.length > 128) {
     return res.status(400).json({ error: "Choose a valid DEMO account." });
   }
 
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false }
     });
-    const accessToken = authHeader.slice(7).trim();
-    const { data: userData, error: authError } = await supabase.auth.getUser(accessToken);
-    if (authError || !userData.user) {
+    const { data: auth, error: authError } = await admin.auth.getUser(header.slice(7).trim());
+    if (authError || !auth.user) {
       return res.status(401).json({ error: "Login session is invalid or expired." });
     }
 
-    const { data: connection, error: lookupError } = await supabase
+    const { data: connection, error: lookupError } = await admin
       .from("deriv_connections")
-      .select("accounts, token_expires_at")
-      .eq("user_id", userData.user.id)
+      .select("accounts,token_expires_at")
+      .eq("user_id", auth.user.id)
       .maybeSingle();
 
     if (lookupError) {
       console.error("Deriv selection validation failed:", { code: lookupError.code || null });
-      return res.status(500).json({ error: "Could not validate account selection." });
+      return res.status(503).json({ error: "Could not validate account selection." });
     }
     if (!connection) return res.status(404).json({ error: "No Deriv connection found." });
-    if (!connection.token_expires_at || Date.parse(connection.token_expires_at) <= Date.now()) {
+
+    const expiry = connection.token_expires_at ? Date.parse(connection.token_expires_at) : 0;
+    if (!Number.isFinite(expiry) || expiry <= Date.now()) {
       return res.status(409).json({ error: "Deriv authorization expired. Reconnect before selecting an account." });
     }
 
-    const accounts = Array.isArray(connection.accounts) ? connection.accounts : [];
-    const allowed = accounts.find((account) =>
+    const allowed = Array.isArray(connection.accounts) && connection.accounts.some((account) =>
       account && account.account_id === accountId &&
-      typeof account.account_type === "string" &&
-      account.account_type.toLowerCase() === "demo"
+      String(account.account_type || "").toLowerCase() === "demo" &&
+      String(account.status || "active").toLowerCase() === "active"
     );
     if (!allowed) {
-      return res.status(403).json({ error: "Only verified DEMO accounts can be selected at this stage. REAL accounts remain locked." });
+      return res.status(403).json({
+        error: "Only a verified active DEMO account can be selected. REAL accounts remain locked."
+      });
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await admin
       .from("deriv_connections")
-      .update({ deriv_account_id: accountId, updated_at: new Date().toISOString() })
-      .eq("user_id", userData.user.id);
+      .update({
+        deriv_account_id: accountId,
+        demo_account_id: accountId,
+        updated_at: new Date().toISOString()
+      })
+      .eq("user_id", auth.user.id);
 
     if (updateError) {
       console.error("Deriv account selection save failed:", { code: updateError.code || null });
-      return res.status(500).json({ error: "Could not save selected DEMO account." });
+      return res.status(503).json({ error: "Could not save selected DEMO account." });
     }
 
-    res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json({ selected_account_id: accountId, message: "DEMO account selected. Trading automation remains off." });
+    return res.status(200).json({
+      selected_account_id: accountId,
+      message: "DEMO account selected. Automation remains off and REAL trading remains locked."
+    });
   } catch (error) {
     console.error("Deriv account selection endpoint error:", { name: error?.name || null });
     return res.status(500).json({ error: "Could not save account selection." });
