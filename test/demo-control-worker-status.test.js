@@ -6,6 +6,11 @@ test("DEMO control creates and manages isolated v2 paper sessions",async()=>{
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);
  assert.match(s,/demo_paper_worker_heartbeats/);assert.match(s,/let selectedStrategy="MANUAL"/);
  assert.match(s,/timeframe="M15"/);assert.match(s,/broker:"DERIV"/);
+ assert.match(s,/select\("risk_per_trade,max_daily_loss"\)/);
+ assert.match(s,/eq\("broker","DERIV"\)/);
+ assert.match(s,/eq\("instrument",requestedInstrument\)/);
+ assert.match(s,/if\(executionMode==="AUTO"\)\{/);
+ assert.doesNotMatch(s,/select\("max_risk_per_trade_pct,max_daily_loss_pct"\)/);
  assert.match(s,/config_snapshot/);assert.match(s,/account_mode/);
 });
 test("dashboard still exposes timeframe, validated strategy and worker health",async()=>{
