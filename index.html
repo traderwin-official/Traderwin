@@ -133,6 +133,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    </select>
   </div>
   <div class="tabs" id="timeTabs">
+   <button data-time="5">M5</button>
    <button data-time="15" class="active">M15</button>
    <button data-time="60">H1</button>
    <button data-time="240">H4</button>
@@ -210,6 +211,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <div class="grid">
    <div class="field"><label for="paperDirection">Direction</label><select id="paperDirection"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
    <div class="field"><label for="paperSymbol">Trading instrument</label><input id="paperSymbol" list="paperInstrumentOptions" maxlength="24" value="XAUUSD" placeholder="XAUUSD"><datalist id="paperInstrumentOptions"><option value="XAUUSD"><option value="XAGUSD"><option value="EURUSD"><option value="GBPUSD"><option value="USDJPY"><option value="AUDUSD"><option value="USDCAD"><option value="USDCHF"><option value="NZDUSD"><option value="BTCUSD"><option value="ETHUSD"><option value="R_10"><option value="R_25"><option value="R_50"><option value="R_75"><option value="R_100"></datalist></div>
+   <div class="field"><label for="demoTimeframe">DEMO chart / trading timeframe</label><select id="demoTimeframe"><option value="M5">M5 — 5 minutes</option><option value="M15" selected>M15 — 15 minutes</option><option value="H1">H1 — 1 hour</option><option value="H4">H4 — 4 hours</option></select></div>
   </div>
   <div class="grid">
    <div class="field"><label>Entry price</label><input value="Fetched securely from Deriv when you open the paper position" readonly></div>
@@ -1090,18 +1092,18 @@ calculateRisk();
    startDemo.addEventListener("click",async()=>{
     startDemo.disabled=true;demoMessage.textContent="Starting your website DEMO trading session...";
     try{
-     const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim(),executionMode:document.getElementById("demoExecutionMode").value});
+     const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim(),timeframe:document.getElementById("demoTimeframe").value,executionMode:document.getElementById("demoExecutionMode").value});
      activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
      showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-     stopDemo.disabled=false;recordPaper.disabled=false;document.getElementById("demoExecutionMode").disabled=true;demoMessage.textContent=r.message;
+     stopDemo.disabled=false;recordPaper.disabled=false;document.getElementById("demoExecutionMode").disabled=true;document.getElementById("demoTimeframe").disabled=true;demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
    });
    stopDemo.addEventListener("click",async()=>{
     stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
-     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
+     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
    });
    recordPaper.addEventListener("click",async()=>{
@@ -1198,9 +1200,11 @@ calculateRisk();
       demoStatus.textContent="Session: "+r.session.status;
       demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
+      if(["M5","M15","H1","H4"].includes(String(r.session.timeframe||"").toUpperCase()))document.getElementById("demoTimeframe").value=String(r.session.timeframe).toUpperCase();
       const running=r.session.status==="RUNNING";
       document.getElementById("demoExecutionMode").value=r.session.strategy==="MANUAL"?"MANUAL":"AUTO";
       document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
+      document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
       startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
       stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
       demoMessage.textContent="Your existing DEMO session has been restored. The scheduled Smart Auto worker manages bot-originated trades only; manual paper positions remain under your control.";
