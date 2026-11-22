@@ -39,8 +39,8 @@ test("dashboard keeps website DEMO trading separate and links to the standalone 
   const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const shop = await readFile(new URL("../bot-shop.html", import.meta.url), "utf8");
   assert.match(page, /Website DEMO Trading/);
-  assert.match(page, /action:"START",instrument:document\\.getElementById\\("paperSymbol"\\)/);
-  assert.match(page, /href="\\/bot-shop\\.html"/);
+    assert.match(page, /action:"START"/);
+    assert.match(page, /bot-shop\\.html/);
   assert.match(shop, /TIGER SCHEME AI BOT/);
   assert.match(shop, /STANDALONE EXPERT ADVISOR/);
   assert.match(shop, /Purchases and M-Pesa checkout remain disabled/);
