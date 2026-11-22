@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 test("website DEMO session starts from the selected instrument without bot settings", async () => {
-  const route = await readFile(new URL("../api/bots/demo/control.js", import.meta.url), "utf8");
+  const route = await readFile(new URL("../handlers/bots/demo/control.js", import.meta.url), "utf8");
   assert.match(route, /requestedInstrument=String\(b\.instrument/);
   assert.match(route, /strategy:"MANUAL"/);
   assert.match(route, /config_snapshot:.*WEBSITE_PAPER_ONLY/);
@@ -11,7 +11,7 @@ test("website DEMO session starts from the selected instrument without bot setti
 });
 
 test("manual website DEMO entries use the session risk limits and no external bot settings", async () => {
-  const route = await readFile(new URL("../api/bots/demo/trade.js", import.meta.url), "utf8");
+  const route = await readFile(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
   assert.match(route, /from\("demo_paper_sessions"\)/);
   assert.match(route, /Math\.min\(Number\(profile\.max_risk_per_trade_pct\),Number\(session\.risk_per_trade_pct\)\)/);
   assert.match(route, /p_trade_origin:"MANUAL"/);
@@ -28,7 +28,7 @@ test("instrument approval page uses the authenticated server admin API", async (
 });
 
 test("manual DEMO quote checks enforce stop-loss and take-profit using an atomic virtual close", async () => {
-  const route = await readFile(new URL("../api/bots/demo/mark.js", import.meta.url), "utf8");
+  const route = await readFile(new URL("../handlers/bots/demo/mark.js", import.meta.url), "utf8");
   assert.match(route, /stopHit/);
   assert.match(route, /targetHit/);
   assert.match(route, /close_demo_paper_trade/);
