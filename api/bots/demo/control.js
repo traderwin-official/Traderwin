@@ -48,11 +48,13 @@ export default async function handler(req,res){
    if(legacyEmergencyError)return res.status(503).json({error:"Could not verify the existing DEMO emergency stop."});
    if(emergency?.entries_blocked||legacyEmergency?.kill_switch_active)return res.status(403).json({error:"DEMO emergency stop is active."});
    if(latest?.status==="RUNNING")return res.status(200).json({ok:true,session:{...latest,account_mode:"DEMO"},message:"DEMO paper session is already running."});
-   if(latest?.status==="PAUSED"){
+   if(latest?.status==="PAUSED"&&latest.strategy==="MANUAL"){
     const {data:resumed,error:resumeError}=await db.from("demo_paper_sessions").update({status:"RUNNING",stopped_at:null,updated_at:new Date().toISOString()}).eq("id",latest.id).eq("user_id",uid).select("*").single();
-    if(resumeError)return res.status(503).json({error:"Could not resume DEMO automation."});
-    return res.status(200).json({ok:true,session:{...resumed,account_mode:"DEMO"},message:"DEMO automation resumed. Existing BOT positions remain under automated risk management."});
+    if(resumeError)return res.status(503).json({error:"Could not resume your website DEMO session."});
+    return res.status(200).json({ok:true,session:{...resumed,account_mode:"DEMO"},message:"Your website DEMO session resumed."});
    }
+   if(latest?.status==="PAUSED"&&latest.strategy!=="MANUAL")
+    return res.status(409).json({error:"This is an older automated session. Close its remaining position before starting a fresh manual website DEMO session."});
    if(latest?.status==="RISK_LOCKED"){
     const nairobiNow=new Date(Date.now()+3*60*60*1000);nairobiNow.setUTCHours(0,0,0,0);
     const nairobiDayStart=new Date(nairobiNow.getTime()-3*60*60*1000);
