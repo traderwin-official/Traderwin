@@ -10,8 +10,8 @@ for (const page of pages) {
     assert.match(content, /Young Tiger Forex Platform/i);
     assert.doesNotMatch(content, /Young Tiger FX/i);
     if (page === "index.html") {
-      assert.match(content, /YOUNG TIGER\\s*<span>FOREX PLATFORM<\\/span>/i);
-      assert.doesNotMatch(content, /YOUNG TIGER\\s*<span>FX<\\/span>/i);
+      assert.ok(content.includes("YOUNG TIGER <span>FOREX PLATFORM</span>"));
+      assert.ok(!content.includes("YOUNG TIGER <span>FX</span>"));
     }
   });
 }
