@@ -67,16 +67,19 @@ test("DEMO portfolio queue rotates blocked and failed accounts while retrying CA
  assert.doesNotMatch(s,/RETRY.*includes\(result\.status\)/);
 });
 
-test("Vercel Schedules invokes the protected DEMO worker every 15 minutes",async()=>{
+test("worker scheduling is delegated to Supabase Cron, not Vercel Hobby schedules",async()=>{
  const config=JSON.parse(await readFile(new URL("../vercel.json",import.meta.url),"utf8"));
- assert.equal(config.schedules["demo-auto-worker"].schedule,"*/15 * * * *");
- assert.equal(config.schedules["demo-auto-worker"].path,"/api/cron/demo-auto-worker");
- assert.equal(config.schedules["demo-auto-worker"].requestMethod,"POST");
- assert.equal(config.schedules["demo-auto-worker"].timezone,"Etc/UTC");
+ assert.equal(config.schedules,undefined);
+ const guide=await readFile(new URL("../docs/DEMO_WORKER_SCHEDULING.md",import.meta.url),"utf8");
+ assert.match(guide,/Supabase Cron/);
+ assert.match(guide,/pg_cron/);
+ assert.match(guide,/pg_net/);
+ assert.match(guide,/vault\\.create_secret/);
+ assert.match(guide,/\\* \\* \\* \\* \\*/);
  const handler=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(handler,/authorization/);
  assert.match(handler,/CRON_SECRET/);
- assert.match(handler,/CRON_SECRET\.length<32/);
+ assert.match(handler,/CRON_SECRET\\.length<32/);
 });
 
 test("new BOT entries re-fetch the Deriv quote and emergency controls immediately before the atomic paper open",async()=>{
