@@ -18,6 +18,15 @@ test("manual website DEMO entries use the session risk limits and no external bo
   assert.doesNotMatch(route, /from\("bot_settings"\)/);
 });
 
+test("instrument approval page uses the authenticated server admin API", async () => {
+  const page = await readFile(new URL("../admin-instruments.html", import.meta.url), "utf8");
+  assert.match(page, /api\/admin\/instruments/);
+  assert.match(page, /Owner-approved for initial website DEMO trading/);
+  assert.match(page, /Approve selected instrument/);
+  assert.match(page, /getSession\(\)/);
+  assert.doesNotMatch(page, /service_role|SUPABASE_SERVICE_ROLE_KEY/);
+});
+
 test("manual DEMO quote checks enforce stop-loss and take-profit using an atomic virtual close", async () => {
   const route = await readFile(new URL("../api/bots/demo/mark.js", import.meta.url), "utf8");
   assert.match(route, /stopHit/);
