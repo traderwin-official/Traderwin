@@ -227,6 +227,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field">
     <label for="botStrategy">Automated strategy</label>
     <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation (EMA + RSI + ATR + Breakout)</option><option value="AUTO_SELECT_V1">Auto-select best validated strategy (waits if signals conflict)</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (H1 trend + Fibonacci + S/R + liquidity)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
+    <p class="muted">Auto-select compares both validated strategies. If they disagree or neither has enough confirmation, the bot waits. Selecting either named strategy makes the DEMO bot trade that strategy automatically. Manual review means no automatic entries.</p>
    </div>
 
    <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
