@@ -1,13 +1,36 @@
 -- Consolidated additive schema upgrade for the Young Tiger website DEMO terminal.
 -- Prepared from the reviewed branch migrations. Run once in Supabase SQL Editor.
 -- This does not modify legacy demo_bot_* tables or enable REAL execution.
--- Prerequisites: existing public.trader_profiles and public.portfolio_profit_protection_state.
+-- Prerequisites: existing public.trader_profiles, public.bot_settings and public.portfolio_profit_protection_state.
 begin;
 
-do $$ begin
+do $ begin
   if to_regclass('public.trader_profiles') is null then raise exception 'Prerequisite missing: public.trader_profiles'; end if;
+  if to_regclass('public.bot_settings') is null then raise exception 'Prerequisite missing: public.bot_settings'; end if;
   if to_regclass('public.portfolio_profit_protection_state') is null then raise exception 'Prerequisite missing: public.portfolio_profit_protection_state'; end if;
-end $$;
+end $;
+
+-- 0. Persist the selected timeframe used by automated DEMO sessions.
+-- This is additive: existing bot preferences and risk settings remain unchanged.
+alter table public.bot_settings
+  add column if not exists timeframe text not null default 'M15';
+
+do $ begin
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.bot_settings'::regclass
+       and conname = 'bot_settings_timeframe_check'
+  ) then
+    alter table public.bot_settings
+      add constraint bot_settings_timeframe_check
+      check (timeframe in ('M5','M15','H1','H4'));
+  end if;
+end $;
+
+grant insert(user_id,broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe)
+  on public.bot_settings to authenticated;
+grant update(broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe)
+  on public.bot_settings to authenticated;
 
 -- 1. Admin role registry required for controlled platform administration.
 create table if not exists public.traderwin_admin_roles(
@@ -509,7 +532,7 @@ comment on function public.save_portfolio_profit_protection_state_v2(
 -- 5. Multi-position and aggregate open-risk limits; replaces the v2 single-position RPC/indexes.
 -- Multi-position DEMO ledger v3.
 -- Only the isolated v2 paper tables are changed. Existing production demo_bot_*,
--- bot_settings, broker connections and account records are untouched.
+-- bot_settings receives only the additive timeframe column and scoped column grants above; broker connections and account records are untouched.
 
 alter table public.demo_paper_sessions
   add column if not exists max_open_positions integer not null default 3
