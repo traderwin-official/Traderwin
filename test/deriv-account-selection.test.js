@@ -38,8 +38,8 @@ test("selects the sole DEMO account only when unambiguous", () => {
 });
 
 test("Deriv account listing and selection endpoints keep REAL execution disabled", async () => {
-  const accounts = await readFile(new URL("../api/deriv/accounts.js", import.meta.url), "utf8");
-  const select = await readFile(new URL("../api/deriv/select-account.js", import.meta.url), "utf8");
+  const accounts = await readFile(new URL("../handlers/deriv/accounts.js", import.meta.url), "utf8");
+  const select = await readFile(new URL("../handlers/deriv/select-account.js", import.meta.url), "utf8");
   assert.match(accounts, /auth\.getUser/);
   assert.match(accounts, /real_trading_enabled: false/);
   assert.doesNotMatch(accounts, /encrypted_access_token/);
