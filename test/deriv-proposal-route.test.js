@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 test("Deriv proposal route is authenticated, verified-DEMO scoped and read-only", async () => {
-  const route = await readFile(new URL("../api/deriv/proposal.js", import.meta.url), "utf8");
+  const route = await readFile(new URL("../handlers/deriv/proposal.js", import.meta.url), "utf8");
   const websocket = await readFile(new URL("../lib/deriv/proposal-session-websocket.js", import.meta.url), "utf8");
   assert.match(route, /auth\.getUser/);
   assert.match(route, /encrypted_access_token/);
