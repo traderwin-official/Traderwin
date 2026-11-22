@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main, upgrade/full-platform-build]
   push:
-    branches: [main, upgrade/full-platform-build]
+    branches: [main, upgrade/full-platform-build, integration/young-tiger-platform]
 permissions:
   contents: read
 jobs:
