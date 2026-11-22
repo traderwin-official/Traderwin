@@ -4,13 +4,14 @@ import {readFile} from "node:fs/promises";
 test("DEMO control creates and manages isolated v2 paper sessions",async()=>{
  const s=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);
- assert.match(s,/demo_paper_worker_heartbeats/);assert.match(s,/strategy:"MANUAL"/);
+ assert.match(s,/demo_paper_worker_heartbeats/);assert.match(s,/let selectedStrategy="MANUAL"/);
  assert.match(s,/timeframe="M15"/);assert.match(s,/broker:"DERIV"/);
  assert.match(s,/config_snapshot/);assert.match(s,/account_mode/);
 });
 test("dashboard still exposes timeframe, validated strategy and worker health",async()=>{
  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
  assert.match(html,/id="botTimeframe"/);assert.match(html,/value="MULTI_CONFIRMATION_V1"/);
+ assert.match(html,/value="AUTO_SELECT_V1"/);assert.match(html,/id="demoExecutionMode"/);
  assert.match(html,/id="demoWorkerHealth"/);assert.match(html,/showDemoWorkerHealth\(r\.workerHeartbeat\)/);
 });
 
