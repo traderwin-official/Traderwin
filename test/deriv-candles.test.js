@@ -9,7 +9,7 @@ function mockSocket({ symbols = ["frxXAUUSD"], candles = [] } = {}) {
       const request = JSON.parse(raw);
       if (request.active_symbols) {
         queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({
-          msg_type: "active_symbols", active_symbols: symbols.map(symbol => ({ symbol }))
+          msg_type: "active_symbols", active_symbols: symbols.map(symbol => ({ underlying_symbol: symbol }))
         }) }));
       } else if (request.ticks_history) {
         queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({
