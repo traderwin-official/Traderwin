@@ -9,7 +9,7 @@ export default async function handler(req,res){
  if(!h.startsWith("Bearer "))return res.status(401).json({error:"Sign in is required."});
  const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
  try{
-  const b=typeof req.body==="string"?JSON.parse(req.body):(req.body||{}),action=String(b.action||"").toUpperCase(),requestedInstrument=String(b.instrument||"").trim().toUpperCase(),executionMode=String(b.executionMode||"MANUAL").toUpperCase();
+  const b=typeof req.body==="string"?JSON.parse(req.body):(req.body||{}),action=String(b.action||"").toUpperCase(),requestedInstrument=String(b.instrument||"").trim().toUpperCase(),requestedTimeframe=String(b.timeframe||"M15").trim().toUpperCase(),executionMode=String(b.executionMode||"MANUAL").toUpperCase();
   if(!["START","STOP","STATUS"].includes(action))return res.status(400).json({error:"Choose START, STOP or STATUS."});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());
   if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
@@ -33,6 +33,7 @@ export default async function handler(req,res){
    if(p.account_mode!=="DEMO")return res.status(403).json({error:"Website paper trading and automation are DEMO-only. REAL execution is not available through this route."});
    if(!["MANUAL","AUTO"].includes(executionMode))return res.status(400).json({error:"Choose MANUAL or AUTO DEMO mode."});
    if(!/^[A-Z0-9_]{2,24}$/.test(requestedInstrument))return res.status(400).json({error:"Choose a supported instrument before starting your DEMO session."});
+   if(!["M5","M15","H1","H4"].includes(requestedTimeframe))return res.status(400).json({error:"Choose a supported DEMO timeframe: M5, M15, H1 or H4."});
    if(latest&&["RUNNING","PAUSED"].includes(latest.status)&&String(latest.instrument).toUpperCase()!==requestedInstrument)
     return res.status(409).json({error:"Stop your current DEMO session before changing its instrument."});
    // Manual website DEMO uses the account-level risk limits and must not
@@ -49,7 +50,7 @@ export default async function handler(req,res){
    }
    const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.risk_per_trade||p.max_risk_per_trade_pct));
    const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss||p.max_daily_loss_pct));
-   let selectedStrategy="MANUAL",timeframe="M15";
+   let selectedStrategy="MANUAL",timeframe=requestedTimeframe;
    if(executionMode==="AUTO"){
     const {data:botSettings,error:botSettingsError}=await db.from("bot_settings")
      .select("broker,instrument,account_mode,strategy,timeframe").eq("user_id",uid).maybeSingle();
@@ -77,10 +78,12 @@ export default async function handler(req,res){
    if(legacyEmergencyError)return res.status(503).json({error:"Could not verify the existing DEMO emergency stop."});
    if(emergency?.entries_blocked||legacyEmergency?.kill_switch_active)return res.status(403).json({error:"DEMO emergency stop is active."});
    if(latest?.status==="RUNNING"){
+    if(latest.timeframe!==timeframe)return res.status(409).json({error:"A DEMO session is already running on a different timeframe. Stop it before changing timeframes."});
     if(latest.strategy!==selectedStrategy)return res.status(409).json({error:"A DEMO session is already running in a different mode or strategy. Stop it before changing modes."});
     return res.status(200).json({ok:true,session:{...latest,account_mode:"DEMO"},message:"Your selected DEMO session is already running."});
    }
    if(latest?.status==="PAUSED"){
+    if(latest.timeframe!==timeframe)return res.status(409).json({error:"Your paused DEMO session uses a different timeframe. Resume it with its original timeframe or finish it before changing timeframes."});
     if(latest.strategy!==selectedStrategy)return res.status(409).json({error:"Your paused DEMO session uses a different mode or strategy. Resume it with its original settings or finish it before changing modes."});
     const {data:resumed,error:resumeError}=await db.from("demo_paper_sessions").update({status:"RUNNING",stopped_at:null,updated_at:new Date().toISOString()}).eq("id",latest.id).eq("user_id",uid).select("*").single();
     if(resumeError)return res.status(503).json({error:"Could not resume your DEMO session."});
