@@ -35,10 +35,20 @@ export default async function handler(req,res){
    if(!/^[A-Z0-9_]{2,24}$/.test(requestedInstrument))return res.status(400).json({error:"Choose a supported instrument before starting your DEMO session."});
    if(latest&&["RUNNING","PAUSED"].includes(latest.status)&&String(latest.instrument).toUpperCase()!==requestedInstrument)
     return res.status(409).json({error:"Stop your current DEMO session before changing its instrument."});
-   const {data:modeProfile,error:modeError}=await db.from("bot_mode_profiles").select("max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("account_mode","DEMO").maybeSingle();
-   if(modeError)return res.status(503).json({error:"Could not verify DEMO risk preferences."});
-   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.max_risk_per_trade_pct||p.max_risk_per_trade_pct));
-   const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss_pct||p.max_daily_loss_pct));
+   // Manual website DEMO uses the account-level risk limits and must not
+   // depend on optional bot preferences. AUTO reads only the matching
+   // Deriv/instrument profile using the actual foundation schema columns.
+   let modeProfile=null;
+   if(executionMode==="AUTO"){
+    const {data:modeProfiles,error:modeError}=await db.from("bot_mode_profiles")
+     .select("risk_per_trade,max_daily_loss").eq("user_id",uid).eq("broker","DERIV")
+     .eq("instrument",requestedInstrument).eq("account_mode","DEMO").limit(2);
+    if(modeError)return res.status(503).json({error:"Could not verify DEMO risk preferences."});
+    if((modeProfiles||[]).length>1)return res.status(409).json({error:"More than one matching DEMO risk profile exists; resolve the duplicate before starting automation."});
+    modeProfile=modeProfiles?.[0]||null;
+   }
+   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.risk_per_trade||p.max_risk_per_trade_pct));
+   const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss||p.max_daily_loss_pct));
    let selectedStrategy="MANUAL",timeframe="M15";
    if(executionMode==="AUTO"){
     const {data:botSettings,error:botSettingsError}=await db.from("bot_settings")
