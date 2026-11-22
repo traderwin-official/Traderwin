@@ -75,7 +75,7 @@ test("worker scheduling is delegated to Supabase Cron, not Vercel Hobby schedule
  const handler=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(handler,/authorization/);
  assert.match(handler,/CRON_SECRET/);
- assert.match(handler,/CRON_SECRET\\.length<32/);
+ assert.ok(handler.includes("CRON_SECRET.length<32"));
 });
 
 test("new BOT entries re-fetch the Deriv quote and emergency controls immediately before the atomic paper open",async()=>{
