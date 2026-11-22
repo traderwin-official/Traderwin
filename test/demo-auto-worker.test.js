@@ -71,11 +71,7 @@ test("worker scheduling is delegated to Supabase Cron, not Vercel Hobby schedule
  const config=JSON.parse(await readFile(new URL("../vercel.json",import.meta.url),"utf8"));
  assert.equal(config.schedules,undefined);
  const guide=await readFile(new URL("../docs/DEMO_WORKER_SCHEDULING.md",import.meta.url),"utf8");
- assert.match(guide,/Supabase Cron/);
- assert.match(guide,/pg_cron/);
- assert.match(guide,/pg_net/);
- assert.match(guide,/vault\\.create_secret/);
- assert.match(guide,/\\* \\* \\* \\* \\*/);
+ for(const phrase of ["Supabase Cron","pg_cron","pg_net","vault.create_secret","* * * * *"]) assert.ok(guide.includes(phrase),`Missing scheduling instruction: ${phrase}`);
  const handler=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(handler,/authorization/);
  assert.match(handler,/CRON_SECRET/);
