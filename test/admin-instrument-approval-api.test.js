@@ -8,7 +8,7 @@ test("instrument administration requires a verified bearer session and ADMIN rol
   assert.match(api, /req\.headers\.authorization/);
   assert.match(api, /db\.auth\.getUser\(/);
   assert.match(api, /from\("traderwin_admin_roles"\)/);
-  assert.match(api, /role\?\.role !== "ADMIN"/);
+  assert.match(api, /toUpperCase\(\) !== "ADMIN"/);
   assert.match(api, /return res\.status\(403\)/);
 });
 
@@ -36,6 +36,6 @@ test("approval and disable actions require a reason and exact provider mapping",
 });
 
 test("support and analyst roles cannot approve instruments", () => {
-  assert.match(api, /role\?\.role !== "ADMIN"/);
+  assert.match(api, /toUpperCase\(\) !== "ADMIN"/);
   assert.match(api, /Only platform administrators can manage approved instruments/);
 });
