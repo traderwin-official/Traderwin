@@ -176,12 +176,12 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <h2 class="section-title">Young Tiger FX <span>Trading Centre</span></h2>
 
  <div class="notice" id="botModeSafetyNotice">
-  Your selected account mode is being checked. Saving bot preferences does not connect to a broker or place trades. Automation remains OFF until a separate, tested broker integration is authorized.
+  DEMO automation uses virtual paper trades and verified market data only. REAL broker execution remains separately locked and is never enabled by saving preferences or starting a DEMO session.
  </div>
 
  <div class="card" style="margin-top:15px">
   <h3>⚙️ Personal Trading Preferences</h3>
-  <p class="muted">Set your preferred market and risk preferences. Website DEMO positions are opened manually from the trading panel; no standalone bot or external terminal is required.</p>
+  <p class="muted">Set your DEMO market, timeframe and strategy. You can trade manually on the website or let the DEMO paper bot execute your saved strategy automatically. The standalone MT5 bot is a separate product.</p>
 
   <form id="botSetupForm">
    <div class="field">
@@ -258,7 +258,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <h3>Website DEMO Trading</h3>
   <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss and take-profit, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
   <p class="status" id="demoSessionStatus">Session: Not started</p>
-  <p class="muted" id="demoWorkerHealth">Manual website trading is active; background automation is not required.</p>
+  <div class="field"><label for="demoExecutionMode">How should your DEMO account trade?</label><select id="demoExecutionMode"><option value="MANUAL">Manual — I choose and manage each trade</option><option value="AUTO">Automated — bot trades my saved strategy</option></select></div>
+  <p class="muted" id="demoWorkerHealth">Choose Manual or Automated DEMO. Automated mode needs saved Deriv strategy settings and a healthy scheduled worker.</p>
   <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh DEMO status</button>
   <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
   <button type="button" id="startDemoSession">Start DEMO Session</button>
@@ -1069,18 +1070,18 @@ calculateRisk();
    startDemo.addEventListener("click",async()=>{
     startDemo.disabled=true;demoMessage.textContent="Starting your website DEMO trading session...";
     try{
-     const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim()});
+     const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim(),executionMode:document.getElementById("demoExecutionMode").value});
      activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
      showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-     stopDemo.disabled=false;recordPaper.disabled=false;demoMessage.textContent=r.message;
+     stopDemo.disabled=false;recordPaper.disabled=false;document.getElementById("demoExecutionMode").disabled=true;demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
    });
    stopDemo.addEventListener("click",async()=>{
     stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
-     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";demoMessage.textContent=r.message;
+     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
    });
    recordPaper.addEventListener("click",async()=>{
@@ -1178,6 +1179,8 @@ calculateRisk();
       demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
       const running=r.session.status==="RUNNING";
+      document.getElementById("demoExecutionMode").value=r.session.strategy==="MANUAL"?"MANUAL":"AUTO";
+      document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
       startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
       stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
       demoMessage.textContent="Your existing DEMO session has been restored. The scheduled Smart Auto worker manages bot-originated trades only; manual paper positions remain under your control.";
