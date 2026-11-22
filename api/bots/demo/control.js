@@ -9,7 +9,7 @@ export default async function handler(req,res){
  if(!h.startsWith("Bearer "))return res.status(401).json({error:"Sign in is required."});
  const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
  try{
-  const b=typeof req.body==="string"?JSON.parse(req.body):(req.body||{}),action=String(b.action||"").toUpperCase();
+  const b=typeof req.body==="string"?JSON.parse(req.body):(req.body||{}),action=String(b.action||"").toUpperCase(),requestedInstrument=String(b.instrument||"").trim().toUpperCase();
   if(!["START","STOP","STATUS"].includes(action))return res.status(400).json({error:"Choose START, STOP or STATUS."});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());
   if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
@@ -30,20 +30,18 @@ export default async function handler(req,res){
   if(action==="START"){
    const {data:p,error:pe}=await db.from("trader_profiles").select("account_mode,max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).maybeSingle();
    if(pe||!p)return res.status(409).json({error:"Complete your account setup first."});
-   if(p.account_mode!=="DEMO")return res.status(403).json({error:"Paper automation is DEMO-only. REAL execution is not available through this route."});
-   const {data:s,error:se}=await db.from("bot_settings").select("broker,instrument,account_mode,timeframe,strategy,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions").eq("user_id",uid).maybeSingle();
-   if(se||!s)return res.status(409).json({error:"Save your bot preferences first."});
-   if(s.account_mode!=="DEMO"||String(s.broker||"").toUpperCase()!=="DERIV")return res.status(403).json({error:"The unattended paper worker currently supports verified Deriv DEMO data only."});
-   if(!["MULTI_CONFIRMATION_V1","TIGER_FIBONACCI_PSYCHOLOGY_V1"].includes(s.strategy))return res.status(409).json({error:"Choose a validated automated strategy."});
-   const timeframe=String(s.timeframe||"M15").toUpperCase();
-   if(!["M5","M15","H1","H4"].includes(timeframe))return res.status(409).json({error:"Choose M5, M15, H1 or H4."});
+   if(p.account_mode!=="DEMO")return res.status(403).json({error:"Manual paper trading is DEMO-only. REAL execution is not available through this route."});
+   if(!/^[A-Z0-9_]{2,24}$/.test(requestedInstrument))return res.status(400).json({error:"Choose a supported instrument before starting your DEMO session."});
+   if(latest&&["RUNNING","PAUSED"].includes(latest.status)&&String(latest.instrument).toUpperCase()!==requestedInstrument)
+    return res.status(409).json({error:"Stop your current DEMO session before changing its instrument."});
    const {data:modeProfile,error:modeError}=await db.from("bot_mode_profiles").select("max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("account_mode","DEMO").maybeSingle();
    if(modeError)return res.status(503).json({error:"Could not verify DEMO risk preferences."});
-   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(s.max_risk_per_trade_pct),Number(modeProfile?.max_risk_per_trade_pct||p.max_risk_per_trade_pct));
+   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.max_risk_per_trade_pct||p.max_risk_per_trade_pct));
    const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss_pct||p.max_daily_loss_pct));
    if(!Number.isFinite(risk)||risk<=0||risk>2||!Number.isFinite(daily)||daily<=0||daily>10)return res.status(409).json({error:"Your saved risk limits are invalid."});
-   const maxOpenPositions=Math.max(1,Math.min(10,Math.floor(Number(s.max_open_positions)||3)));
-    const brokerAccountRef="DEMO:"+uid;
+   const maxOpenPositions=3;
+   const timeframe="M15";
+   const brokerAccountRef="DEMO:"+uid;
    const {data:emergency,error:emergencyError}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",brokerAccountRef).maybeSingle();
    if(emergencyError)return res.status(503).json({error:"Could not verify the DEMO emergency stop."});
    const {data:legacyEmergency,error:legacyEmergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",brokerAccountRef).maybeSingle();
@@ -69,13 +67,13 @@ export default async function handler(req,res){
    if(orphanError)return res.status(503).json({error:"Could not verify existing DEMO positions."});
    if(orphanOpen?.length)return res.status(409).json({error:"Close your existing open DEMO paper position before starting a new session."});
    const {data:session,error}=await db.from("demo_paper_sessions").insert({
-    user_id:uid,broker:"DERIV",broker_account_ref:brokerAccountRef,instrument:s.instrument,
-    strategy:s.strategy,timeframe,status:"RUNNING",starting_balance:10000,current_balance:10000,
+    user_id:uid,broker:"DERIV",broker_account_ref:brokerAccountRef,instrument:requestedInstrument,
+    strategy:"MANUAL",timeframe,status:"RUNNING",starting_balance:10000,current_balance:10000,
     risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:maxOpenPositions,max_total_open_risk_pct:2.00,
-     config_snapshot:{broker:s.broker,instrument:s.instrument,strategy:s.strategy,timeframe,account_mode:"DEMO"}
+     config_snapshot:{broker:"DERIV_PUBLIC_MARKET_DATA",instrument:requestedInstrument,strategy:"MANUAL",timeframe,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY"}
    }).select("*").single();
    if(error||!session){console.error("DEMO paper session start:",error?.message);return res.status(409).json({error:"Could not create the DEMO paper session."});}
-   return res.status(201).json({ok:true,session,message:"DEMO paper automation started. Orders, balance and P&L are virtual; no broker orders are sent."});
+   return res.status(201).json({ok:true,session,message:"Website DEMO trading session started. Open and close virtual positions here; no broker orders or real money are involved."});
   }
   if(!latest||!["RUNNING","PAUSED"].includes(latest.status))return res.status(200).json({ok:true,session:latest,message:"No active DEMO session is running."});
   const {data:openTrade,error:tradeError}=await db.from("demo_paper_trades").select("id,trade_origin").eq("session_id",latest.id).eq("user_id",uid).eq("status","OPEN").eq("trade_origin","BOT").maybeSingle();
