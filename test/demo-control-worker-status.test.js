@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 test("DEMO control creates and manages isolated v2 paper sessions",async()=>{
- const s=await readFile(new URL("../api/bots/demo/control.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);
  assert.match(s,/demo_paper_worker_heartbeats/);assert.match(s,/strategy:"MANUAL"/);
  assert.match(s,/timeframe="M15"/);assert.match(s,/broker:"DERIV"/);
@@ -15,7 +15,7 @@ test("dashboard still exposes timeframe, validated strategy and worker health",a
 });
 
 test("DEMO status returns all open positions while preserving the legacy primary openTrade field",async()=>{
- const s=await readFile(new URL("../api/bots/demo/control.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
  assert.match(s,/data:openTrades/);
  assert.match(s,/order\("opened_at",\{ascending:false\}\)/);
  assert.match(s,/openTrades:compatibleTrades/);
@@ -23,7 +23,7 @@ test("DEMO status returns all open positions while preserving the legacy primary
  assert.match(s,/eq\("trade_origin","BOT"\)\.maybeSingle\(\)/);
 });
 test("DEMO sessions persist a bounded multi-position count and aggregate risk ceiling",async()=>{
- const s=await readFile(new URL("../api/bots/demo/control.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
  assert.match(s,/max_open_positions/);
  assert.match(s,/const maxOpenPositions=3/);
  assert.match(s,/max_total_open_risk_pct:2\.00/);
