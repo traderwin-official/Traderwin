@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 test("manual DEMO permission API requires an authenticated DEMO session and explicit booleans", async () => {
-  const source = await readFile(new URL("../api/bots/demo/portfolio-permissions.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../handlers/bots/demo/portfolio-permissions.js", import.meta.url), "utf8");
   assert.match(source, /auth\.getUser/);
   assert.match(source, /profile\.account_mode!=="DEMO"/);
   assert.match(source, /monitorManualTrades/);
