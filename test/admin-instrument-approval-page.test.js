@@ -9,7 +9,7 @@ test("admin instrument approvals use authenticated server-side authorization", a
   assert.match(page, /getSession\(\)/);
   assert.match(page, /Owner-approved for initial website DEMO trading/);
   assert.match(api, /traderwin_admin_roles/);
-  assert.match(api, /role\?\.role !== "ADMIN"/);
+  assert.match(api, /toUpperCase\(\) !== "ADMIN"/);
   assert.doesNotMatch(page, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
