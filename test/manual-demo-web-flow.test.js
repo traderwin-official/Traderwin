@@ -18,6 +18,14 @@ test("manual website DEMO entries use the session risk limits and no external bo
   assert.doesNotMatch(route, /from\("bot_settings"\)/);
 });
 
+test("manual DEMO quote checks enforce stop-loss and take-profit using an atomic virtual close", async () => {
+  const route = await readFile(new URL("../api/bots/demo/mark.js", import.meta.url), "utf8");
+  assert.match(route, /stopHit/);
+  assert.match(route, /targetHit/);
+  assert.match(route, /close_demo_paper_trade/);
+  assert.match(route, /p_reason:reason/);
+});
+ 
 test("public dashboard presents website manual DEMO trading, not a standalone bot storefront", async () => {
   const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(page, /Website DEMO Trading/);
