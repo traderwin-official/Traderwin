@@ -46,12 +46,12 @@ export default async function handler(req,res){
     if(botSettingsError)return res.status(503).json({error:"Could not verify your saved automated strategy settings."});
     if(!botSettings)return res.status(409).json({error:"Save your DEMO bot settings before starting automated trading."});
     const savedBroker=String(botSettings.broker||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
-    const savedInstrument=String(botSettings.instrument||"").trim().toUpperCase().replace(/[\\s/.-]/g,"");
+    const savedInstrument=String(botSettings.instrument||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
     selectedStrategy=String(botSettings.strategy||"").trim().toUpperCase();
     timeframe=String(botSettings.timeframe||"M15").trim().toUpperCase();
     if(botSettings.account_mode!=="DEMO"||savedBroker!=="DERIV")
      return res.status(403).json({error:"Website automated DEMO currently supports verified Deriv market data only. Select Deriv and DEMO in your saved bot settings."});
-    if(!savedInstrument||savedInstrument!==requestedInstrument.replace(/[\\s/.-]/g,""))
+    if(!savedInstrument||savedInstrument!==requestedInstrument.replace(/[\s/.-]/g,""))
      return res.status(409).json({error:"The DEMO instrument must match your saved bot instrument. Update your bot settings or select the matching instrument."});
     if(!["M5","M15","H1","H4"].includes(timeframe))
      return res.status(400).json({error:"Choose a supported automated timeframe: M5, M15, H1 or H4."});
