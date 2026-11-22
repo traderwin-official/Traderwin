@@ -2,13 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 test("DEMO worker uses cron authorization, v2 lease and never sends broker orders",async()=>{
- const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(s,/CRON_SECRET/);assert.match(s,/claim_demo_paper_worker/);assert.match(s,/release_demo_paper_worker/);
  assert.match(s,/p_lease_seconds:90/);assert.match(s,/eq\("trade_origin","BOT"\)/);assert.match(s,/realOrdersSent:0/);
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);assert.match(s,/neq\("strategy","MANUAL"\)/);
 });
 test("worker processes DEMO sessions only and respects paused, risk-lock and emergency stop",async()=>{
- const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(s,/\["RUNNING","PAUSED","RISK_LOCKED"\]/);assert.match(s,/entries_blocked/);
  assert.match(s,/\(emergency\?\.entries_blocked\|\|legacyEmergency\?\.kill_switch_active\)&&!openTrade/);
  assert.match(s,/eq\("trade_origin","BOT"\)/);
@@ -29,13 +29,13 @@ test("staged exits preserve TP1 40 percent, TP2 30 percent and TP3 remainder",as
  assert.match(sql,/status='CLOSED' and remaining_quantity=0/);
 });
 test("manual close uses v2 atomic close and verified quote",async()=>{
- const route=await readFile(new URL("../api/bots/demo/close.js",import.meta.url),"utf8");
+ const route=await readFile(new URL("../handlers/bots/demo/close.js",import.meta.url),"utf8");
  assert.match(route,/demo_paper_trades/);assert.match(route,/close_demo_paper_trade/);
  assert.match(route,/p_exit_price:q\.quote/);assert.match(route,/getDerivQuoteToUsd/);
 });
 
 test("DEMO worker selects only the BOT slot so multiple MANUAL positions cannot break its single-position decision path",async()=>{
- const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(s,/eq\("trade_origin","BOT"\)\.maybeSingle\(\)/);
  assert.doesNotMatch(s,/MANUAL_POSITION_NOT_MANAGED/);
 });
@@ -52,7 +52,7 @@ test("multi-position v3 keeps one BOT worker slot while permitting additional ma
 });
 
 test("scheduled DEMO worker runs the account-wide portfolio giveback guard under its existing lease",async()=>{
- const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(s,/runDemoPortfolioProtection/);
  assert.match(s,/portfolioProtection/);
  assert.match(s,/mode:"DEMO_PAPER_ONLY",realOrdersSent:0/);
@@ -72,14 +72,14 @@ test("worker scheduling is delegated to Supabase Cron, not Vercel Hobby schedule
  assert.equal(config.schedules,undefined);
  const guide=await readFile(new URL("../docs/DEMO_WORKER_SCHEDULING.md",import.meta.url),"utf8");
  for(const phrase of ["Supabase Cron","pg_cron","pg_net","vault.create_secret","* * * * *"]) assert.ok(guide.includes(phrase),`Missing scheduling instruction: ${phrase}`);
- const handler=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ const handler=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
  assert.match(handler,/authorization/);
  assert.match(handler,/CRON_SECRET/);
  assert.ok(handler.includes("CRON_SECRET.length<32"));
 });
 
 test("new BOT entries re-fetch the Deriv quote and emergency controls immediately before the atomic paper open",async()=>{
- const s=await readFile(new URL("../api/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
  const openBlock=s.slice(s.indexOf('if(decision.action==="OPEN")'));
  assert.match(openBlock,/getDerivPublicQuote\(raw\.instrument\)/);
  assert.match(openBlock,/getDerivQuoteToUsd\(raw\.instrument,entryQuote\)/);
@@ -91,7 +91,7 @@ test("new BOT entries re-fetch the Deriv quote and emergency controls immediatel
 });
 
 test("manual DEMO entries refresh the quote, recalculate size, and recheck both emergency controls before RPC",async()=>{
- const s=await readFile(new URL("../api/bots/demo/trade.js",import.meta.url),"utf8");
+ const s=await readFile(new URL("../handlers/bots/demo/trade.js",import.meta.url),"utf8");
  const rpc=s.slice(s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"'));
  const finalCheck=s.slice(s.indexOf("// Refresh server-owned market"));
  assert.match(finalCheck,/finalQuote=await getDerivPublicQuote\(symbol\)/);
