@@ -12,7 +12,7 @@ test("REAL subscription migration stores the agreed first and renewal prices", a
 });
 
 test("M-Pesa checkout calculates KES server-side from the service catalogue and paid history", async () => {
-  const source = await readFile(new URL("../api/payments/mpesa/stk-push.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../handlers/payments/mpesa/stk-push.js", import.meta.url), "utf8");
   assert.match(source, /fetchUsdKesRate/);
   assert.match(source, /buildCheckoutPrice/);
   assert.match(source, /\.eq\("status", "PAID"\)/);
@@ -22,7 +22,7 @@ test("M-Pesa checkout calculates KES server-side from the service catalogue and 
 });
 
 test("subscription status never treats payment as live-trading authorization", async () => {
-  const source = await readFile(new URL("../api/subscriptions/status.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../handlers/subscriptions/status.js", import.meta.url), "utf8");
   assert.match(source, /realExecutionAuthorized: false/);
   assert.match(source, /renewalMode: "MANUAL"/);
   assert.match(source, /evaluateSubscriptionWindow/);
@@ -33,7 +33,7 @@ test("subscription status never treats payment as live-trading authorization", a
 });
 
 test("early manual renewal extends the existing subscription expiry", async () => {
-  const source = await readFile(new URL("../api/payments/mpesa/callback.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../handlers/payments/mpesa/callback.js", import.meta.url), "utf8");
   assert.match(source, /existingSubscription\.ends_at/);
   assert.match(source, /const startsAt = existingEnd && existingEnd > now \? existingEnd : now/);
 });
