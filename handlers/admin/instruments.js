@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       console.error("Instrument admin role lookup failed:", { code: roleError.code || null });
       return res.status(503).json({ error: "Could not verify administrator permissions." });
     }
-    if (role?.role !== "ADMIN") {
+    if (String(role?.role || "").trim().toUpperCase() !== "ADMIN") {
       return res.status(403).json({ error: "Only platform administrators can manage approved instruments." });
     }
 
