@@ -11,6 +11,18 @@ test("website DEMO session starts from the selected instrument without bot setti
   assert.match(route, /from\("bot_settings"\)/);
 });
 
+test("DEMO dashboard timeframe selector supports M5 M15 H1 H4 and sends selection to session API", async () => {
+  const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const route = await readFile(new URL("../handlers/bots/demo/control.js", import.meta.url), "utf8");
+  assert.match(page, /id="demoTimeframe"/);
+  for (const timeframe of ["M5", "M15", "H1", "H4"]) assert.match(page, new RegExp('value="' + timeframe + '"'));
+  assert.match(page, /timeframe:document\.getElementById\("demoTimeframe"\)\.value/);
+  assert.match(page, /intervalByTimeframe=\{M5:"5",M15:"15",H1:"60",H4:"240"\}/);
+  assert.match(route, /requestedTimeframe=String\(b\.timeframe\|\|"M15"\)/);
+  assert.match(route, /timeframe=requestedTimeframe/);
+  assert.match(route, /latest\.timeframe!==timeframe/);
+});
+
 test("manual website DEMO entries use the session risk limits and no external bot settings", async () => {
   const route = await readFile(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
   assert.match(route, /from\("demo_paper_sessions"\)/);
