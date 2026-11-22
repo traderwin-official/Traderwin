@@ -20,7 +20,7 @@ test("decrypts only authenticated AES-256-GCM token envelopes", () => {
 });
 
 test("Deriv account snapshot route is authenticated, selected-DEMO scoped and read-only", async () => {
-  const route = await readFile(new URL("../api/deriv/account-snapshot.js", import.meta.url), "utf8");
+  const route = await readFile(new URL("../handlers/deriv/account-snapshot.js", import.meta.url), "utf8");
   const websocket = await readFile(new URL("../lib/deriv/account-snapshot-websocket.js", import.meta.url), "utf8");
   assert.match(route, /auth\.getUser/);
   assert.match(route, /encrypted_access_token/);
