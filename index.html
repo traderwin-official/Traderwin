@@ -196,6 +196,50 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   DEMO automation uses virtual paper trades and verified market data only. REAL broker execution remains separately locked and is never enabled by saving preferences or starting a DEMO session.
  </div>
 
+ <div class="card" id="demoSimulator" style="margin-top:15px">
+  <h3>Website DEMO Trading</h3>
+  <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss and take-profit, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
+  <p class="status" id="demoSessionStatus">Session: Not started</p>
+  <div class="field"><label for="demoExecutionMode">How should your DEMO account trade?</label><select id="demoExecutionMode"><option value="MANUAL">Manual — I choose and manage each trade</option><option value="AUTO">Automated — bot trades my saved strategy</option></select></div>
+  <p class="muted" id="demoWorkerHealth">Choose Manual or Automated DEMO. Automated mode needs saved Deriv strategy settings and a healthy scheduled worker.</p>
+  <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh DEMO status</button>
+  <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
+  <button type="button" id="startDemoSession">Start DEMO Session</button>
+  <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
+  <p id="demoSessionMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <div class="field"><label for="paperDirection">Direction</label><select id="paperDirection"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
+   <div class="field"><label for="paperSymbol">Trading instrument</label><input id="paperSymbol" list="paperInstrumentOptions" maxlength="24" value="XAUUSD" placeholder="XAUUSD"><datalist id="paperInstrumentOptions"><option value="XAUUSD"><option value="XAGUSD"><option value="EURUSD"><option value="GBPUSD"><option value="USDJPY"><option value="AUDUSD"><option value="USDCAD"><option value="USDCHF"><option value="NZDUSD"><option value="BTCUSD"><option value="ETHUSD"><option value="R_10"><option value="R_25"><option value="R_50"><option value="R_75"><option value="R_100"></datalist></div>
+  </div>
+  <div class="grid">
+   <div class="field"><label>Entry price</label><input value="Fetched securely from Deriv when you open the paper position" readonly></div>
+   <div class="field"><label for="paperStop">Stop-loss</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal"></div>
+   <div class="field"><label for="paperTarget">Take-profit</label><input id="paperTarget" type="number" step="any" min="0" inputmode="decimal"></div>
+  </div>
+  <button type="button" id="recordPaperTrade" disabled>Open DEMO Position at Live Quote</button>
+  <p id="paperTradeMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="field"><label for="paperOpenPositionSelect">Select an open DEMO position</label><select id="paperOpenPositionSelect"><option value="">No open positions</option></select></div>
+  <div class="grid">
+   <div class="field"><label for="paperTradeId">Selected paper trade ID</label><input id="paperTradeId" placeholder="Choose a position above or enter its ID"></div>
+   <div class="field"><label>Closing price</label><input value="Fetched securely from Deriv when you close" readonly></div>
+  </div>
+  <button type="button" class="secondary" id="closePaperTrade" disabled>Close at Latest Verified Quote</button>
+  <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <p class="muted">The optional combined DEMO portfolio guard activates at USD 20 peak unrealised profit and protects 80% of the peak. It is separate from manual entries and requires its own tested server-side monitoring setup. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
+  </div>
+  <button type="button" class="secondary" id="markPaperTrade" disabled>Check Live Quote &amp; SL/TP</button>
+  <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="card" style="margin-top:12px">
+   <h4>Manual position portfolio protection</h4>
+   <p class="muted">Automatic BOT positions are included in the combined DEMO profit guard by default. Manual positions are excluded unless you opt in below. Monitoring and permission to automatically close manual positions are separate choices.</p>
+   <label class="field"><input id="monitorManualTrades" type="checkbox"> Include my manual DEMO positions in combined portfolio monitoring</label>
+   <label class="field"><input id="closeManualTrades" type="checkbox" disabled> Allow the portfolio guard to automatically close my manual DEMO positions after the 20% giveback trigger</label>
+   <button type="button" class="secondary" id="saveDemoPortfolioPermissions">Save manual-position permissions</button>
+   <p id="demoPortfolioPermissionMessage" class="muted" role="status" aria-live="polite"></p>
+  </div>
+ </div>
+
  <div class="card" style="margin-top:15px">
   <h3>⚙️ Personal Trading Preferences</h3>
   <p class="muted">Set your DEMO market, timeframe and strategy. You can trade manually on the website or let the DEMO paper bot execute your saved strategy automatically. The standalone MT5 bot is a separate product.</p>
@@ -272,49 +316,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <p class="notice">REAL EXECUTION: LOCKED. This screen cannot enable live orders. A verified broker connection and a separate server-side approval are required.</p>
  </div>
 
- <div class="card" id="demoSimulator" style="margin-top:15px">
-  <h3>Website DEMO Trading</h3>
-  <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss and take-profit, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
-  <p class="status" id="demoSessionStatus">Session: Not started</p>
-  <div class="field"><label for="demoExecutionMode">How should your DEMO account trade?</label><select id="demoExecutionMode"><option value="MANUAL">Manual — I choose and manage each trade</option><option value="AUTO">Automated — bot trades my saved strategy</option></select></div>
-  <p class="muted" id="demoWorkerHealth">Choose Manual or Automated DEMO. Automated mode needs saved Deriv strategy settings and a healthy scheduled worker.</p>
-  <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh DEMO status</button>
-  <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
-  <button type="button" id="startDemoSession">Start DEMO Session</button>
-  <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
-  <p id="demoSessionMessage" class="muted" role="status" aria-live="polite"></p>
-  <div class="grid">
-   <div class="field"><label for="paperDirection">Direction</label><select id="paperDirection"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
-   <div class="field"><label for="paperSymbol">Trading instrument</label><input id="paperSymbol" list="paperInstrumentOptions" maxlength="24" value="XAUUSD" placeholder="XAUUSD"><datalist id="paperInstrumentOptions"><option value="XAUUSD"><option value="XAGUSD"><option value="EURUSD"><option value="GBPUSD"><option value="USDJPY"><option value="AUDUSD"><option value="USDCAD"><option value="USDCHF"><option value="NZDUSD"><option value="BTCUSD"><option value="ETHUSD"><option value="R_10"><option value="R_25"><option value="R_50"><option value="R_75"><option value="R_100"></datalist></div>
-  </div>
-  <div class="grid">
-   <div class="field"><label>Entry price</label><input value="Fetched securely from Deriv when you open the paper position" readonly></div>
-   <div class="field"><label for="paperStop">Stop-loss</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal"></div>
-   <div class="field"><label for="paperTarget">Take-profit</label><input id="paperTarget" type="number" step="any" min="0" inputmode="decimal"></div>
-  </div>
-  <button type="button" id="recordPaperTrade" disabled>Open DEMO Position at Live Quote</button>
-  <p id="paperTradeMessage" class="muted" role="status" aria-live="polite"></p>
-  <div class="field"><label for="paperOpenPositionSelect">Select an open DEMO position</label><select id="paperOpenPositionSelect"><option value="">No open positions</option></select></div>
-  <div class="grid">
-   <div class="field"><label for="paperTradeId">Selected paper trade ID</label><input id="paperTradeId" placeholder="Choose a position above or enter its ID"></div>
-   <div class="field"><label>Closing price</label><input value="Fetched securely from Deriv when you close" readonly></div>
-  </div>
-  <button type="button" class="secondary" id="closePaperTrade" disabled>Close at Latest Verified Quote</button>
-  <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
-  <div class="grid">
-   <p class="muted">The optional combined DEMO portfolio guard activates at USD 20 peak unrealised profit and protects 80% of the peak. It is separate from manual entries and requires its own tested server-side monitoring setup. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
-  </div>
-  <button type="button" class="secondary" id="markPaperTrade" disabled>Check Live Quote &amp; SL/TP</button>
-  <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
-  <div class="card" style="margin-top:12px">
-   <h4>Manual position portfolio protection</h4>
-   <p class="muted">Automatic BOT positions are included in the combined DEMO profit guard by default. Manual positions are excluded unless you opt in below. Monitoring and permission to automatically close manual positions are separate choices.</p>
-   <label class="field"><input id="monitorManualTrades" type="checkbox"> Include my manual DEMO positions in combined portfolio monitoring</label>
-   <label class="field"><input id="closeManualTrades" type="checkbox" disabled> Allow the portfolio guard to automatically close my manual DEMO positions after the 20% giveback trigger</label>
-   <button type="button" class="secondary" id="saveDemoPortfolioPermissions">Save manual-position permissions</button>
-   <p id="demoPortfolioPermissionMessage" class="muted" role="status" aria-live="polite"></p>
-  </div>
- </div>
+
 
  <div class="grid" style="margin-top:15px">
 
