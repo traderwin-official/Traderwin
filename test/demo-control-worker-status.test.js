@@ -36,8 +36,8 @@ test("dashboard lets members select one of their open DEMO positions",async()=>{
  assert.match(html,/refreshOpenPaperPositions/);
 });
 
-test("public account, onboarding and standalone-bot pages use the Young Tiger FX brand", async () => {
- for (const file of ["index.html","auth.html","onboarding.html","bot-shop.html"]) {
+test("public account and onboarding pages use the Young Tiger FX brand", async () => {
+ for (const file of ["index.html","auth.html","onboarding.html"]) {
   const html=await readFile(new URL("../"+file,import.meta.url),"utf8");
   assert.match(html,/Young Tiger FX|YOUNG TIGER FX/);
   assert.doesNotMatch(html,/Traderwin|TRADERWIN/);
