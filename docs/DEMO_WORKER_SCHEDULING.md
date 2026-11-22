@@ -44,7 +44,7 @@ If your production domain changes, update the URL secret using its Vault secret 
 
 ## 4. Schedule one worker invocation every minute
 
-Run this in Supabase SQL Editor after migration 016 and after the Vercel deployment is live:
+Run this in Supabase SQL Editor only after the additive migrations `202611200001` through `202611200006` and `202611210001` have been reviewed, applied to the intended project, and verified; the production worker route must also be deployed.
 
 ```sql
 select cron.schedule(
@@ -109,8 +109,8 @@ Finally, sign in to Traderwin, start a Deriv DEMO session using the validated Mu
 
 - The worker only reads Deriv market data and writes virtual DEMO ledger records.
 - It does not send broker orders or manage REAL positions.
-- Manual paper positions are deliberately excluded from automatic management.
-- It currently supports a limited Deriv symbol set and one BOT-originated open position per DEMO session.
+- Manual paper positions are included in combined monitoring only when the member explicitly enables monitoring; automatic closing requires the separate manual-close permission.
+- It currently supports a limited approved Deriv symbol set and one BOT-originated open position per DEMO session, alongside bounded MANUAL paper positions.
 - If the worker heartbeat is missing, stale, or reports an error, do not assume automation is running. Stop the DEMO session while investigating.
 
 
@@ -120,7 +120,7 @@ A session marked `RISK_LOCKED` must not open another position. If it still has a
 
 Daily realized loss includes each partial TP/stop realization on the Nairobi calendar date when that stage is recorded. A manual DEMO close is committed through one atomic database function so the trade status, cumulative realized P&L, virtual balance and daily risk lock cannot drift apart.
 
-The supporting migration `202611160001_demo_daily_loss_partial_realizations.sql` is part of the pending quality pull request. Do not assume it is installed until the migration has been reviewed and applied to the correct Supabase project.
+The additive migration `202611210001_demo_paper_daily_realization_events.sql` records partial-realization deltas in the isolated v2 paper ledger. Do not assume it is installed until it has been reviewed and applied to the correct Supabase project.
 
 
 ## USD-normalized DEMO P&L

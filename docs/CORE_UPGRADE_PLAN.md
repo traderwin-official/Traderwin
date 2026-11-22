@@ -1,6 +1,6 @@
 # Young Tiger Forex Platform — upgrade readiness
 
-This document describes the isolated `upgrade/full-platform-build` branch. It is not the live production deployment. PR #3 remains a draft and unmerged. No production Supabase migration or Vercel deployment has been performed during this work.
+This document describes the isolated integration branch `integration/young-tiger-platform` and its draft PR #33. It is not the live production deployment. No production Supabase migration or production Vercel deployment has been performed.
 
 ## Current verified progress
 
@@ -16,8 +16,8 @@ This document describes the isolated `upgrade/full-platform-build` branch. It is
 - The combined DEMO portfolio giveback monitor is connected to the worker endpoint. It tracks the highest simultaneous combined unrealized USD P&L snapshot, activates at USD 20, and protects 80% of that peak. It does not sum independent position highs from different times.
 - Automatic BOT positions are included by default for DEMO. MANUAL positions are excluded until the member explicitly enables monitoring; automatic closing of manual positions requires a separate explicit permission.
 - Portfolio closes use a server-only RPC that locks the permission row, checks the exact instrument and account, and stores an idempotency key. Manual permission revocation and portfolio closing serialize safely.
-- `vercel.json` declares a Vercel Schedule that calls `POST /api/cron/demo-auto-worker` every 15 minutes. The route requires a server-side `CRON_SECRET` of at least 32 characters.
-- GitHub Actions is configured to validate JavaScript tests, serverless syntax, inline page scripts, the isolated DEMO/portfolio migrations against disposable PostgreSQL 16, and SQL integration scripts. The latest Deriv account-selection additions still require a fresh confirmed CI run; do not treat the previous 189-test result as validation of these additions.
+- The DEMO worker is invoked by Supabase Cron through `pg_net` and Supabase Vault. The Vercel deployment only hosts `/api/cron/demo-auto-worker`; it does not run a second Vercel Cron schedule. The route requires a server-side `CRON_SECRET` of at least 32 characters.
+- GitHub Actions has passed JavaScript tests, serverless syntax checks, inline page-script checks, and the isolated DEMO/portfolio migration and SQL integration checks against disposable PostgreSQL 16 at the current integration checkpoint. This does not verify the live Supabase Auth/PostgREST/RLS environment.
 
 ## Current limitations — not yet operational
 
@@ -25,7 +25,7 @@ This document describes the isolated `upgrade/full-platform-build` branch. It is
 - The DEMO worker is Deriv-only and supports instruments for which a verified USD conversion exists. It currently allows one BOT strategy position per session plus multiple MANUAL virtual positions; multiple simultaneous BOT instruments are not yet supported.
 - Manual positions currently mean MANUAL virtual trades recorded in the DEMO paper ledger. The monitor does not yet import manually opened positions from a live Deriv or MT5 account.
 - The combined giveback monitor is DEMO-only. It does not send broker orders. REAL portfolio monitoring and closing remain locked until secure Deriv/MT5 account-position adapters and live close permissions are independently tested.
-- The Vercel Schedule is configured in source but is not active in production until this branch is deployed. On Hobby, the schedule has a 15-minute jitter window; actual invocations can arrive up to 15 minutes after the scheduled time. This cadence is for DEMO validation only, not a REAL trading execution clock.
+- Supabase Cron scheduling is not active until the owner configures `pg_cron`, `pg_net`, Vault secrets and the scheduled job in the target Supabase project. Do not create a parallel Vercel Cron job. The worker is DEMO-only and is not a REAL trading execution clock.
 - The dashboard has CI/static validation but still needs browser preview testing against a disposable Supabase environment.
 - MT5 account connection, quotes and execution are not connected.
 - Daraja production credentials, callback URL, webhook verification and merchant approval are not confirmed.
@@ -51,27 +51,29 @@ Apply these only to a disposable Supabase project after verifying that the exist
 3. `supabase/migrations/202611200003_demo_multi_position_v3.sql`
 4. `supabase/migrations/202611200004_demo_portfolio_close_authorization.sql`
 5. `supabase/migrations/202611200005_deriv_verified_account_selection.sql`
+6. `supabase/migrations/202611200006_trading_instrument_approval_registry.sql`
+7. `supabase/migrations/202611210001_demo_paper_daily_realization_events.sql`
 
 Do not apply the historical branch migrations 005–016 to production. Never drop or rename existing production tables or columns to force compatibility. The disposable PostgreSQL CI bootstrap is a validation fixture, not a substitute for a disposable Supabase project.
 
 ## Required server-side environment
 
 - Supabase: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
-- Worker: `CRON_SECRET` (at least 32 random characters). Vercel Schedules path targets send it as the Authorization bearer token.
+- Worker: `CRON_SECRET` (at least 32 random characters). Supabase Cron reads the same secret from Vault and sends it as the `Authorization: Bearer ...` header through `pg_net`.
 - REAL execution: keep `REAL_EXECUTION_ENABLED` unset or `false`. The portfolio adapter also requires this server-side release switch in addition to a complete `AUTHORIZED` database record; do not set it to `true` before independent end-to-end testing and explicit owner approval.
 - Deriv: `DERIV_CLIENT_ID`, `DERIV_REDIRECT_URI`, `DERIV_OAUTH_SECRET`, `TOKEN_ENCRYPTION_KEY` (exactly 64 hex characters / 32 bytes).
 - M-Pesa: `MPESA_ENV`, `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, and optional `MPESA_TRANSACTION_TYPE`.
 
-Never paste secrets into chat, GitHub source, or browser-visible environment variables. Add them only through Vercel's server-side environment settings. Because Vercel stores the path schedule's CRON_SECRET with the current deployment, deploy after changing the secret.
+Never paste secrets into chat, GitHub source, or browser-visible environment variables. Add them only through Vercel's server-side environment settings. The worker URL and secret must be stored in Supabase Vault. Never put the secret in the URL, source code, or browser-visible variables.
 
 ## Safe release gates
 
-1. Apply the five additive migrations to a disposable Supabase project and verify Auth, RLS, PostgREST, service-role RPC behavior and the Deriv account-list/DEMO-only selection endpoints.
+1. Apply the seven additive migrations to a disposable Supabase project and verify Auth, RLS, PostgREST, service-role RPC behavior and the Deriv account-list/DEMO-only selection endpoints.
 2. Verify the new DEMO API routes and portfolio permission controls in a browser against that disposable project.
 3. Set Production Supabase and `CRON_SECRET` environment variables in Vercel.
 4. Create a preview deployment and verify public market data, virtual open/mark/partial-close/full-close, multi-position risk limits, manual permission revocation, portfolio giveback and worker lease behavior.
-5. Promote/deploy only after explicit production approval. The Vercel 15-minute schedule becomes active when the deployment becomes current in Production.
-6. Verify successful Vercel Schedule runs and worker heartbeat timestamps before enabling member DEMO automation.
+5. Promote/deploy only after explicit production approval.
+6. Configure the single Supabase Cron job, verify successful `cron.job_run_details` and `net._http_response` entries, and confirm fresh worker heartbeat timestamps before enabling member DEMO automation.
 7. Keep REAL execution disabled until secure Deriv/MT5 execution adapters, subscription enforcement, account-level risk controls, broker-native protective stops, live manual-position permission gates and independent end-to-end tests are complete.
 
 ## Product safety
