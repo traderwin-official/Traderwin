@@ -67,7 +67,8 @@ const ROUTES = {
 };
 
 export default async function handler(req, res) {
-  const pathname = String(req.url || "").split("?")[0].replace(/\\/+$/, "") || "/";
+  let pathname = String(req.url || "").split("?")[0] || "/";
+  while (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
   const route = ROUTES[pathname];
   if (!route) return res.status(404).json({ error: "API route not found." });
   return route(req, res);
