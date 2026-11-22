@@ -13,7 +13,7 @@ function mockSocket({ quote = 2345.67, epoch = 1_800_000_000, bid, ask, symbols 
       if (request.active_symbols) {
         queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({
           msg_type: "active_symbols",
-          active_symbols: symbols.map(symbol => ({ symbol }))
+          active_symbols: symbols.map(symbol => ({ underlying_symbol: symbol }))
         }) }));
       } else if (request.ticks) {
         queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({
