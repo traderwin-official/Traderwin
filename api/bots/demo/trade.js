@@ -19,16 +19,14 @@ export default async function handler(req,res){
   const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
   const uid=a.user.id;
-  const [{data:profile,error:pe},{data:session,error:se},{data:settings,error:be}]=await Promise.all([
+  const [{data:profile,error:pe},{data:session,error:se}]=await Promise.all([
    db.from("trader_profiles").select("account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle(),
-   db.from("demo_paper_sessions").select("*").eq("user_id",uid).eq("status","RUNNING").order("created_at",{ascending:false}).limit(1).maybeSingle(),
-   db.from("bot_settings").select("broker,instrument,account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle()
+   db.from("demo_paper_sessions").select("*").eq("user_id",uid).eq("status","RUNNING").order("created_at",{ascending:false}).limit(1).maybeSingle()
   ]);
   if(pe||!profile)return res.status(409).json({error:"Complete your account setup first."});
   if(profile.account_mode!=="DEMO")return res.status(403).json({error:"Paper trades are DEMO-only."});
   if(se||!session)return res.status(409).json({error:"Start your DEMO paper session first."});
-  if(be||!settings||settings.account_mode!=="DEMO"||String(settings.broker||"").toUpperCase()!=="DERIV")return res.status(403).json({error:"A verified Deriv DEMO setup is required."});
-  if(normalise(symbol)!==normalise(session.instrument)||normalise(symbol)!==normalise(settings.instrument))return res.status(400).json({error:"Symbol must match your saved DEMO instrument."});
+  if(normalise(symbol)!==normalise(session.instrument))return res.status(400).json({error:"Symbol must match the instrument selected for your website DEMO session."});
   const {data:emergency,error:ee}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle();
   if(ee)return res.status(503).json({error:"Could not verify the DEMO emergency stop."});
   const {data:legacyEmergency,error:legacyEmergencyError}=await db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",uid).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle();
@@ -41,7 +39,7 @@ export default async function handler(req,res){
   let conversion;try{conversion=await getDerivQuoteToUsd(symbol,quote);}catch(e){return res.status(503).json({error:e.message||"Fresh USD conversion unavailable."});}
   const entry=quote.quote,setupError=validatePaperSetup({direction,entry,stop,target});
   if(setupError)return res.status(400).json({error:setupError});
-  const riskPct=Math.min(Number(profile.max_risk_per_trade_pct),Number(session.risk_per_trade_pct),Number(settings.max_risk_per_trade_pct));
+  const riskPct=Math.min(Number(profile.max_risk_per_trade_pct),Number(session.risk_per_trade_pct));
   let sizing;try{sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry,stop,quoteToUsd:conversion.rate});}
   catch{return res.status(400).json({error:"Could not calculate a safe paper position size."});}
   if(!Number.isFinite(sizing.units)||sizing.units<=0||sizing.units>1e12)return res.status(400).json({error:"Paper position size is outside safe limits."});
