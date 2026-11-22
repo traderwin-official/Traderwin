@@ -65,8 +65,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <a href="#markets">Markets</a>
   <a href="#analysis">Analysis</a>
   <a href="#smart-analyst">Smart Analyst</a>
-  <a href="#bots">Bots</a>
-  <a href="/bot-shop.html">Buy Standalone Bot</a>
+  <a href="#demoSimulator">Trade DEMO</a>
   <a href="#payments">Payments</a>
   <a href="#risk">Risk</a>
   <a href="#academy">Academy</a>
@@ -173,15 +172,15 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 </section>
 
 <section id="bots">
- <h2 class="section-title">Young Tiger FX <span>Automation Centre</span></h2>
+ <h2 class="section-title">Young Tiger FX <span>Trading Centre</span></h2>
 
  <div class="notice" id="botModeSafetyNotice">
   Your selected account mode is being checked. Saving bot preferences does not connect to a broker or place trades. Automation remains OFF until a separate, tested broker integration is authorized.
  </div>
 
  <div class="card" style="margin-top:15px">
-  <h3>⚙️ Personal Bot Setup</h3>
-  <p class="muted">Choose your preferred broker and trading instrument. These settings belong to your signed-in account.</p>
+  <h3>⚙️ Personal Trading Preferences</h3>
+  <p class="muted">Set your preferred market and risk preferences. Website DEMO positions are opened manually from the trading panel; no standalone bot or external terminal is required.</p>
 
   <form id="botSetupForm">
    <div class="field">
@@ -255,8 +254,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  </div>
 
  <div class="card" id="demoSimulator" style="margin-top:15px">
-  <h3>DEMO Paper-Trading Simulator</h3>
-  <p class="muted">Virtual practice only. The Smart Auto worker is built to analyse supported Deriv DEMO instruments when invoked by the scheduler, opens virtual positions on confirmed new candles, and manages BOT positions at their stop-loss or take-profit. The combined portfolio guard tracks supported open positions using fresh Deriv quotes and USD conversion. Manual positions are excluded unless you opt in below; automatic closing requires a separate permission. Activation requires the isolated DEMO ledger and portfolio migrations, Vercel CRON_SECRET and a recurring scheduler compatible with the Vercel plan. MT5 automation is not connected. Virtual units and P/L are simplified learning estimates, not broker lot sizes or executable quotes.</p>
+  <h3>Website DEMO Trading</h3>
+  <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss and take-profit, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
   <p class="status" id="demoSessionStatus">Session: Not started</p>
   <p class="muted" id="demoWorkerHealth">Worker status: waiting for a scheduled check.</p>
   <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh worker status</button>
@@ -266,7 +265,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <p id="demoSessionMessage" class="muted" role="status" aria-live="polite"></p>
   <div class="grid">
    <div class="field"><label for="paperDirection">Direction</label><select id="paperDirection"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
-   <div class="field"><label for="paperSymbol">Instrument (saved bot symbol)</label><input id="paperSymbol" maxlength="24" placeholder="XAUUSD"></div>
+   <div class="field"><label for="paperSymbol">Trading instrument</label><input id="paperSymbol" list="paperInstrumentOptions" maxlength="24" value="XAUUSD" placeholder="XAUUSD"><datalist id="paperInstrumentOptions"><option value="XAUUSD"><option value="XAGUSD"><option value="EURUSD"><option value="GBPUSD"><option value="USDJPY"><option value="AUDUSD"><option value="USDCAD"><option value="USDCHF"><option value="NZDUSD"><option value="BTCUSD"><option value="ETHUSD"><option value="R_10"><option value="R_25"><option value="R_50"><option value="R_75"><option value="R_100"></datalist></div>
   </div>
   <div class="grid">
    <div class="field"><label>Entry price</label><input value="Fetched securely from Deriv when you open the paper position" readonly></div>
@@ -1067,9 +1066,9 @@ calculateRisk();
     demoMessage.textContent="Paper simulator is locked in REAL mode. Switch to DEMO to practise.";
    }
    startDemo.addEventListener("click",async()=>{
-    startDemo.disabled=true;demoMessage.textContent="Starting virtual demo session...";
+    startDemo.disabled=true;demoMessage.textContent="Starting your website DEMO trading session...";
     try{
-     const r=await callDemoApi("/api/bots/demo/control",{action:"START"});
+     const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim()});
      activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
      showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
