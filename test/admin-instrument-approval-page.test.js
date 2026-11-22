@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 test("admin instrument approvals use authenticated server-side authorization", async () => {
   const page = await readFile(new URL("../admin-instruments.html", import.meta.url), "utf8");
-  const api = await readFile(new URL("../api/admin/instruments.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../handlers/admin/instruments.js", import.meta.url), "utf8");
   assert.match(page, /api\/admin\/instruments/);
   assert.match(page, /getSession\(\)/);
   assert.match(page, /Owner-approved for initial website DEMO trading/);
