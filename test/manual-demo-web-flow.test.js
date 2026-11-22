@@ -25,7 +25,10 @@ test("DEMO dashboard timeframe selector supports M5 M15 H1 H4 and sends selectio
 
 test("consolidated DEMO upgrade persists the bot timeframe and grants owner-only column writes", async () => {
   const sql = await readFile(new URL("../supabase/manual/DEMO_TERMINAL_PRODUCTION_UPGRADE.sql", import.meta.url), "utf8");
+  const patch = await readFile(new URL("../supabase/manual/DEMO_TIMEFRAME_SETTINGS_UPGRADE.sql", import.meta.url), "utf8");
   assert.match(sql, /add column if not exists timeframe text not null default 'M15'/);
+  assert.match(patch, /add column if not exists timeframe text not null default 'M15'/);
+  assert.match(patch, /bot_settings_timeframe_check/);
   assert.match(sql, /bot_settings_timeframe_check/);
   assert.match(sql, /check \(timeframe in \('M5','M15','H1','H4'\)\)/);
   assert.match(sql, /grant insert\(user_id,broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe\)/);
