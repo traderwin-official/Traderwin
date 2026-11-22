@@ -35,11 +35,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Choose DEMO or REAL analysis mode." });
     }
     const strategy = String(body.strategy || "MULTI_CONFIRMATION_V1");
-    if (!["MULTI_CONFIRMATION_V1", "TIGER_FIBONACCI_PSYCHOLOGY_V1", "MANUAL_REVIEW"].includes(strategy)) {
+    if (!["AUTO_SELECT_V1", "MULTI_CONFIRMATION_V1", "TIGER_FIBONACCI_PSYCHOLOGY_V1", "MANUAL_REVIEW"].includes(strategy)) {
       return res.status(400).json({ error: "Choose a supported strategy." });
     }
     const market = await getDerivCandles(instrument, timeframe);
-    const trendMarket = strategy === "TIGER_FIBONACCI_PSYCHOLOGY_V1" && timeframe !== "H1"
+    const trendMarket = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) && timeframe !== "H1"
       ? await getDerivCandles(instrument, "H1")
       : market;
     const result = analyseStrategy(market.candles, strategy, {
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
       source: market.source,
       strategy,
       accountMode,
-      trendTimeframe: strategy === "TIGER_FIBONACCI_PSYCHOLOGY_V1" ? "H1" : timeframe,
+      trendTimeframe: ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) ? "H1" : timeframe,
       latestCandleAsOf: market.latestCandleAsOf,
       analysedAt: new Date().toISOString(),
       result,
