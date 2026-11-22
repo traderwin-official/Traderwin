@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const manual = readFileSync(new URL("../api/bots/demo/trade.js", import.meta.url), "utf8");
-const automated = readFileSync(new URL("../api/cron/demo-auto-worker.js", import.meta.url), "utf8");
+const manual = readFileSync(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
+const automated = readFileSync(new URL("../handlers/cron/demo-auto-worker.js", import.meta.url), "utf8");
 
 test("manual DEMO entry checks instrument approval against initial and final Deriv provider symbols", () => {
   assert.match(manual, /import \{ loadApprovedInstrument \}/);
