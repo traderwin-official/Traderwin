@@ -77,7 +77,7 @@ button:disabled{opacity:.5}#status{white-space:pre-wrap;line-height:1.6}.back{co
   try{
    const result=await api();
    const rows=result.instruments||[];
-   registry.innerHTML=rows.length?rows.map(x=>"<p><strong>"+x.instrument+"</strong> · "+x.provider_symbol+" · "+x.status+(x.is_active?" (active)":"")+"</p>").join(""):"<p>No instruments are registered. All instruments remain blocked until explicitly approved.</p>";
+   registry.textContent=rows.length?rows.map(x=>x.instrument+" · "+x.provider_symbol+" · "+x.status+(x.is_active?" (active)":"")).join("\n"):"No instruments are registered. All instruments remain blocked until explicitly approved.";
    status.textContent="Administrator access verified. Choose the first DEMO instrument to approve.";
   }catch(e){status.textContent=e.message;approve.disabled=true;registry.textContent="Registry unavailable.";}
  }
