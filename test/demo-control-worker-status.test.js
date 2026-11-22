@@ -5,7 +5,7 @@ test("DEMO control creates and manages isolated v2 paper sessions",async()=>{
  const s=await readFile(new URL("../api/bots/demo/control.js",import.meta.url),"utf8");
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);
  assert.match(s,/demo_paper_worker_heartbeats/);assert.match(s,/strategy:"MANUAL"/);
- assert.match(s,/\["M5","M15","H1","H4"\]/);assert.match(s,/broker:"DERIV"/);
+ assert.match(s,/timeframe="M15"/);assert.match(s,/broker:"DERIV"/);
  assert.match(s,/config_snapshot/);assert.match(s,/account_mode/);
 });
 test("dashboard still exposes timeframe, validated strategy and worker health",async()=>{
