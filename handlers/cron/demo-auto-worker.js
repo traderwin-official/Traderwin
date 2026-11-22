@@ -36,7 +36,7 @@ async function processSession(db,raw){
  if(!openTrade){
   try{
    const selected=await getDerivCandles(raw.instrument,raw.timeframe||"M15");
-   const trend=(raw.strategy==="TIGER_FIBONACCI_PSYCHOLOGY_V1"&&raw.timeframe!=="H1")?await getDerivCandles(raw.instrument,"H1"):selected;
+   const trend=(["TIGER_FIBONACCI_PSYCHOLOGY_V1","AUTO_SELECT_V1"].includes(raw.strategy)&&raw.timeframe!=="H1")?await getDerivCandles(raw.instrument,"H1"):selected;
    market={...selected,trendCandles:trend.candles};
   }catch(e){return {sessionId:raw.id,action:"BLOCK",reason:"CANDLE_HISTORY_UNAVAILABLE",detail:safeError(e)};}
  }
