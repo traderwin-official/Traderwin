@@ -60,7 +60,6 @@ export default async function handler(req,res){
    }
    if(!Number.isFinite(risk)||risk<=0||risk>2||!Number.isFinite(daily)||daily<=0||daily>10)return res.status(409).json({error:"Your saved risk limits are invalid."});
    const maxOpenPositions=3;
-   const timeframe="M15";
    const brokerAccountRef="DEMO:"+uid;
    const {data:emergency,error:emergencyError}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",brokerAccountRef).maybeSingle();
    if(emergencyError)return res.status(503).json({error:"Could not verify the DEMO emergency stop."});
