@@ -34,6 +34,16 @@ test("opens a virtual position only on a new confirmed BUY/SELL candle", () => {
   assert.ok(result.riskAmount <= 50.01);
 });
 
+test("AUTO_SELECT chooses the strongest validated strategy and still waits on unconfirmed setups", () => {
+  const input = structuredClone(base);
+  input.settings.strategy = "AUTO_SELECT_V1";
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "OPEN");
+  assert.equal(result.analysis.strategy, "AUTO_SELECT_V1");
+  assert.equal(result.analysis.selectedStrategy, "MULTI_CONFIRMATION_V1");
+  assert.equal(result.direction, "BUY");
+});
+
 test("Tiger Fibonacci Psychology is accepted by the DEMO decision engine", () => {
   const input = structuredClone(base);
   input.settings.strategy = "TIGER_FIBONACCI_PSYCHOLOGY_V1";
