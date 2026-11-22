@@ -5,7 +5,7 @@ test("DEMO control creates and manages isolated v2 paper sessions",async()=>{
  const s=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);
  assert.match(s,/demo_paper_worker_heartbeats/);assert.match(s,/let selectedStrategy="MANUAL"/);
- assert.match(s,/timeframe="M15"/);assert.match(s,/broker:"DERIV"/);
+ assert.match(s,/requestedTimeframe=String\(b\.timeframe\|\|"M15"\)/);assert.match(s,/timeframe=requestedTimeframe/);assert.match(s,/broker:"DERIV"/);
  assert.match(s,/select\("risk_per_trade,max_daily_loss"\)/);
  assert.match(s,/eq\("broker","DERIV"\)/);
  assert.match(s,/eq\("instrument",requestedInstrument\)/);
