@@ -59,7 +59,7 @@ test("rejects Deriv options represented as lots or an MT5 options contract", () 
     contractMultiplier: 1, tickSize: 0.01, pricePrecision: 2,
     minQuantity: 1, maxQuantity: 100, quantityStep: 1,
     tickValuePerLot: 1, marginPerLot: 1,
-    source: "BROKER_CONTRACT_DETAILS", verifiedAt: "2026-11-22T10:00:00.000Z"
+    source: "BROKER_CONTRACT_DETAILS", verifiedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
   };
   assert.equal(validateContractSpecification(options, { broker: "DERIV", instrument: "R_100" }).ok, false);
   assert.equal(validateContractSpecification({
