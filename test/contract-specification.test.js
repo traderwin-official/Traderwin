@@ -8,7 +8,7 @@ const fx = {
   contractMultiplier: 100000, tickSize: 0.00001, pricePrecision: 5,
   minQuantity: 0.01, maxQuantity: 100, quantityStep: 0.01,
   tickValuePerLot: 1, marginPerLot: 100,
-  source: "BROKER_SYMBOL_SPECIFICATION", verifiedAt: "2026-11-22T10:00:00.000Z"
+  source: "BROKER_SYMBOL_SPECIFICATION", verifiedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
 };
 
 test("accepts complete broker-sourced CFD lot metadata without authorizing a trade", () => {
@@ -44,7 +44,7 @@ test("does not treat Deriv options contracts as CFD lots", () => {
     quantityUnit: "CONTRACTS", profitCurrency: "USD", quoteCurrency: "USD",
     contractMultiplier: 1, tickSize: 0.01, pricePrecision: 2,
     minQuantity: 1, maxQuantity: 1000, quantityStep: 1,
-    source: "BROKER_CONTRACT_DETAILS", verifiedAt: "2026-11-22T10:00:00.000Z"
+    source: "BROKER_CONTRACT_DETAILS", verifiedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
   };
   const result = validateContractSpecification(options, { broker: "DERIV", instrument: "R_100" });
   assert.equal(result.ok, true);
@@ -69,9 +69,10 @@ test("rejects Deriv options represented as lots or an MT5 options contract", () 
 
 test("rejects stale or future-dated broker specifications", () => {
   const now = Date.parse("2026-11-22T10:05:00.000Z");
-  const stale = { ...fx, verifiedAt: "2026-11-20T10:00:00.000Z" };
-  const future = { ...fx, verifiedAt: "2026-11-22T10:07:00.000Z" };
-  assert.equal(validateContractSpecification(fx, {
+  const fixedFresh = { ...fx, verifiedAt: "2026-11-22T10:00:00.000Z" };
+  const stale = { ...fixedFresh, verifiedAt: "2026-11-20T10:00:00.000Z" };
+  const future = { ...fixedFresh, verifiedAt: "2026-11-22T10:07:00.000Z" };
+  assert.equal(validateContractSpecification(fixedFresh, {
     broker: "MT5", instrument: "EURUSD"
   }, now).ok, true);
   assert.equal(validateContractSpecification(stale, {
