@@ -2,9 +2,9 @@ name: Node.js tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "integration/**"]
   push:
-    branches: [main, "feature/**"]
+    branches: [main, "feature/**", "integration/**", "fix/**"]
 
 permissions:
   contents: read
