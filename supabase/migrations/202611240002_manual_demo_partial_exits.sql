@@ -171,16 +171,20 @@ begin
     return jsonb_build_object('ok',false,'reason','NOT_A_MANUAL_TRADE');
   end if;
   if round(v_trade.tp1_percent + v_trade.tp2_percent + v_trade.tp3_percent,2) <> 100
-     or v_trade.tp1_percent <= 0 or v_trade.tp2_percent <= 0 or v_trade.tp3_percent <= 0
-     or v_trade.tp1_price is null or v_trade.tp2_price is null or v_trade.tp3_price is null
+     or v_trade.tp1_percent <= 0 or v_trade.tp2_percent < 0 or v_trade.tp3_percent < 0
+     or v_trade.tp1_price is null
+     or (v_trade.tp2_percent > 0 and v_trade.tp2_price is null)
+     or (v_trade.tp3_percent > 0 and v_trade.tp3_price is null)
      or not (
        (v_trade.side='BUY' and v_trade.stop_loss < v_trade.entry_price
-        and v_trade.entry_price < v_trade.tp1_price and v_trade.tp1_price < v_trade.tp2_price
-        and v_trade.tp2_price < v_trade.tp3_price)
+        and v_trade.entry_price < v_trade.tp1_price
+        and (v_trade.tp2_percent = 0 or v_trade.tp1_price < v_trade.tp2_price)
+        and (v_trade.tp3_percent = 0 or v_trade.tp2_price < v_trade.tp3_price))
        or
        (v_trade.side='SELL' and v_trade.stop_loss > v_trade.entry_price
-        and v_trade.entry_price > v_trade.tp1_price and v_trade.tp1_price > v_trade.tp2_price
-        and v_trade.tp2_price > v_trade.tp3_price)
+        and v_trade.entry_price > v_trade.tp1_price
+        and (v_trade.tp2_percent = 0 or v_trade.tp1_price > v_trade.tp2_price)
+        and (v_trade.tp3_percent = 0 or v_trade.tp2_price > v_trade.tp3_price))
      ) then
     return jsonb_build_object('ok',false,'reason','MANUAL_EXIT_CONFIGURATION_INVALID');
   end if;
