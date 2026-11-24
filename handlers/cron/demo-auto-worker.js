@@ -32,14 +32,13 @@ async function processManualDemoBracketExits(db){
     results.push({tradeId:trade.id,action:"BLOCK",reason:"DEMO_SESSION_UNAVAILABLE"});continue;
    }
    const {data:permission,error:permissionError}=await db.from("portfolio_trade_permissions")
-    .select("manual_trade_management,close_manual_trades,close_managed_positions")
+    .select("auto_exit_manual_brackets")
     .eq("user_id",trade.user_id).eq("account_mode","DEMO").eq("broker","DERIV")
     .eq("broker_account_ref",session.broker_account_ref).maybeSingle();
    if(permissionError){
     results.push({tradeId:trade.id,action:"BLOCK",reason:"MANUAL_PERMISSION_LOOKUP_FAILED"});continue;
    }
-   if(!permission||permission.manual_trade_management!==true||
-      permission.close_manual_trades!==true||permission.close_managed_positions!==true){
+   if(!permission||permission.auto_exit_manual_brackets!==true){
     results.push({tradeId:trade.id,action:"SKIP",reason:"MANUAL_BRACKET_CLOSE_PERMISSION_NOT_GRANTED"});continue;
    }
    const quote=await getDerivPublicQuote(trade.instrument);
