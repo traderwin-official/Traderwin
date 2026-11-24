@@ -14,8 +14,8 @@ const normalise=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 
 /**
  * Enforce individual SL/TP brackets for MANUAL-origin DEMO paper positions.
- * This is separate from portfolio giveback and requires all explicit manual
- * management/close permissions for the user's DEMO Deriv account.
+ * This is separate from portfolio giveback and requires the dedicated
+ * auto_exit_manual_brackets permission for the user's DEMO Deriv account.
  */
 async function processManualDemoBracketExits(db){
  const {data:trades,error}=await db.from("demo_paper_trades")
