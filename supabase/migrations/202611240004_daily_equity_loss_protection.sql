@@ -290,8 +290,7 @@ declare
 begin
   select * into v_guard
     from public.demo_daily_risk_baselines
-   where user_id=new.user_id and trading_day=v_day
-   for update;
+   where user_id=new.user_id and trading_day=v_day;
   if not found or v_guard.last_valuation_at is null
      or v_guard.last_valuation_at < now()-interval '60 seconds' then
     raise exception 'DAILY_EQUITY_VALUATION_STALE';
