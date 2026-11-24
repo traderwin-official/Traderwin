@@ -9,7 +9,7 @@ test("manual DEMO entry checks instrument approval against initial and final Der
   assert.match(manual, /import \{ loadApprovedInstrument \}/);
   assert.match(manual, /loadApprovedInstrument\(db,\{broker:"DERIV",instrument:symbol,providerSymbol:quote\.providerSymbol\}\)/);
   assert.match(manual, /loadApprovedInstrument\(db,\{broker:"DERIV",instrument:symbol,providerSymbol:finalQuote\.providerSymbol\}\)/);
-  assert.ok(manual.indexOf("finalApproval=await loadApprovedInstrument") < manual.indexOf('db.rpc("open_demo_paper_trade"'));
+  assert.ok(manual.indexOf("finalApproval=await loadApprovedInstrument") < manual.indexOf('db.rpc("open_demo_manual_partial_trade"'));
 });
 
 test("automated DEMO entries check instrument approval after the final quote and strategy recheck", () => {
