@@ -229,9 +229,19 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <div class="grid">
    <div class="field"><label>Entry price</label><input value="Fetched securely from Deriv when you open the paper position" readonly></div>
-   <div class="field"><label for="paperStop">Stop-loss</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal"></div>
-   <div class="field"><label for="paperTarget">Take-profit</label><input id="paperTarget" type="number" step="any" min="0" inputmode="decimal"></div>
+   <div class="field"><label for="paperStop">Stop-loss (closes remaining position)</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal" required></div>
   </div>
+  <h4>Take-profit targets and partial exits</h4>
+  <p class="muted">Set three target prices in order. Each target closes its allocation of the original position. Allocations must total 100%; the stop-loss closes whatever remains.</p>
+  <div class="grid">
+   <div class="field"><label for="paperTp1">T1 price</label><input id="paperTp1" type="number" step="any" min="0" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp1Percent">T1 allocation (%)</label><input id="paperTp1Percent" type="number" step="0.01" min="0.01" max="99.98" value="40" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp2">T2 price</label><input id="paperTp2" type="number" step="any" min="0" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp2Percent">T2 allocation (%)</label><input id="paperTp2Percent" type="number" step="0.01" min="0.01" max="99.98" value="30" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp3">T3 price</label><input id="paperTp3" type="number" step="any" min="0" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp3Percent">T3 allocation (%)</label><input id="paperTp3Percent" type="number" step="0.01" min="0.01" max="99.98" value="30" inputmode="decimal" required></div>
+  </div>
+  <p id="manualExitAllocationStatus" class="muted" role="status" aria-live="polite">T1 40% + T2 30% + T3 30% = 100%.</p>
   <button type="button" id="recordPaperTrade" disabled>Open DEMO Position at Live Quote</button>
   <p id="paperTradeMessage" class="muted" role="status" aria-live="polite"></p>
   <div class="field"><label for="paperOpenPositionSelect">Select an open DEMO position</label><select id="paperOpenPositionSelect"><option value="">No open positions</option></select></div>
@@ -1295,14 +1305,33 @@ calculateRisk();
      activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
    });
+   const allocationInputs=["paperTp1Percent","paperTp2Percent","paperTp3Percent"].map(id=>document.getElementById(id));
+   const allocationStatus=document.getElementById("manualExitAllocationStatus");
+   const updateAllocationStatus=()=>{
+    const values=allocationInputs.map(input=>Number(input.value));
+    const total=values.reduce((sum,value)=>sum+(Number.isFinite(value)?value:0),0);
+    const valid=values.every(value=>Number.isFinite(value)&&value>0)&&Math.round(total*100)===10000;
+    allocationStatus.textContent="T1 "+(values[0]||0)+"% + T2 "+(values[1]||0)+"% + T3 "+(values[2]||0)+"% = "+total.toFixed(2)+"%"+(valid?" · Valid allocation":" · Must total exactly 100%");
+    allocationStatus.style.color=valid?"var(--success, #72e2bd)":"var(--danger, #ff9b9b)";
+    return valid;
+   };
+   allocationInputs.forEach(input=>input.addEventListener("input",updateAllocationStatus));
+   updateAllocationStatus();
    recordPaper.addEventListener("click",async()=>{
-    recordPaper.disabled=true;const msg=document.getElementById("paperTradeMessage");msg.textContent="Recording virtual paper trade...";
+    recordPaper.disabled=true;const msg=document.getElementById("paperTradeMessage");
+    if(!updateAllocationStatus()){msg.textContent="T1, T2 and T3 allocation percentages must total exactly 100%.";recordPaper.disabled=!activeDemoSession;return;}
+    msg.textContent="Recording virtual paper trade...";
     try{
      const r=await callDemoApi("/api/bots/demo/trade",{
       symbol:document.getElementById("paperSymbol").value.trim(),
       direction:document.getElementById("paperDirection").value,
       stopLoss:document.getElementById("paperStop").value,
-      takeProfit:document.getElementById("paperTarget").value
+      tp1:document.getElementById("paperTp1").value,
+      tp2:document.getElementById("paperTp2").value,
+      tp3:document.getElementById("paperTp3").value,
+      tp1Percent:document.getElementById("paperTp1Percent").value,
+      tp2Percent:document.getElementById("paperTp2Percent").value,
+      tp3Percent:document.getElementById("paperTp3Percent").value
      });
      document.getElementById("paperTradeId").value=r.trade.id;closePaper.disabled=false;markPaper.disabled=false;
      msg.textContent=r.message+" Virtual risk: USD "+Number(r.trade.risk_amount).toFixed(2)+".";
