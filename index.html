@@ -232,7 +232,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field"><label for="paperEntry">Planned entry price (pending)</label><input id="paperEntry" type="number" step="any" min="0" inputmode="decimal" required></div>
    <div class="field"><label for="paperStop">Stop-loss (closes remaining position)</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal" required></div>
   </div>
-  <p class="muted">Your setup waits while price is away from entry. It activates only after a later verified market quote touches or crosses your planned price. The requested positions share the same entry, SL and T1/T2/T3 levels.</p>
+  <p class="muted">Your setup waits while price is away from entry. The scheduled DEMO worker checks approximately once per minute and activates on its next fresh verified quote after price touches or crosses your planned entry; this is not tick-by-tick instant execution. All requested positions share the same entry, SL and T1/T2/T3 levels.</p>
   <h4>Take-profit targets and partial exits</h4>
   <p class="muted">Set three target prices in order. Each target closes its allocation of the original position. Allocations must total 100%; the stop-loss closes whatever remains.</p>
   <div class="grid">
