@@ -37,14 +37,14 @@ test("worker values accounts before new BOT entries and blocks entries without a
   assert.match(worker, /runDemoDailyLossProtection/);
   assert.match(worker, /DAILY_EQUITY_GUARD_UNAVAILABLE/);
   assert.match(worker, /userGuard\.status!=="ERROR"/);
-  assert.ok(worker.indexOf("runDemoDailyLossProtection") < worker.indexOf("processSession(db,s"));
+  assert.ok(worker.indexOf("try{dailyLossProtection=await runDemoDailyLossProtection") < worker.indexOf("results=await Promise.all"));
 });
 
 test("manual DEMO entry checks the same daily guard before calling the atomic open RPC", async () => {
   const route = await readFile(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
   assert.match(route, /runDemoDailyLossProtection\(db,\{userIds:\[uid\]/);
   assert.match(route, /DAILY_LOSS_LIMIT_REACHED/);
-  assert.ok(route.indexOf("runDemoDailyLossProtection") < route.indexOf('db.rpc("open_demo_paper_trade"'));
+  assert.ok(route.indexOf("const dailyGuard=await runDemoDailyLossProtection") < route.indexOf('db.rpc("open_demo_paper_trade"'));
 });
 
 test("daily BOT closes use a fresh verified Deriv quote and the dedicated permission-gated RPC", async () => {
