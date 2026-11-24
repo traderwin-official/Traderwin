@@ -54,9 +54,9 @@ test("instrument approval page uses the authenticated server admin API", async (
 
 test("manual DEMO quote checks enforce stop-loss and take-profit using an atomic virtual close", async () => {
   const route = await readFile(new URL("../handlers/bots/demo/mark.js", import.meta.url), "utf8");
-  assert.match(route, /stopHit/);
-  assert.match(route, /targetHit/);
-  assert.match(route, /close_demo_paper_trade/);
+  assert.match(route, /auto_exit_manual_brackets/);
+  assert.match(route, /manage_demo_manual_partial_exit/);
+  assert.match(route, /p_stage:stage/);
   assert.match(route, /p_reason:reason/);
 });
  
