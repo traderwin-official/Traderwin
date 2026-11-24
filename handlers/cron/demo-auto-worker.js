@@ -101,7 +101,7 @@ async function processManualDemoBracketExits(db){
 async function processPendingManualEntryBatches(db){
  const {data:batches,error}=await db.from("demo_manual_entry_batches")
   .select("id,user_id,session_id,instrument,side,entry_price,expires_at,status")
-  .eq("status","PENDING").order("created_at",{ascending:true}).limit(8);
+  .eq("status","PENDING").order("updated_at",{ascending:true}).limit(8);
  if(error)return {processed:0,activated:0,results:[],error:"PENDING_BATCH_QUEUE_FAILED"};
  const results=[];
  for(const batch of batches||[]){
@@ -138,10 +138,11 @@ async function processPendingManualEntryBatches(db){
    }
    let quote;
    try{quote=await getDerivPublicQuote(batch.instrument);}
-   catch(e){results.push({batchId:batch.id,action:"WAIT",reason:"VERIFIED_QUOTE_UNAVAILABLE",detail:safeError(e)});continue;}
+   catch(e){await db.from("demo_manual_entry_batches").update({updated_at:new Date().toISOString()}).eq("id",batch.id).eq("status","PENDING");results.push({batchId:batch.id,action:"WAIT",reason:"VERIFIED_QUOTE_UNAVAILABLE",detail:safeError(e)});continue;}
    const quoteTime=Date.parse(quote.quoteAsOf||"");
    if(quote.source!=="DERIV"||normalise(quote.instrument)!==normalise(batch.instrument)||!quote.providerSymbol
       ||!Number.isFinite(quoteTime)||Date.now()-quoteTime>30000||quoteTime>Date.now()+5000||!Number.isFinite(Number(quote.quote))||Number(quote.quote)<=0){
+    await db.from("demo_manual_entry_batches").update({updated_at:new Date().toISOString()}).eq("id",batch.id).eq("status","PENDING");
     results.push({batchId:batch.id,action:"WAIT",reason:"VERIFIED_QUOTE_STALE_OR_MISMATCHED"});continue;
    }
    const approval=await loadApprovedInstrument(db,{broker:"DERIV",instrument:batch.instrument,providerSymbol:quote.providerSymbol});
@@ -154,7 +155,7 @@ async function processPendingManualEntryBatches(db){
    }
    let fx;
    try{fx=await getDerivQuoteToUsd(batch.instrument,quote);}
-   catch(e){results.push({batchId:batch.id,action:"WAIT",reason:"USD_CONVERSION_UNAVAILABLE",detail:safeError(e)});continue;}
+   catch(e){await db.from("demo_manual_entry_batches").update({updated_at:new Date().toISOString()}).eq("id",batch.id).eq("status","PENDING");results.push({batchId:batch.id,action:"WAIT",reason:"USD_CONVERSION_UNAVAILABLE",detail:safeError(e)});continue;}
    const {data:activated,error:activationError}=await db.rpc("activate_demo_manual_entry_batch",{
     p_batch_id:batch.id,p_quote:quote.quote,p_quote_source:quote.source,p_provider_symbol:quote.providerSymbol,
     p_quote_as_of:quote.quoteAsOf,p_quote_to_usd:fx.rate
