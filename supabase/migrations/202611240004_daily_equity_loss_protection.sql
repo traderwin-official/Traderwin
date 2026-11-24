@@ -287,6 +287,7 @@ returns trigger language plpgsql security definer set search_path=public,pg_temp
 declare
   v_day date := (now() at time zone 'Africa/Nairobi')::date;
   v_guard public.demo_daily_risk_baselines%rowtype;
+  v_latest_realized_at timestamptz;
 begin
   select * into v_guard
     from public.demo_daily_risk_baselines
@@ -297,6 +298,12 @@ begin
   end if;
   if v_guard.limit_reached_at is not null then
     raise exception 'DAILY_LOSS_LIMIT_REACHED';
+  end if;
+  select max(realized_at) into v_latest_realized_at
+    from public.demo_paper_realized_events
+   where user_id=new.user_id and realized_at>=v_guard.day_start;
+  if v_latest_realized_at is not null and v_latest_realized_at>v_guard.last_valuation_at then
+    raise exception 'DAILY_EQUITY_VALUATION_STALE';
   end if;
   return new;
 end $$;
@@ -319,6 +326,7 @@ declare
  v_session public.demo_paper_sessions%rowtype;
  v_guard public.demo_daily_risk_baselines%rowtype;
  v_day date := (now() at time zone 'Africa/Nairobi')::date;
+ v_latest_realized_at timestamptz;
  v_id uuid;
  v_open_count integer;
  v_open_risk numeric;
@@ -347,6 +355,12 @@ begin
  end if;
  if v_guard.limit_reached_at is not null then
    return jsonb_build_object('ok',false,'reason','DAILY_LOSS_LIMIT_REACHED');
+ end if;
+ select max(realized_at) into v_latest_realized_at
+   from public.demo_paper_realized_events
+  where user_id=p_user_id and realized_at>=v_guard.day_start;
+ if v_latest_realized_at is not null and v_latest_realized_at>v_guard.last_valuation_at then
+   return jsonb_build_object('ok',false,'reason','DAILY_EQUITY_VALUATION_STALE');
  end if;
 
  select * into v_session from public.demo_paper_sessions
