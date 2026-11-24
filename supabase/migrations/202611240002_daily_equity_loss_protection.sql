@@ -1,6 +1,24 @@
 -- Daily account-equity protection: fixed 20% of the Nairobi day's opening DEMO balance.
 -- DEMO paper ledger only. No REAL broker execution is enabled by this migration.
 
+-- Ensure the append-only realization ledger exists even when this migration
+-- is applied to a database that has not separately applied the earlier event migration.
+create table if not exists public.demo_paper_realized_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  session_id uuid not null references public.demo_paper_sessions(id) on delete cascade,
+  trade_id uuid not null references public.demo_paper_trades(id) on delete cascade,
+  realized_pnl_delta_usd numeric(18,2) not null,
+  realized_at timestamptz not null default now(),
+  event_source text not null default 'TRADE_REALIZED_PNL_UPDATE'
+    check (event_source='TRADE_REALIZED_PNL_UPDATE')
+);
+create index if not exists demo_paper_realized_events_user_day_idx
+  on public.demo_paper_realized_events(user_id,realized_at desc);
+alter table public.demo_paper_realized_events enable row level security;
+revoke all on public.demo_paper_realized_events from public,anon,authenticated;
+grant all on public.demo_paper_realized_events to service_role;
+
 create table if not exists public.demo_daily_risk_baselines (
   user_id uuid not null references auth.users(id) on delete cascade,
   trading_day date not null,
@@ -153,6 +171,11 @@ begin
   return new;
 end $$;
 
+drop trigger if exists demo_paper_record_realized_event on public.demo_paper_trades;
+create trigger demo_paper_record_realized_event
+after update of realized_pnl_usd on public.demo_paper_trades
+for each row execute function public.record_demo_paper_realized_event();
+
 create or replace function public.close_demo_daily_loss_trade(
   p_user_id uuid,p_trade_id uuid,p_exit_price numeric,p_quote_to_usd numeric,
   p_quote_source text,p_quote_as_of timestamptz,p_idempotency_key text
@@ -205,6 +228,11 @@ begin
   if coalesce((v_result->>'ok')::boolean,false) is not true then return v_result; end if;
   return v_result||jsonb_build_object('reason','DAILY_LOSS_LIMIT','idempotency_key',p_idempotency_key);
 end $$;
+
+drop trigger if exists demo_paper_guard_new_session_daily_loss on public.demo_paper_sessions;
+create trigger demo_paper_guard_new_session_daily_loss
+before insert on public.demo_paper_sessions
+for each row execute function public.guard_new_demo_paper_session_daily_loss();
 
 revoke all on function public.get_demo_daily_opening_balance(uuid),
   public.evaluate_demo_daily_loss_guard(uuid,numeric),
