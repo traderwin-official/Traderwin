@@ -55,3 +55,12 @@ test("dashboard exposes target prices and configurable percentages with a live 1
   assert.match(page, /Math\.round\(total\*100\)===10000/);
   assert.match(page, /stop-loss closes whatever remains/);
 });
+
+test("DEMO positions expose T1 T2 T3 allocation and completion state", async () => {
+  const route = await readFile(new URL("../handlers/bots/demo/positions.js", import.meta.url), "utf8");
+  const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(route, /tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,tp1_done,tp2_done,tp3_done/);
+  assert.match(route, /targets: \[1,2,3\]\.map/);
+  assert.match(page, /Targets \(T1 \/ T2 \/ T3\)/);
+  assert.match(page, /target\.done\?" ✓":""/);
+});
