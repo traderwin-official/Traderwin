@@ -196,6 +196,7 @@ declare
  v_child_id uuid;
  v_i integer;
  v_qty numeric(28,12);
+ v_total_quantity numeric(28,12);
  v_risk numeric(18,2);
  v_risk_pct numeric(5,2);
  v_balance numeric(18,2);
@@ -228,7 +229,7 @@ begin
    update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='SESSION_NOT_RUNNING',updated_at=now() where id=v_batch.id;
    return jsonb_build_object('ok',false,'reason','SESSION_NOT_RUNNING');
  end if;
- if v_batch.total_risk_pct>v_session.risk_per_trade_pct
+ if v_session.current_balance<=0
    or v_batch.total_risk_usd>v_session.current_balance*v_session.risk_per_trade_pct/100 then
    update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='SESSION_RISK_LIMIT_CHANGED',updated_at=now() where id=v_batch.id;
    return jsonb_build_object('ok',false,'reason','SESSION_RISK_LIMIT_CHANGED');
@@ -290,18 +291,25 @@ begin
    return jsonb_build_object('ok',false,'reason','DAILY_LOSS_LIMIT_AT_ACTIVATION');
  end if;
 
- v_qty:=round(v_batch.total_quantity/v_batch.requested_trade_count,12);
- v_risk:=round(v_batch.total_risk_usd/v_batch.requested_trade_count,2);
- v_risk_pct:=v_batch.total_risk_pct/v_batch.requested_trade_count;
  v_balance:=v_session.current_balance;
+ v_total_quantity:=round(v_batch.total_risk_usd/(abs(v_batch.entry_price-v_batch.stop_loss)*p_quote_to_usd),12);
+ if v_total_quantity<=0 or v_total_quantity>1000000000000
+   or round(v_total_quantity/v_batch.requested_trade_count,12)<=0 then
+   update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='ACTIVATION_SIZE_OUT_OF_RANGE',updated_at=now() where id=v_batch.id;
+   return jsonb_build_object('ok',false,'reason','ACTIVATION_SIZE_OUT_OF_RANGE');
+ end if;
+ v_qty:=round(v_total_quantity/v_batch.requested_trade_count,12);
+ v_risk:=round(v_batch.total_risk_usd/v_batch.requested_trade_count,2);
+ v_risk_pct:=greatest(0.01,round(v_risk/v_balance*100,2));
  for v_i in 1..v_batch.requested_trade_count loop
    if v_i=v_batch.requested_trade_count then
-     v_qty:=v_batch.total_quantity-(round(v_batch.total_quantity/v_batch.requested_trade_count,12)*(v_batch.requested_trade_count-1));
+     v_qty:=v_total_quantity-(round(v_total_quantity/v_batch.requested_trade_count,12)*(v_batch.requested_trade_count-1));
      v_risk:=v_batch.total_risk_usd-(round(v_batch.total_risk_usd/v_batch.requested_trade_count,2)*(v_batch.requested_trade_count-1));
    else
      v_qty:=round(v_batch.total_quantity/v_batch.requested_trade_count,12);
      v_risk:=round(v_batch.total_risk_usd/v_batch.requested_trade_count,2);
    end if;
+   v_risk_pct:=greatest(0.01,round(v_risk/v_balance*100,2));
    insert into public.demo_paper_trades(
     session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
     tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,
@@ -320,7 +328,9 @@ begin
  end loop;
 
  update public.demo_manual_entry_batches
-  set status='ACTIVE',child_trade_ids=v_child_ids,activated_at=now(),updated_at=now()
+  set status='ACTIVE',total_quantity=v_total_quantity,quote_to_usd=p_quote_to_usd,
+      total_risk_pct=round(v_batch.total_risk_usd/v_balance*100,2),
+      child_trade_ids=v_child_ids,activated_at=now(),updated_at=now()
   where id=v_batch.id and status='PENDING';
  if not found then raise exception 'Pending batch activation state changed unexpectedly'; end if;
  return jsonb_build_object('ok',true,'activated',true,'batch_id',v_batch.id,
