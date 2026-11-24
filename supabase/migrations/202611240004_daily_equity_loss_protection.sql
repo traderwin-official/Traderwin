@@ -318,6 +318,8 @@ create or replace function public.open_demo_paper_trade(
 ) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare
  v_session public.demo_paper_sessions%rowtype;
+ v_guard public.demo_daily_risk_baselines%rowtype;
+ v_day date := (now() at time zone 'Africa/Nairobi')::date;
  v_id uuid;
  v_open_count integer;
  v_open_risk numeric;
@@ -334,6 +336,18 @@ begin
    or p_quote_as_of is null or p_quote_as_of>now() or p_quote_as_of<now()-interval '30 seconds'
    or p_trade_origin is null or p_trade_origin not in('BOT','MANUAL') then
    raise exception 'Invalid or stale paper trade';
+ end if;
+
+ -- Lock the daily baseline before the session row. The evaluator uses the
+ -- same lock order, avoiding a session/baseline deadlock during concurrent entry.
+ select * into v_guard from public.demo_daily_risk_baselines
+  where user_id=p_user_id and trading_day=v_day for update;
+ if not found or v_guard.last_valuation_at is null
+    or v_guard.last_valuation_at < now()-interval '60 seconds' then
+   return jsonb_build_object('ok',false,'reason','DAILY_EQUITY_VALUATION_STALE');
+ end if;
+ if v_guard.limit_reached_at is not null then
+   return jsonb_build_object('ok',false,'reason','DAILY_LOSS_LIMIT_REACHED');
  end if;
 
  select * into v_session from public.demo_paper_sessions
