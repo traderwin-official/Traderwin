@@ -18,6 +18,9 @@ declare
 begin
  perform set_config('request.jwt.claim.role','service_role',true);
  insert into auth.users default values returning id into v_user;
+ insert into public.trading_instrument_approvals(
+  broker,instrument,provider,provider_symbol,status,is_active,approval_note,approved_by,updated_by,approved_at
+ ) values('DERIV','EURUSD','DERIV','EURUSD','APPROVED',true,'Pending batch CI fixture',v_user,v_user,now());
  insert into public.demo_paper_sessions(
   user_id,broker,broker_account_ref,instrument,strategy,timeframe,status,
   starting_balance,current_balance,risk_per_trade_pct,max_daily_loss_pct,
@@ -27,7 +30,7 @@ begin
 
  -- Create one pending two-position batch with one shared planned entry/SL/TP plan.
  select public.create_demo_manual_entry_batch(
-  v_user,v_session,'EURUSD','BUY',2,
+  v_user,v_session,'EURUSD','EURUSD','BUY',2,
   1.10000,1.09000,1.11000,1.12000,1.13000,
   40,30,30,10000,100,1.00,1,'DERIV',1.10500,now()-interval '10 seconds'
  ) into v_result;
@@ -40,7 +43,7 @@ begin
  end if;
 
  -- A fresh quote still above the BUY limit only refreshes the checkpoint.
- select public.activate_demo_manual_entry_batch(v_batch,1.10200,'DERIV',now()-interval '5 seconds',1)
+ select public.activate_demo_manual_entry_batch(v_batch,1.10200,'DERIV','EURUSD',now()-interval '5 seconds',1)
  into v_result;
  if coalesce((v_result->>'activated')::boolean,true) is not false
    or v_result->>'reason'<>'ENTRY_NOT_TOUCHED' then
@@ -48,7 +51,7 @@ begin
  end if;
 
  -- The next fresh quote crosses the entry. Both child positions must appear atomically.
- select public.activate_demo_manual_entry_batch(v_batch,1.09900,'DERIV',now(),1)
+ select public.activate_demo_manual_entry_batch(v_batch,1.09900,'DERIV','EURUSD',now(),1)
  into v_result;
  if coalesce((v_result->>'activated')::boolean,false) is not true
    or (v_result->>'trade_count')::integer<>2 then
@@ -80,7 +83,7 @@ begin
  ) values(v_user_cancel,'DERIV','PENDING:'||v_user_cancel,'EURUSD','MANUAL','M15','RUNNING',
   10000,10000,1.00,2.00,3,2.00) returning id into v_session_cancel;
  select public.create_demo_manual_entry_batch(
-  v_user_cancel,v_session_cancel,'EURUSD','SELL',1,
+  v_user_cancel,v_session_cancel,'EURUSD','EURUSD','SELL',1,
   1.10000,1.11000,1.09000,1.08000,1.07000,
   40,30,30,10000,100,1.00,1,'DERIV',1.09500,now()
  ) into v_result;
@@ -104,7 +107,7 @@ begin
   10000,10000,1.00,2.00,3,2.00) returning id into v_session_reserve;
  for i in 1..2 loop
   select public.create_demo_manual_entry_batch(
-   v_user_reserve,v_session_reserve,'EURUSD','BUY',1,
+   v_user_reserve,v_session_reserve,'EURUSD','EURUSD','BUY',1,
    1.10000,1.09000,1.11000,1.12000,1.13000,
    40,30,30,10000,100,1.00,1,'DERIV',1.10500,now()
   ) into v_result;
