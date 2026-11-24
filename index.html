@@ -269,7 +269,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <p class="muted" id="livePositionsStatus" role="status" aria-live="polite">Loading your open DEMO positions…</p>
    <div style="overflow-x:auto">
     <table class="live-position-table">
-     <thead><tr><th>Origin</th><th>Instrument</th><th>Side</th><th>Entry</th><th>Live price</th><th>Stop loss</th><th>Take profit</th><th>Floating P/L</th><th>Duration</th><th>Action</th></tr></thead>
+     <thead><tr><th>Origin</th><th>Instrument</th><th>Side</th><th>Entry</th><th>Live price</th><th>Stop loss</th><th>Targets (T1 / T2 / T3)</th><th>Floating P/L</th><th>Duration</th><th>Action</th></tr></thead>
      <tbody id="livePositionRows"><tr><td colspan="10" style="padding:12px">Loading positions…</td></tr></tbody>
     </table>
    </div>
@@ -1216,7 +1216,7 @@ calculateRisk();
      const values=[
       position.instrument||"—",position.side||"—",livePrice(position.entry_price),
       position.quote_status==="LIVE"?livePrice(position.current_price):"Quote unavailable",
-      livePrice(position.stop_loss),livePrice(position.take_profit),
+      livePrice(position.stop_loss),(position.targets||[]).map((target,i)=>"T"+(i+1)+" "+livePrice(target.price)+" ("+target.percent+"%)"+(target.done?" ✓":"")).join(" · "),
       position.quote_status==="LIVE"?liveMoney(position.unrealized_pnl_usd):"Unavailable",
       liveDuration(position.opened_at)
      ];
