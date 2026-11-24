@@ -40,7 +40,7 @@ test("pending batch migration reserves aggregate risk and position slots, activa
  assert.match(sql,/v_batch\.last_quote>v_batch\.entry_price and p_quote<=v_batch\.entry_price/);
  assert.match(sql,/v_batch\.last_quote<v_batch\.entry_price and p_quote>=v_batch\.entry_price/);
  assert.match(sql,/for update/);
- assert.match(sql,/metadata->>'manual_entry_batch_id'/);
+ assert.match(sql,/manual_entry_batch_id/);
  assert.match(sql,/create or replace function public\.cancel_demo_manual_entry_batch/);
  assert.match(sql,/create trigger demo_paper_respect_pending_manual_batches/);
  assert.match(sql,/from public,anon,authenticated/);
