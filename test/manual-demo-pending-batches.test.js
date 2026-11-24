@@ -55,5 +55,5 @@ test("manual dashboard asks for trade count and planned entry and allows cancell
  assert.match(page,/Save Pending DEMO Trade Setup/);
  assert.match(page,/\/api\/bots\/demo\/pending-batches/);
  assert.match(page,/Cancel pending setup/);
- assert.match(page,/same entry, SL and T1/T2/T3 levels/);
+ assert.ok(page.includes("same entry, SL and T1/T2/T3 levels."));
 });
