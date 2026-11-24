@@ -109,7 +109,7 @@ Finally, sign in to Traderwin, start a Deriv DEMO session using the validated Mu
 
 - The worker only reads Deriv market data and writes virtual DEMO ledger records.
 - It does not send broker orders or manage REAL positions.
-- Manual paper positions are included in combined monitoring only when the member explicitly enables monitoring; automatic closing requires the separate manual-close permission.
+- Manual paper positions are included in combined monitoring only when the member explicitly enables monitoring. Individual manual DEMO SL/TP auto-exits are also checked by this worker, but a close is allowed only when `manual_trade_management`, `close_manual_trades`, and `close_managed_positions` are all explicitly true for that DEMO Deriv account. Monitoring permission alone never authorizes closing. The new RPC in migration `202611240001_manual_demo_bracket_auto_exit.sql` rechecks the permission and the exact bracket price inside the database transaction.
 - It currently supports a limited approved Deriv symbol set and one BOT-originated open position per DEMO session, alongside bounded MANUAL paper positions.
 - If the worker heartbeat is missing, stale, or reports an error, do not assume automation is running. Stop the DEMO session while investigating.
 
