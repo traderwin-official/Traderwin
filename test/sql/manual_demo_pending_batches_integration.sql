@@ -14,6 +14,7 @@ declare
  v_count integer;
  v_ids uuid[];
  v_failed boolean;
+ i integer;
 begin
  perform set_config('request.jwt.claim.role','service_role',true);
  insert into auth.users default values returning id into v_user;
@@ -53,8 +54,8 @@ begin
    or (v_result->>'trade_count')::integer<>2 then
   raise exception 'Expected two child positions after touch: %',v_result;
  end if;
- select array_agg(value::uuid) into v_ids
- from jsonb_array_elements_text(to_jsonb(v_result->'trade_ids')) as value;
+ select array_agg(x::uuid) into v_ids
+ from jsonb_array_elements_text(v_result->'trade_ids') as t(x);
  select count(*) into v_count from public.demo_paper_trades
   where id=any(v_ids) and user_id=v_user and session_id=v_session and status='OPEN'
    and trade_origin='MANUAL' and entry_price=1.10000 and stop_loss=1.09000
@@ -118,7 +119,7 @@ begin
    10000,100,1.00,1,'DERIV',now(),'MANUAL',null,1.11000,1.12000,1.13000
   );
  exception when others then
-  if position('reserved' in lower(sqlerrm))>0 then v_failed:=true; else raise; end if;
+  if position('reservation' in lower(sqlerrm))>0 then v_failed:=true; else raise; end if;
  end;
  if not v_failed then raise exception 'Expected regular open to respect pending batch risk reservations'; end if;
 end
