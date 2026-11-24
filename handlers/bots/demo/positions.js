@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     if (authError || !auth.user) return res.status(401).json({ error: "Your login session is invalid." });
 
     const { data: trades, error } = await db.from("demo_paper_trades")
-      .select("id,session_id,instrument,side,entry_price,stop_loss,take_profit,remaining_quantity,status,trade_origin,opened_at,realized_pnl_usd")
+      .select("id,session_id,instrument,side,entry_price,stop_loss,take_profit,tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,tp1_done,tp2_done,tp3_done,remaining_quantity,status,trade_origin,opened_at,realized_pnl_usd")
       .eq("user_id", auth.user.id)
       .eq("status", "OPEN")
       .order("opened_at", { ascending: false })
@@ -87,6 +87,7 @@ export default async function handler(req, res) {
         current_price: market && !market.error ? Number(market.quote) : null,
         stop_loss: Number(trade.stop_loss),
         take_profit: Number(trade.take_profit),
+        targets: [1,2,3].map(n => ({ price: trade[`tp${n}_price`] == null ? null : Number(trade[`tp${n}_price`]), percent: Number(trade[`tp${n}_percent`] || 0), done: trade[`tp${n}_done`] === true })),
         remaining_quantity: Number(trade.remaining_quantity),
         trade_origin: trade.trade_origin === "BOT" ? "AUTOMATIC" : "MANUAL",
         opened_at: trade.opened_at,

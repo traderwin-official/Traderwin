@@ -35,11 +35,14 @@ test("consolidated DEMO upgrade persists the bot timeframe and grants owner-only
   assert.match(sql, /grant update\(broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe\)/);
 });
 
-test("manual website DEMO entries use the session risk limits and no external bot settings", async () => {
-  const route = await readFile(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
+test("manual website DEMO entries use pending batches and server-side aggregate risk limits", async () => {
+  const route = await readFile(new URL("../handlers/bots/demo/pending-batches.js", import.meta.url), "utf8");
   assert.match(route, /from\("demo_paper_sessions"\)/);
   assert.match(route, /Math\.min\(Number\(profile\.max_risk_per_trade_pct\),Number\(session\.risk_per_trade_pct\)\)/);
-  assert.match(route, /p_trade_origin:"MANUAL"/);
+  assert.match(route, /create_demo_manual_entry_batch/);
+  assert.match(route, /tradeCount/);
+  assert.match(route, /p_total_risk_usd:sizing\.riskAmount/);
+  assert.match(route, /No position is open yet/);
   assert.doesNotMatch(route, /from\("bot_settings"\)/);
 });
 
@@ -54,10 +57,9 @@ test("instrument approval page uses the authenticated server admin API", async (
 
 test("manual DEMO quote checks enforce stop-loss and take-profit using an atomic virtual close", async () => {
   const route = await readFile(new URL("../handlers/bots/demo/mark.js", import.meta.url), "utf8");
-  assert.match(route, /stopHit/);
-  assert.match(route, /targetHit/);
-  assert.match(route, /close_demo_paper_trade/);
-  assert.match(route, /p_reason:reason/);
+  assert.match(route, /auto_exit_manual_brackets/);
+  assert.match(route, /manage_demo_manual_partial_exit/);
+  assert.match(route, /p_stage:stage/);
 });
  
 test("dashboard keeps website DEMO trading separate and links to the standalone bot storefront", async () => {

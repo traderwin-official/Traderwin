@@ -91,23 +91,17 @@ test("new BOT entries re-fetch the Deriv quote and emergency controls immediatel
  assert.match(openBlock,/ENTRY_RECHECK_NO_LONGER_VALID/);
 });
 
-test("manual DEMO entries refresh the quote, recalculate size, and recheck both emergency controls before RPC",async()=>{
- const s=await readFile(new URL("../handlers/bots/demo/trade.js",import.meta.url),"utf8");
- const rpc=s.slice(s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"'));
- const finalCheck=s.slice(s.indexOf("// Refresh server-owned market"));
- assert.match(finalCheck,/finalQuote=await getDerivPublicQuote\(symbol\)/);
- assert.match(finalCheck,/getDerivQuoteToUsd\(symbol,finalQuote\)/);
- assert.match(finalCheck,/calculatePaperPosition\(\{balance:Number\(session\.current_balance\),riskPct,entry:finalQuote\.quote/);
- assert.match(finalCheck,/finalEmergencyError\|\|finalLegacyError/);
- assert.match(finalCheck,/finalEmergency\?\.entries_blocked\|\|finalLegacy\?\.kill_switch_active/);
- const preflightStart=s.indexOf("// Refresh server-owned market");
- const rpcStart=s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"');
- assert.ok(preflightStart>=0&&preflightStart<rpcStart);
- assert.match(rpc,/p_entry:quote\.quote,p_stop:stop,p_target:target/);
- assert.ok(s.indexOf("quote=finalQuote;")<s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"'),"RPC must use the final refreshed quote");
- assert.match(rpc,/p_quote_as_of:quote\.quoteAsOf/);
+test("manual pending batches verify quote, conversion, instrument approval and emergency controls before reservation",async()=>{
+ const s=await readFile(new URL("../handlers/bots/demo/pending-batches.js",import.meta.url),"utf8");
+ assert.match(s,/quote=await getDerivPublicQuote\(symbol\)/);
+ assert.match(s,/getDerivQuoteToUsd\(symbol,quote\)/);
+ assert.match(s,/calculatePaperPosition\(\{balance:Number\(session\.current_balance\),riskPct,entry,stop,quoteToUsd:conversion\.rate\}\)/);
+ assert.match(s,/final quote|Final verified quote/i);
+ assert.match(s,/final emergency|await checkEmergency\(\)/i);
+ assert.match(s,/bot_emergency_controls/);
+ assert.match(s,/create_demo_manual_entry_batch/);
+ assert.match(s,/p_quote_as_of:quote\.quoteAsOf/);
 });
-
 
 test("manual DEMO SL/TP worker requires its dedicated opt-in and closes only at a verified bracket",async()=>{
  const worker=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
@@ -115,13 +109,13 @@ test("manual DEMO SL/TP worker requires its dedicated opt-in and closes only at 
  const ui=await readFile(new URL("../index.html",import.meta.url),"utf8");
  assert.match(worker,/eq\("auto_exit_manual_brackets",true\)/);
  assert.match(worker,/eq\("trade_origin","MANUAL"\)/);
- assert.match(worker,/close_demo_manual_trade_at_bracket/);
- assert.match(worker,/p_reason:reason/);
+ assert.match(worker,/manage_demo_manual_partial_exit/);
+ assert.match(worker,/p_stage:"STOP_LOSS"/);
+ assert.match(worker,/tp1_percent,tp2_percent,tp3_percent/);
  assert.match(migration,/auto_exit_manual_brackets boolean not null default false/);
  assert.match(migration,/v_trade\.trade_origin <> 'MANUAL'/);
  assert.match(migration,/v_permission\.auto_exit_manual_brackets is not true/);
  assert.match(migration,/p_exit_price <= v_trade\.stop_loss/);
- assert.match(migration,/p_exit_price >= v_trade\.take_profit/);
  assert.match(migration,/to service_role/);
  assert.match(ui,/id="autoExitManualBrackets"/);
  assert.match(ui,/separate from the 20% portfolio giveback permission/);

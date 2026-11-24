@@ -21,14 +21,14 @@ async function processManualDemoBracketExits(db){
  const {data:permissions,error:permissionQueueError}=await db.from("portfolio_trade_permissions")
   .select("user_id,broker_account_ref").eq("account_mode","DEMO").eq("broker","DERIV")
   .eq("auto_exit_manual_brackets",true).limit(100);
- if(permissionQueueError)return {processed:0,closed:0,results:[],error:"MANUAL_PERMISSION_QUEUE_FAILED"};
+ if(permissionQueueError)return {processed:0,closed:0,partialExits:0,results:[],error:"MANUAL_PERMISSION_QUEUE_FAILED"};
  const eligible=new Map((permissions||[]).map(p=>[p.user_id,p.broker_account_ref]));
- if(!eligible.size)return {processed:0,closed:0,results:[]};
+ if(!eligible.size)return {processed:0,closed:0,partialExits:0,results:[]};
  const {data:trades,error}=await db.from("demo_paper_trades")
-  .select("id,user_id,session_id,instrument,side,stop_loss,take_profit,status")
+  .select("id,user_id,session_id,instrument,side,stop_loss,tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,status")
   .eq("status","OPEN").eq("trade_origin","MANUAL").in("user_id",[...eligible.keys()])
   .order("last_mark_at",{ascending:true,nullsFirst:true}).limit(4);
- if(error)return {processed:0,closed:0,results:[],error:"MANUAL_TRADE_QUEUE_FAILED"};
+ if(error)return {processed:0,closed:0,partialExits:0,results:[],error:"MANUAL_TRADE_QUEUE_FAILED"};
  const results=[];
  for(const trade of trades||[]){
   try{
@@ -43,30 +43,131 @@ async function processManualDemoBracketExits(db){
    }
    const fx=await getDerivQuoteToUsd(trade.instrument,quote);
    const stopHit=trade.side==="BUY"?quote.quote<=Number(trade.stop_loss):quote.quote>=Number(trade.stop_loss);
-   const targetHit=trade.side==="BUY"?quote.quote>=Number(trade.take_profit):quote.quote<=Number(trade.take_profit);
-   const reason=stopHit?"STOP_LOSS":targetHit?"TAKE_PROFIT":null;
-   if(!reason){
+   if(stopHit){
+    const {data:closed,error:closeError}=await db.rpc("manage_demo_manual_partial_exit",{
+     p_user_id:trade.user_id,p_trade_id:trade.id,p_stage:"STOP_LOSS",p_exit_price:quote.quote,
+     p_quote_to_usd:fx.rate,p_quote_source:quote.source,p_quote_as_of:quote.quoteAsOf
+    });
+    if(closeError){results.push({tradeId:trade.id,action:"ERROR",reason:"MANUAL_STOP_CLOSE_FAILED",detail:safeError(closeError)});continue;}
+    results.push(closed?.ok?{tradeId:trade.id,action:"CLOSED",reason:"STOP_LOSS",closedUnits:closed.closed_units,realizedPnl:closed.realized_pnl_total}:
+     {tradeId:trade.id,action:"SKIP",reason:closed?.reason||"MANUAL_STOP_NOT_APPLIED"});
+    continue;
+   }
+   let stageDone=[trade.tp1_done===true,trade.tp2_done===true,trade.tp3_done===true];
+   const targets=[Number(trade.tp1_price),Number(trade.tp2_price),Number(trade.tp3_price)];
+   const stages=["TP1","TP2","TP3"];
+   const allocations=[Number(trade.tp1_percent),Number(trade.tp2_percent),Number(trade.tp3_percent)];
+   let remaining=Number(trade.remaining_quantity),partialExits=0,failed=false;
+   for(let i=0;i<3&&remaining>0.000000000001;i++){
+    if(stageDone[i])continue;
+    if(i>0&&!stageDone[i-1])break;
+    if(!Number.isFinite(targets[i])||!Number.isFinite(allocations[i])||allocations[i]<=0)break;
+    const reached=trade.side==="BUY"?quote.quote>=targets[i]:quote.quote<=targets[i];
+    if(!reached)break;
+    const {data:exit,error:exitError}=await db.rpc("manage_demo_manual_partial_exit",{
+     p_user_id:trade.user_id,p_trade_id:trade.id,p_stage:stages[i],p_exit_price:quote.quote,
+     p_quote_to_usd:fx.rate,p_quote_source:quote.source,p_quote_as_of:quote.quoteAsOf
+    });
+    if(exitError||!exit?.ok){
+     results.push({tradeId:trade.id,action:"ERROR",reason:"MANUAL_PARTIAL_EXIT_FAILED",detail:safeError(exitError)||exit?.reason||"EXIT_NOT_APPLIED"});
+     failed=true;break;
+    }
+    stageDone[i]=true;remaining=Number(exit.remaining_units);partialExits++;
+    if(exit.closed){remaining=0;break;}
+   }
+   if(failed)continue;
+   if(partialExits){
+    results.push({tradeId:trade.id,action:remaining<=0?"CLOSED":"PARTIAL_EXIT",partialExits,remainingUnits:remaining,exitPrice:quote.quote});
+   }else{
     const {error:markError}=await db.rpc("mark_demo_paper_trade",{
      p_user_id:trade.user_id,p_trade_id:trade.id,p_price:quote.quote,p_quote_as_of:quote.quoteAsOf
     });
     results.push(markError?{tradeId:trade.id,action:"ERROR",reason:"MANUAL_MARK_FAILED"}:
      {tradeId:trade.id,action:"MARK",reason:"BRACKETS_NOT_REACHED"});
-    continue;
    }
-   const {data:closed,error:closeError}=await db.rpc("close_demo_manual_trade_at_bracket",{
-    p_user_id:trade.user_id,p_trade_id:trade.id,p_exit_price:quote.quote,
-    p_quote_to_usd:fx.rate,p_quote_source:quote.source,p_quote_as_of:quote.quoteAsOf,p_reason:reason
-   });
-   if(closeError){
-    results.push({tradeId:trade.id,action:"ERROR",reason:"MANUAL_BRACKET_CLOSE_FAILED",detail:safeError(closeError)});continue;
-   }
-   results.push(closed?.ok?{tradeId:trade.id,action:"CLOSED",reason,exitPrice:closed.exit_price,realizedPnl:closed.realized_pnl_total}:
-    {tradeId:trade.id,action:"SKIP",reason:closed?.reason||"MANUAL_BRACKET_CLOSE_NOT_APPLIED"});
   }catch(e){
    results.push({tradeId:trade.id,action:"ERROR",reason:"MANUAL_BRACKET_CHECK_FAILED",detail:safeError(e)});
   }
  }
- return {processed:results.length,closed:results.filter(r=>r.action==="CLOSED").length,results};
+ return {processed:results.length,closed:results.filter(r=>r.action==="CLOSED").length,
+  partialExits:results.reduce((n,r)=>n+(r.partialExits||0),0),results};
+}
+
+/**
+ * Watches MANUAL DEMO pending batches. A batch activates only when a fresh
+ * verified Deriv quote crosses its planned entry from the recorded pre-touch
+ * side. The SQL RPC inserts all child paper positions in one transaction.
+ */
+async function processPendingManualEntryBatches(db){
+ const {data:batches,error}=await db.from("demo_manual_entry_batches")
+  .select("id,user_id,session_id,instrument,side,entry_price,expires_at,status")
+  .eq("status","PENDING").order("updated_at",{ascending:true}).limit(8);
+ if(error)return {processed:0,activated:0,results:[],error:"PENDING_BATCH_QUEUE_FAILED"};
+ const results=[];
+ for(const batch of batches||[]){
+  try{
+   if(Date.parse(batch.expires_at)<=Date.now()){
+    const {data:r,error:e}=await db.rpc("cancel_demo_manual_entry_batch",{
+     p_user_id:batch.user_id,p_batch_id:batch.id,p_terminal_status:"EXPIRED",p_reason:"PENDING_ENTRY_EXPIRED"
+    });
+    results.push({batchId:batch.id,action:e?"ERROR":"EXPIRED",reason:e?safeError(e):r?.reason||"PENDING_ENTRY_EXPIRED"});
+    continue;
+   }
+   const {data:session,error:sessionError}=await db.from("demo_paper_sessions")
+    .select("id,user_id,broker,broker_account_ref,instrument,status")
+    .eq("id",batch.session_id).eq("user_id",batch.user_id).maybeSingle();
+   if(sessionError)throw new Error("Could not verify pending batch DEMO session.");
+   if(!session||session.status!=="RUNNING"||session.broker!=="DERIV"||normalise(session.instrument)!==normalise(batch.instrument)){
+    const {data:r,error:e}=await db.rpc("cancel_demo_manual_entry_batch",{
+     p_user_id:batch.user_id,p_batch_id:batch.id,p_terminal_status:"BLOCKED",p_reason:"SESSION_STOPPED_OR_INSTRUMENT_CHANGED"
+    });
+    results.push({batchId:batch.id,action:e?"ERROR":"BLOCKED",reason:e?safeError(e):r?.reason||"SESSION_STOPPED_OR_INSTRUMENT_CHANGED"});
+    continue;
+   }
+   const [{data:emergency,error:emergencyError},{data:legacy,error:legacyError}]=await Promise.all([
+    db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",batch.user_id).eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle(),
+    db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",batch.user_id).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle()
+   ]);
+   if(emergencyError||legacyError)throw new Error("Could not verify the DEMO emergency stop.");
+   if(emergency?.entries_blocked||legacy?.kill_switch_active){
+    const {data:r,error:e}=await db.rpc("cancel_demo_manual_entry_batch",{
+     p_user_id:batch.user_id,p_batch_id:batch.id,p_terminal_status:"BLOCKED",p_reason:"EMERGENCY_STOP_ACTIVE"
+    });
+    results.push({batchId:batch.id,action:e?"ERROR":"BLOCKED",reason:e?safeError(e):r?.reason||"EMERGENCY_STOP_ACTIVE"});
+    continue;
+   }
+   let quote;
+   try{quote=await getDerivPublicQuote(batch.instrument);}
+   catch(e){await db.from("demo_manual_entry_batches").update({updated_at:new Date().toISOString()}).eq("id",batch.id).eq("status","PENDING");results.push({batchId:batch.id,action:"WAIT",reason:"VERIFIED_QUOTE_UNAVAILABLE",detail:safeError(e)});continue;}
+   const quoteTime=Date.parse(quote.quoteAsOf||"");
+   if(quote.source!=="DERIV"||normalise(quote.instrument)!==normalise(batch.instrument)||!quote.providerSymbol
+      ||!Number.isFinite(quoteTime)||Date.now()-quoteTime>30000||quoteTime>Date.now()+5000||!Number.isFinite(Number(quote.quote))||Number(quote.quote)<=0){
+    await db.from("demo_manual_entry_batches").update({updated_at:new Date().toISOString()}).eq("id",batch.id).eq("status","PENDING");
+    results.push({batchId:batch.id,action:"WAIT",reason:"VERIFIED_QUOTE_STALE_OR_MISMATCHED"});continue;
+   }
+   const approval=await loadApprovedInstrument(db,{broker:"DERIV",instrument:batch.instrument,providerSymbol:quote.providerSymbol});
+   if(!approval.approved){
+    const {data:r,error:e}=await db.rpc("cancel_demo_manual_entry_batch",{
+     p_user_id:batch.user_id,p_batch_id:batch.id,p_terminal_status:"BLOCKED",p_reason:"INSTRUMENT_APPROVAL_REVOKED"
+    });
+    results.push({batchId:batch.id,action:e?"ERROR":"BLOCKED",reason:e?safeError(e):r?.reason||"INSTRUMENT_APPROVAL_REVOKED"});
+    continue;
+   }
+   let fx;
+   try{fx=await getDerivQuoteToUsd(batch.instrument,quote);}
+   catch(e){await db.from("demo_manual_entry_batches").update({updated_at:new Date().toISOString()}).eq("id",batch.id).eq("status","PENDING");results.push({batchId:batch.id,action:"WAIT",reason:"USD_CONVERSION_UNAVAILABLE",detail:safeError(e)});continue;}
+   const {data:activated,error:activationError}=await db.rpc("activate_demo_manual_entry_batch",{
+    p_batch_id:batch.id,p_quote:quote.quote,p_quote_source:quote.source,p_provider_symbol:quote.providerSymbol,
+    p_quote_as_of:quote.quoteAsOf,p_quote_to_usd:fx.rate
+   });
+   if(activationError){results.push({batchId:batch.id,action:"ERROR",reason:"ATOMIC_BATCH_ACTIVATION_FAILED",detail:safeError(activationError)});continue;}
+   results.push(activated?.activated?{batchId:batch.id,action:"ACTIVATED",tradeCount:activated.trade_count,tradeIds:activated.trade_ids,plannedEntry:activated.planned_entry,triggerQuote:activated.trigger_quote}:
+    {batchId:batch.id,action:["ENTRY_NOT_TOUCHED","QUOTE_CHECKPOINT_NOT_NEWER"].includes(activated?.reason)?"WAIT":"BLOCKED",reason:activated?.reason||"BATCH_NOT_ACTIVATED"});
+  }catch(e){
+   results.push({batchId:batch.id,action:"ERROR",reason:"PENDING_BATCH_CHECK_FAILED",detail:safeError(e)});
+  }
+ }
+ return {processed:results.length,activated:results.filter(r=>r.action==="ACTIVATED").length,results};
 }
 
 async function processSession(db,raw){
@@ -175,6 +276,7 @@ export default async function handler(req,res){
   let results=[];
   let portfolioProtection={processed:0,results:[]};
   let manualBracketExits={processed:0,closed:0,results:[]};
+  let pendingManualBatches={processed:0,activated:0,results:[]};
    try{   const {data:candidates,error}=await db.from("demo_paper_sessions").select("*").neq("strategy","MANUAL").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(20);
    const sessions=(candidates||[]).filter(s=>resolveDemoAutoStrategy(s)!==null).slice(0,MAX_SESSIONS_PER_TICK);
    if(error)throw new Error("Could not load DEMO paper sessions.");
@@ -183,6 +285,7 @@ export default async function handler(req,res){
    results=await Promise.all((sessions||[]).map(s=>processSession(db,s).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}))));
    portfolioProtection=await portfolioPromise;
    manualBracketExits=await processManualDemoBracketExits(db);
+   pendingManualBatches=await processPendingManualEntryBatches(db);
    const tick=new Date().toISOString();
    const beats=(sessions||[]).map(s=>{const r=results.find(x=>x.sessionId===s.id);return {session_id:s.id,user_id:s.user_id,last_tick_at:tick,last_action:r?.action||"UNKNOWN",last_reason:r?.reason||null,last_error:["ERROR","BLOCK"].includes(r?.action)?(r.detail||r.reason):null,updated_at:tick};});
    if(beats.length){const {error:e}=await db.from("demo_paper_worker_heartbeats").upsert(beats,{onConflict:"session_id"});if(e)console.error("DEMO heartbeat:",e.message);}
@@ -191,6 +294,6 @@ export default async function handler(req,res){
    const {error}=await db.rpc("release_demo_paper_worker",{p_token:token});if(error)console.error("DEMO lease release:",error.message);
   }
    const counts=results.reduce((o,r)=>(o[r.action]=(o[r.action]||0)+1,o),{});
-  return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,manualBracketExits,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
+  return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,manualBracketExits,pendingManualBatches,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
  }catch(e){console.error("DEMO paper worker:",e.message);return res.status(500).json({error:"DEMO paper worker failed safely."});}
 }
