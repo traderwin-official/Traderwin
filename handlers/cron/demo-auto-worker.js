@@ -156,7 +156,7 @@ async function processPendingManualEntryBatches(db){
    try{fx=await getDerivQuoteToUsd(batch.instrument,quote);}
    catch(e){results.push({batchId:batch.id,action:"WAIT",reason:"USD_CONVERSION_UNAVAILABLE",detail:safeError(e)});continue;}
    const {data:activated,error:activationError}=await db.rpc("activate_demo_manual_entry_batch",{
-    p_batch_id:batch.id,p_quote:quote.quote,p_quote_source:quote.source,
+    p_batch_id:batch.id,p_quote:quote.quote,p_quote_source:quote.source,p_provider_symbol:quote.providerSymbol,
     p_quote_as_of:quote.quoteAsOf,p_quote_to_usd:fx.rate
    });
    if(activationError){results.push({batchId:batch.id,action:"ERROR",reason:"ATOMIC_BATCH_ACTIVATION_FAILED",detail:safeError(activationError)});continue;}
