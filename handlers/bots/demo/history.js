@@ -22,7 +22,7 @@ export default async function handler(req,res){
     if(balanceError){console.error("DEMO account balance lookup failed:",balanceError.message);return res.status(503).json({error:"Account balance upgrade is required before history can be displayed."});}
     const sessionMap=new Map((sessions||[]).map(s=>[s.id,s]));
     const history=(trades||[]).map(t=>({...t,session_status:sessionMap.get(t.session_id)?.status||null,session_started_at:sessionMap.get(t.session_id)?.started_at||sessionMap.get(t.session_id)?.created_at||null}));
-    const realizedPnl=history.reduce((sum,t)=>sum+Number(t.realized_pnl_usd||0),0);
+    const realizedPnl=Number((Number(balance)-10000).toFixed(2));
     return res.status(200).json({mode:"DEMO",paperOnly:true,startingBalance:10000,accountBalance:Number(balance),realizedPnl:Number(realizedPnl.toFixed(2)),sessions:sessions||[],trades:history});
   }catch(error){
     console.error("DEMO history error:",error?.message||"unknown");
