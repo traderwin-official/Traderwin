@@ -26,6 +26,9 @@ begin
     10000,10000,1.00,2.00,3,2.00
   ) returning id into v_session_risk;
 
+  -- The account-wide guard must publish a fresh valuation before any entry RPC.
+  select public.evaluate_demo_daily_loss_guard(v_user,0) into v_result;
+
   -- First BOT position and one MANUAL position coexist in the same session.
   select public.open_demo_paper_trade(
     v_user,v_session_risk,'EURUSD','BUY',1.10000,1.09000,1.13000,
