@@ -52,7 +52,10 @@ begin
   end if;
   v_day_start := date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
   v_day := (now() at time zone 'Africa/Nairobi')::date;
-  select greatest(0,round(10000 + coalesce(sum(realized_pnl_usd),0),2))
+  -- Keep this intermediate ledger total unclamped so subtracting today's
+  -- realized P/L still reconstructs the true day-opening balance even if
+  -- later losses have already driven the virtual account balance to zero.
+  select round(10000 + coalesce(sum(realized_pnl_usd),0),2)
     into v_current_balance
     from public.demo_paper_trades where user_id=p_user_id;
   select coalesce(sum(realized_pnl_delta_usd),0)
