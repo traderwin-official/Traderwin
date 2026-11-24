@@ -241,10 +241,9 @@ begin
       return jsonb_build_object('ok',false,'reason','MANUAL_CLOSE_PERMISSION_NOT_GRANTED');
     end if;
   elsif v_trade.trade_origin='BOT' then
-    if found and (v_permission.bot_trade_management is not true
-       or v_permission.close_managed_positions is not true) then
-      return jsonb_build_object('ok',false,'reason','BOT_CLOSE_PERMISSION_NOT_GRANTED');
-    end if;
+    -- Daily account protection always closes automated DEMO positions.
+    -- User-selectable manual-position permissions do not disable this guard.
+    null;
   else return jsonb_build_object('ok',false,'reason','UNSUPPORTED_TRADE_ORIGIN'); end if;
   update public.demo_paper_trades set metadata=coalesce(metadata,'{}'::jsonb)||
     jsonb_build_object('daily_loss_close_key',p_idempotency_key,'daily_loss_close_reason','DAILY_LOSS_LIMIT')
@@ -347,3 +346,37 @@ revoke all on function public.enforce_fresh_demo_daily_equity_before_trade(),
 grant execute on function public.enforce_fresh_demo_daily_equity_before_trade(),
  public.open_demo_paper_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,text,timestamptz,numeric,numeric,numeric)
  to service_role;
+
+
+-- Legacy close/partial-exit RPCs still contain a realized-loss-only status update.
+-- Reconcile those legacy status writes against the fresh account-equity valuation:
+-- only the sticky 20% equity guard may keep a same-day session risk-locked.
+create or replace function public.reconcile_demo_daily_loss_session_status()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare
+  v_day date := (now() at time zone 'Africa/Nairobi')::date;
+  v_day_start timestamptz := date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi';
+  v_locked_at timestamptz;
+  v_valuation_at timestamptz;
+begin
+  if new.status <> 'RISK_LOCKED' or new.risk_locked_at is null or new.risk_locked_at < v_day_start then
+    return new;
+  end if;
+  select limit_reached_at,last_valuation_at into v_locked_at,v_valuation_at
+    from public.demo_daily_risk_baselines
+   where user_id=new.user_id and trading_day=v_day;
+  if v_locked_at is null and v_valuation_at is not null
+     and v_valuation_at >= now()-interval '60 seconds' then
+    update public.demo_paper_sessions
+       set status='RUNNING',risk_locked_at=null,updated_at=now()
+     where id=new.id and status='RISK_LOCKED';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists demo_paper_reconcile_daily_loss_status on public.demo_paper_sessions;
+create trigger demo_paper_reconcile_daily_loss_status
+after update of current_balance on public.demo_paper_sessions
+for each row execute function public.reconcile_demo_daily_loss_session_status();
+
+revoke all on function public.reconcile_demo_daily_loss_session_status() from public,anon,authenticated;
