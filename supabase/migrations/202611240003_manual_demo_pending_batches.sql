@@ -85,8 +85,8 @@ begin
    or p_tp1_percent is null or p_tp2_percent is null or p_tp3_percent is null
    or p_tp1_percent<=0 or p_tp2_percent<=0 or p_tp3_percent<=0
    or round(p_tp1_percent+p_tp2_percent+p_tp3_percent,2)<>100
-   or p_total_quantity is null or p_total_quantity<=0 or p_total_risk_usd/p_trade_count<0.01
-   or p_total_risk_usd is null or p_total_risk_usd<=0
+   or p_total_quantity is null or p_total_quantity<=0
+   or p_total_risk_usd is null or p_total_risk_usd<=0 or p_total_risk_usd<0.01*p_trade_count
    or p_total_risk_pct is null or p_total_risk_pct<=0 or p_total_risk_pct>2
    or p_quote_to_usd is null or p_quote_to_usd<=0
    or p_quote_source is distinct from 'DERIV'
