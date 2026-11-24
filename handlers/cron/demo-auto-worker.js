@@ -18,28 +18,24 @@ const normalise=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
  * auto_exit_manual_brackets permission for the user's DEMO Deriv account.
  */
 async function processManualDemoBracketExits(db){
+ const {data:permissions,error:permissionQueueError}=await db.from("portfolio_trade_permissions")
+  .select("user_id,broker_account_ref").eq("account_mode","DEMO").eq("broker","DERIV")
+  .eq("auto_exit_manual_brackets",true).limit(100);
+ if(permissionQueueError)return {processed:0,closed:0,results:[],error:"MANUAL_PERMISSION_QUEUE_FAILED"};
+ const eligible=new Map((permissions||[]).map(p=>[p.user_id,p.broker_account_ref]));
+ if(!eligible.size)return {processed:0,closed:0,results:[]};
  const {data:trades,error}=await db.from("demo_paper_trades")
   .select("id,user_id,session_id,instrument,side,stop_loss,take_profit,status")
-  .eq("status","OPEN").eq("trade_origin","MANUAL")
-  .order("last_mark_at",{ascending:true,nullsFirst:true}).limit(12);
+  .eq("status","OPEN").eq("trade_origin","MANUAL").in("user_id",[...eligible.keys()])
+  .order("last_mark_at",{ascending:true,nullsFirst:true}).limit(4);
  if(error)return {processed:0,closed:0,results:[],error:"MANUAL_TRADE_QUEUE_FAILED"};
  const results=[];
  for(const trade of trades||[]){
   try{
    const {data:session,error:sessionError}=await db.from("demo_paper_sessions")
     .select("broker,broker_account_ref").eq("id",trade.session_id).eq("user_id",trade.user_id).maybeSingle();
-   if(sessionError||!session||session.broker!=="DERIV"){
-    results.push({tradeId:trade.id,action:"BLOCK",reason:"DEMO_SESSION_UNAVAILABLE"});continue;
-   }
-   const {data:permission,error:permissionError}=await db.from("portfolio_trade_permissions")
-    .select("auto_exit_manual_brackets")
-    .eq("user_id",trade.user_id).eq("account_mode","DEMO").eq("broker","DERIV")
-    .eq("broker_account_ref",session.broker_account_ref).maybeSingle();
-   if(permissionError){
-    results.push({tradeId:trade.id,action:"BLOCK",reason:"MANUAL_PERMISSION_LOOKUP_FAILED"});continue;
-   }
-   if(!permission||permission.auto_exit_manual_brackets!==true){
-    results.push({tradeId:trade.id,action:"SKIP",reason:"MANUAL_BRACKET_CLOSE_PERMISSION_NOT_GRANTED"});continue;
+   if(sessionError||!session||session.broker!=="DERIV"||eligible.get(trade.user_id)!==session.broker_account_ref){
+    results.push({tradeId:trade.id,action:"BLOCK",reason:"DEMO_SESSION_OR_PERMISSION_SCOPE_MISMATCH"});continue;
    }
    const quote=await getDerivPublicQuote(trade.instrument);
    if(quote.source!=="DERIV"||normalise(quote.instrument)!==normalise(trade.instrument)||!quote.providerSymbol){
