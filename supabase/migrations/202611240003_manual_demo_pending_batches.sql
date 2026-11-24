@@ -8,6 +8,7 @@ create table if not exists public.demo_manual_entry_batches (
   user_id uuid not null references auth.users(id) on delete cascade,
   session_id uuid not null references public.demo_paper_sessions(id) on delete cascade,
   instrument text not null,
+  provider_symbol text not null,
   side text not null check (side in ('BUY','SELL')),
   requested_trade_count integer not null check (requested_trade_count between 1 and 10),
   entry_price numeric(24,10) not null check (entry_price > 0),
@@ -59,11 +60,11 @@ grant select on public.demo_manual_entry_batches to authenticated;
 grant all on public.demo_manual_entry_batches to service_role;
 
 create or replace function public.create_demo_manual_entry_batch(
- p_user_id uuid,p_session_id uuid,p_instrument text,p_side text,p_trade_count integer,
+ p_user_id uuid,p_session_id uuid,p_instrument text,p_provider_symbol text,p_side text,p_trade_count integer,
  p_entry numeric,p_stop numeric,p_tp1 numeric,p_tp2 numeric,p_tp3 numeric,
  p_tp1_percent numeric,p_tp2_percent numeric,p_tp3_percent numeric,
  p_total_quantity numeric,p_total_risk_usd numeric,p_total_risk_pct numeric,
- p_quote_to_usd numeric,p_quote_source text,p_quote numeric,p_quote_as_of timestamptz
+ p_quote_to_usd numeric,p_quote_source text,p_provider_symbol text,p_quote numeric,p_quote_as_of timestamptz
 ) returns jsonb
 language plpgsql security definer set search_path=public,pg_temp as $$
 declare
@@ -77,7 +78,7 @@ declare
 begin
  if auth.role() is distinct from 'service_role' then raise exception 'Service role required'; end if;
  if p_user_id is null or p_session_id is null or nullif(trim(p_instrument),'') is null
-   or p_side not in ('BUY','SELL') or p_trade_count is null or p_trade_count not between 1 and 10
+   or nullif(trim(p_provider_symbol),'') is null or p_side not in ('BUY','SELL') or p_trade_count is null or p_trade_count not between 1 and 10
    or p_entry is null or p_entry<=0 or p_stop is null or p_stop<=0
    or p_tp1 is null or p_tp2 is null or p_tp3 is null
    or p_tp1<=0 or p_tp2<=0 or p_tp3<=0
@@ -113,13 +114,21 @@ begin
  if upper(v_session.instrument)<>upper(p_instrument) then
    return jsonb_build_object('ok',false,'reason','INSTRUMENT_MISMATCH');
  end if;
+ if not exists(select 1 from public.trading_instrument_approvals
+   where broker='DERIV' and instrument=p_instrument and provider='DERIV'
+     and provider_symbol=p_provider_symbol and status='APPROVED' and is_active=true) then
+   return jsonb_build_object('ok',false,'reason','INSTRUMENT_NOT_APPROVED');
+ end if;
  if p_total_risk_pct>v_session.risk_per_trade_pct
    or p_total_risk_usd>v_session.current_balance*v_session.risk_per_trade_pct/100 then
    return jsonb_build_object('ok',false,'reason','BATCH_RISK_EXCEEDS_SESSION_LIMIT');
  end if;
  if exists(select 1 from public.demo_paper_emergency_controls
    where user_id=p_user_id and broker='DERIV'
-     and broker_account_ref=v_session.broker_account_ref and entries_blocked) then
+     and broker_account_ref=v_session.broker_account_ref and entries_blocked)
+   or exists(select 1 from public.bot_emergency_controls
+     where user_id=p_user_id and account_mode='DEMO' and broker='DERIV'
+       and broker_account_ref=v_session.broker_account_ref and kill_switch_active) then
    return jsonb_build_object('ok',false,'reason','KILL_SWITCH_ACTIVE');
  end if;
 
@@ -154,12 +163,12 @@ begin
  end if;
 
  insert into public.demo_manual_entry_batches(
-  user_id,session_id,instrument,side,requested_trade_count,entry_price,stop_loss,
+  user_id,session_id,instrument,provider_symbol,side,requested_trade_count,entry_price,stop_loss,
   tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,
   total_quantity,total_risk_usd,total_risk_pct,quote_to_usd,quote_source,
   last_quote,last_quote_as_of
  ) values (
-  p_user_id,p_session_id,p_instrument,p_side,p_trade_count,p_entry,p_stop,
+  p_user_id,p_session_id,p_instrument,p_provider_symbol,p_side,p_trade_count,p_entry,p_stop,
   p_tp1,p_tp2,p_tp3,p_tp1_percent,p_tp2_percent,p_tp3_percent,
   p_total_quantity,p_total_risk_usd,p_total_risk_pct,p_quote_to_usd,p_quote_source,
   p_quote,p_quote_as_of
@@ -172,7 +181,7 @@ end;
 $$;
 
 create or replace function public.activate_demo_manual_entry_batch(
- p_batch_id uuid,p_quote numeric,p_quote_source text,p_quote_as_of timestamptz,p_quote_to_usd numeric
+ p_batch_id uuid,p_quote numeric,p_quote_source text,p_provider_symbol text,p_quote_as_of timestamptz,p_quote_to_usd numeric
 ) returns jsonb
 language plpgsql security definer set search_path=public,pg_temp as $$
 declare
@@ -194,7 +203,7 @@ declare
 begin
  if auth.role() is distinct from 'service_role' then raise exception 'Service role required'; end if;
  if p_batch_id is null or p_quote is null or p_quote<=0
-   or p_quote_source is distinct from 'DERIV' or p_quote_as_of is null
+   or p_quote_source is distinct from 'DERIV' or nullif(trim(p_provider_symbol),'') is null or p_quote_as_of is null
    or p_quote_as_of>now() or p_quote_as_of<now()-interval '30 seconds'
    or p_quote_to_usd is null or p_quote_to_usd<=0 then
    raise exception 'Invalid or stale pending-entry activation quote';
@@ -230,9 +239,20 @@ begin
  end if;
  if exists(select 1 from public.demo_paper_emergency_controls
    where user_id=v_batch.user_id and broker='DERIV'
-     and broker_account_ref=v_session.broker_account_ref and entries_blocked) then
+     and broker_account_ref=v_session.broker_account_ref and entries_blocked)
+   or exists(select 1 from public.bot_emergency_controls
+     where user_id=v_batch.user_id and account_mode='DEMO' and broker='DERIV'
+       and broker_account_ref=v_session.broker_account_ref and kill_switch_active) then
    update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='EMERGENCY_STOP_ACTIVE',updated_at=now() where id=v_batch.id;
    return jsonb_build_object('ok',false,'reason','EMERGENCY_STOP_ACTIVE');
+ end if;
+
+ if p_provider_symbol is distinct from v_batch.provider_symbol
+   or not exists(select 1 from public.trading_instrument_approvals
+     where broker='DERIV' and instrument=v_batch.instrument and provider='DERIV'
+       and provider_symbol=v_batch.provider_symbol and status='APPROVED' and is_active=true) then
+   update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='INSTRUMENT_APPROVAL_REVOKED',updated_at=now() where id=v_batch.id;
+   return jsonb_build_object('ok',false,'reason','INSTRUMENT_APPROVAL_REVOKED');
  end if;
 
  v_triggered := (v_batch.side='BUY' and v_batch.last_quote>v_batch.entry_price and p_quote<=v_batch.entry_price)
@@ -329,9 +349,9 @@ begin
 end;
 $$;
 
-revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)
+revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,timestamptz)
  from public,anon,authenticated;
-revoke all on function public.activate_demo_manual_entry_batch(uuid,numeric,text,timestamptz,numeric)
+revoke all on function public.activate_demo_manual_entry_batch(uuid,numeric,text,text,timestamptz,numeric)
  from public,anon,authenticated;
 revoke all on function public.cancel_demo_manual_entry_batch(uuid,uuid,text,text)
  from public,anon,authenticated;
