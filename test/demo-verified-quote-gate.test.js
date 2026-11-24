@@ -1,13 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-test("DEMO entry obtains price from server Deriv quote and opens through v2 RPC",async()=>{
- const s=await readFile(new URL("../handlers/bots/demo/trade.js",import.meta.url),"utf8");
- assert.match(s,/getDerivPublicQuote\(symbol\)/);assert.match(s,/const entry=quote\.quote/);
- assert.match(s,/open_demo_manual_partial_trade/);assert.match(s,/p_quote_source:quote\.source/);
- assert.match(s,/getDerivQuoteToUsd/);assert.match(s,/p_quote_to_usd:conversion\.rate/);
- assert.doesNotMatch(s,/from\("demo_bot_trades"\)\s*\.insert/);assert.doesNotMatch(s,/num\(b\.entryPrice\)/);
+test("manual DEMO pending batch uses a server verified Deriv quote and never accepts an immediate browser fill",async()=>{
+ const s=await readFile(new URL("../handlers/bots/demo/pending-batches.js",import.meta.url),"utf8");
+ assert.match(s,/getDerivPublicQuote\(symbol\)/);
+ assert.match(s,/freshQuote\(quote,symbol\)/);
+ assert.match(s,/getDerivQuoteToUsd/);
+ assert.match(s,/create_demo_manual_entry_batch/);
+ assert.match(s,/num\(body\.entryPrice\)/);
+ assert.match(s,/positions activate only after a later verified quote crosses/);
+ assert.doesNotMatch(s,/buy\(|sell\(|placeOrder|sendBrokerOrder/i);
 });
+
 test("DEMO mark and close use fresh verified quotes and v2 records",async()=>{
  const mark=await readFile(new URL("../handlers/bots/demo/mark.js",import.meta.url),"utf8");
  const close=await readFile(new URL("../handlers/bots/demo/close.js",import.meta.url),"utf8");
