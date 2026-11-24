@@ -67,6 +67,9 @@ test("all DEMO trade insertion paths require a fresh valuation and no sticky dai
   assert.match(sql, /limit_reached_at is not null/);
   assert.match(sql, /create or replace function public\.open_demo_paper_trade/);
   assert.doesNotMatch(sql, /v_daily_loss := greatest/);
+  assert.match(sql, /v_session\.max_open_positions/);
+  assert.match(sql, /TOTAL_OPEN_RISK_LIMIT/);
+  assert.match(sql, /BOT_POSITION_EXISTS/);
 });
 
 test("daily valuation queue advances verified marks so later accounts are not starved", async () => {
