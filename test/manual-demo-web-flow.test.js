@@ -35,11 +35,14 @@ test("consolidated DEMO upgrade persists the bot timeframe and grants owner-only
   assert.match(sql, /grant update\(broker,instrument,account_mode,strategy,max_risk_per_trade_pct,timeframe\)/);
 });
 
-test("manual website DEMO entries use the session risk limits and no external bot settings", async () => {
-  const route = await readFile(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
+test("manual website DEMO entries use pending batches and server-side aggregate risk limits", async () => {
+  const route = await readFile(new URL("../handlers/bots/demo/pending-batches.js", import.meta.url), "utf8");
   assert.match(route, /from\("demo_paper_sessions"\)/);
   assert.match(route, /Math\.min\(Number\(profile\.max_risk_per_trade_pct\),Number\(session\.risk_per_trade_pct\)\)/);
-  assert.match(route, /open_demo_manual_partial_trade/);
+  assert.match(route, /create_demo_manual_entry_batch/);
+  assert.match(route, /tradeCount/);
+  assert.match(route, /p_total_risk_usd:sizing\.riskAmount/);
+  assert.match(route, /No position is open yet/);
   assert.doesNotMatch(route, /from\("bot_settings"\)/);
 });
 
