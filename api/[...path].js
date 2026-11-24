@@ -32,6 +32,7 @@ import h28 from "../handlers/payments/mpesa/status.js";
 import h29 from "../handlers/payments/mpesa/stk-push.js";
 import h30 from "../handlers/subscriptions/status.js";
 import h31 from "../handlers/bots/demo/history.js";
+import h32 from "../handlers/bots/demo/positions.js";
 
 const ROUTES = {
   "/api/admin/bot-license-fulfill": h0,
@@ -43,6 +44,7 @@ const ROUTES = {
   "/api/bot-shop": h6,
   "/api/bots/demo/close": h7,
   "/api/bots/demo/history": h31,
+  "/api/bots/demo/positions": h32,
   "/api/bots/demo/control": h8,
   "/api/bots/demo/mark": h9,
   "/api/bots/demo/portfolio-permissions": h10,

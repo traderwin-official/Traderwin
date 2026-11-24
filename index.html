@@ -55,6 +55,20 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 
 .dashboard-hub{max-width:1500px;margin:18px auto 0;padding:0 5%}.dashboard-panel{background:linear-gradient(135deg,#101d31,#151d2b 60%,#28200f);border:1px solid #3a4b63;border-radius:18px;padding:20px;box-shadow:0 12px 36px #0005}.dashboard-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}.dashboard-head h2{margin:0;font-size:22px}.dashboard-head h2 span{color:var(--gold)}.dashboard-mode{font-size:12px;padding:7px 11px;border-radius:20px;background:#123d36;color:#72e2bd;border:1px solid #267b68}.dashboard-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.dashboard-action{display:flex;min-height:112px;flex-direction:column;justify-content:space-between;gap:8px;padding:15px;text-decoration:none;color:#f4f6fa;background:linear-gradient(145deg,#14243a,#0c1524);border:1px solid #304967;border-radius:14px;transition:transform .18s,border-color .18s,box-shadow .18s}.dashboard-action:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:0 8px 24px #0006}.dashboard-icon{font-size:25px}.dashboard-action strong{font-size:14px}.dashboard-action small{font-size:12px;line-height:1.4;color:var(--muted)}.dashboard-foot{margin:14px 2px 0;color:var(--muted);font-size:12px;line-height:1.5}@media(max-width:700px){.dashboard-hub{padding:0 4%}.dashboard-panel{padding:15px}.dashboard-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-action{min-height:104px;padding:12px}}@media(max-width:360px){.dashboard-actions{grid-template-columns:1fr 1fr}.dashboard-action{min-height:96px}}
 .live-feed{margin-top:18px;padding:16px;border:1px solid #26364b;border-radius:12px;background:#0c1727}.live-feed-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.live-feed-status{font-size:12px;color:#9fb0c6}.live-feed-price{font-size:25px;font-weight:800;color:#e5bd59;margin:10px 0}.live-feed canvas{display:block;width:100%;height:220px;background:#08111e;border-radius:8px}.live-feed select{width:100%;padding:10px;background:#101e30;color:#fff;border:1px solid #33465e;border-radius:8px;margin-top:8px}
+
+.live-positions{margin-top:15px;padding:16px;border:1px solid #36506d;border-radius:13px;background:linear-gradient(145deg,#0d1b2d,#0a1422)}
+.live-positions-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.live-position-filters{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.live-position-filters button{background:#25364b;color:#fff;padding:8px 12px;font-size:12px}
+.live-position-filters button.active{background:var(--gold);color:#111}
+.live-position-table{width:100%;border-collapse:collapse;min-width:900px;font-size:12px}
+.live-position-table th,.live-position-table td{padding:10px 8px;border-bottom:1px solid #26364b;text-align:left;white-space:nowrap}
+.live-position-table th{color:#9eabc0;font-weight:600}
+.position-origin{display:inline-block;padding:5px 8px;border-radius:14px;font-size:10px;font-weight:800;letter-spacing:.4px}
+.position-origin.manual{background:#123d36;color:#72e2bd}
+.position-origin.automatic{background:#302716;color:#f5bd45}
+@media(max-width:600px){.live-positions{padding:12px}.live-position-table th,.live-position-table td{padding:9px 7px}}
+
 </style>
 </head>
 
@@ -227,6 +241,31 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <button type="button" class="secondary" id="closePaperTrade" disabled>Close at Latest Verified Quote</button>
   <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="card live-positions" id="livePositionsMonitor">
+   <div class="live-positions-head">
+    <div><h3 style="margin:0">Live Positions Monitor</h3><p class="muted" style="margin:6px 0 0">DEMO PAPER ONLY · Verified Deriv public quotes · No broker orders</p></div>
+    <button type="button" class="secondary" id="refreshLivePositions">Refresh Positions</button>
+   </div>
+   <div class="grid" style="margin-top:12px">
+    <div class="card"><p class="muted">Open positions</p><div class="price" id="livePositionCount">0</div></div>
+    <div class="card"><p class="muted">Floating P/L (USD)</p><div class="price" id="livePositionPnl">USD 0.00</div></div>
+    <div class="card"><p class="muted">Manual / Automatic</p><div class="price" id="livePositionOrigins">0 / 0</div></div>
+   </div>
+   <div class="live-position-filters" role="group" aria-label="Filter live positions">
+    <button type="button" class="active" data-position-filter="ALL">ALL</button>
+    <button type="button" data-position-filter="MANUAL">MANUAL</button>
+    <button type="button" data-position-filter="AUTOMATIC">AUTOMATIC</button>
+   </div>
+   <p class="muted" id="livePositionsStatus" role="status" aria-live="polite">Loading your open DEMO positions…</p>
+   <div style="overflow-x:auto">
+    <table class="live-position-table">
+     <thead><tr><th>Origin</th><th>Instrument</th><th>Side</th><th>Entry</th><th>Live price</th><th>Stop loss</th><th>Take profit</th><th>Floating P/L</th><th>Duration</th><th>Action</th></tr></thead>
+     <tbody id="livePositionRows"><tr><td colspan="10" style="padding:12px">Loading positions…</td></tr></tbody>
+    </table>
+   </div>
+   <p class="muted">Quotes refresh about every 15 seconds while this page is open. If a quote is stale or unavailable, its P/L is shown as unavailable rather than guessed. REAL Deriv/MT5 positions are not included in this DEMO monitor.</p>
+  </div>
+
   <div class="card" id="demoTradeHistory" style="margin-top:14px">
    <div class="dashboard-head"><h4>DEMO Trade History</h4><button type="button" class="secondary" id="refreshDemoTradeHistory">Refresh History</button></div>
    <p class="muted" id="demoHistorySummary">Loading your saved DEMO trades…</p>
@@ -1130,6 +1169,93 @@ calculateRisk();
     }finally{if(refresh)refresh.disabled=false;}
    }
    document.getElementById("refreshDemoTradeHistory").addEventListener("click",loadDemoTradeHistory);
+
+   // Read-only DEMO live positions monitor. It never sends, edits or closes orders.
+   const livePositionRows=document.getElementById("livePositionRows");
+   const livePositionsStatus=document.getElementById("livePositionsStatus");
+   const livePositionsRefresh=document.getElementById("refreshLivePositions");
+   let livePositionFilter="ALL",livePositionsCache=[],livePositionsBusy=false;
+   const liveMoney=value=>Number.isFinite(Number(value))?"USD "+Number(value).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"Unavailable";
+   const livePrice=value=>Number.isFinite(Number(value))?Number(value).toLocaleString("en-US",{maximumFractionDigits:8}):"—";
+   function liveDuration(openedAt){
+    const start=Date.parse(openedAt||"");if(!Number.isFinite(start))return "—";
+    const minutes=Math.max(0,Math.floor((Date.now()-start)/60000));
+    if(minutes<60)return minutes+"m";
+    const hours=Math.floor(minutes/60),days=Math.floor(hours/24);
+    return days?days+"d "+(hours%24)+"h":hours+"h "+(minutes%60)+"m";
+   }
+   function renderLivePositions(){
+    const filtered=livePositionFilter==="ALL"?livePositionsCache:livePositionsCache.filter(p=>p.trade_origin===livePositionFilter);
+    livePositionRows.replaceChildren();
+    if(!filtered.length){
+     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=10;td.textContent=livePositionsCache.length?"No "+livePositionFilter.toLowerCase()+" positions are currently open.":"No open DEMO positions. Your next manual or automatic paper position will appear here.";td.style.padding="12px";tr.appendChild(td);livePositionRows.appendChild(tr);return;
+    }
+    filtered.forEach(position=>{
+     const tr=document.createElement("tr");
+     const origin=document.createElement("td"),originBadge=document.createElement("span");
+     originBadge.className="position-origin "+(position.trade_origin==="MANUAL"?"manual":"automatic");
+     originBadge.textContent=position.trade_origin;origin.appendChild(originBadge);tr.appendChild(origin);
+     const values=[
+      position.instrument||"—",position.side||"—",livePrice(position.entry_price),
+      position.quote_status==="LIVE"?livePrice(position.current_price):"Quote unavailable",
+      livePrice(position.stop_loss),livePrice(position.take_profit),
+      position.quote_status==="LIVE"?liveMoney(position.unrealized_pnl_usd):"Unavailable",
+      liveDuration(position.opened_at)
+     ];
+     values.forEach((value,index)=>{
+      const td=document.createElement("td");td.textContent=String(value);
+      if(index===6){td.style.color=position.quote_status!=="LIVE"?"#9eabc0":Number(position.unrealized_pnl_usd)>=0?"#25c58a":"#f16c75";td.style.fontWeight="700";}
+      tr.appendChild(td);
+     });
+     const action=document.createElement("td"),selectButton=document.createElement("button");
+     selectButton.type="button";selectButton.className="secondary";selectButton.textContent="Select";
+     selectButton.addEventListener("click",()=>{
+      const selector=document.getElementById("paperOpenPositionSelect");
+      const existing=Array.from(selector.options).find(option=>option.value===position.id);
+      if(existing)selector.value=position.id;
+      else{const option=new Option((position.instrument||"")+" "+(position.side||"")+" · "+position.trade_origin+" · "+position.id.slice(0,8),position.id);selector.add(option);selector.value=position.id;}
+      document.getElementById("paperTradeId").value=position.id;
+      document.getElementById("paperSymbol").value=position.instrument||"";
+      closePaper.disabled=false;markPaper.disabled=false;
+      document.getElementById("paperTradeMessage").textContent="Selected "+position.trade_origin.toLowerCase()+" DEMO position. Use the existing close controls only when you choose to close it.";
+     });
+     action.appendChild(selectButton);tr.appendChild(action);livePositionRows.appendChild(tr);
+    });
+   }
+   async function loadLivePositions(){
+    if(livePositionsBusy)return;
+    livePositionsBusy=true;if(livePositionsRefresh)livePositionsRefresh.disabled=true;
+    try{
+     const {data:s,error:e}=await client.auth.getSession();
+     if(e||!s.session)throw new Error("Please sign in again.");
+     const response=await fetch("/api/bots/demo/positions",{method:"GET",headers:{"Authorization":"Bearer "+s.session.access_token},credentials:"same-origin",cache:"no-store"});
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(result.error||"Could not load open DEMO positions.");
+     livePositionsCache=Array.isArray(result.positions)?result.positions:[];
+     document.getElementById("livePositionCount").textContent=String(result.openCount||0);
+     document.getElementById("livePositionOrigins").textContent=String(result.manualCount||0)+" / "+String(result.automaticCount||0);
+     const pnlLabel=document.getElementById("livePositionPnl");
+     pnlLabel.textContent=result.floatingPnlUsd===null?"Partial / unavailable":liveMoney(result.floatingPnlUsd);
+     pnlLabel.style.color=result.floatingPnlUsd===null?"#9eabc0":Number(result.floatingPnlUsd)>=0?"#25c58a":"#f16c75";
+     const unavailable=livePositionsCache.filter(p=>p.quote_status!=="LIVE").length;
+     livePositionsStatus.textContent="Updated "+new Date(result.generatedAt||Date.now()).toLocaleTimeString()+" · Deriv public market data · "+unavailable+" quote(s) unavailable or stale.";
+     renderLivePositions();
+    }catch(error){
+     livePositionsStatus.textContent="Live positions unavailable: "+error.message;
+    }finally{
+     livePositionsBusy=false;if(livePositionsRefresh)livePositionsRefresh.disabled=false;
+    }
+   }
+   document.querySelectorAll("[data-position-filter]").forEach(button=>button.addEventListener("click",()=>{
+    livePositionFilter=button.dataset.positionFilter;
+    document.querySelectorAll("[data-position-filter]").forEach(item=>item.classList.toggle("active",item===button));
+    renderLivePositions();
+   }));
+   livePositionsRefresh.addEventListener("click",loadLivePositions);
+   loadLivePositions();
+   const livePositionsTimer=setInterval(()=>{if(!document.hidden)loadLivePositions();},15000);
+   document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadLivePositions();});
+
    document.getElementById("refreshDemoWorkerStatus").addEventListener("click",async()=>{
     const refresh=document.getElementById("refreshDemoWorkerStatus");
     refresh.disabled=true;
