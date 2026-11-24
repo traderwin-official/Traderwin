@@ -1135,6 +1135,24 @@ calculateRisk();
    const recordPaper=document.getElementById("recordPaperTrade");
    const closePaper=document.getElementById("closePaperTrade");
    let activeDemoSession=null;
+   function syncDemoSessionControls(session){
+    const state=String(session?.status||"STOPPED").toUpperCase();
+    const running=state==="RUNNING";
+    activeDemoSession=running?session:null;
+    demoStatus.textContent="Session: "+(session?state:"Not started");
+    const settingsLocked=["RUNNING","PAUSED","RISK_LOCKED"].includes(state);
+    document.getElementById("demoExecutionMode").disabled=settingsLocked;
+    document.getElementById("demoTimeframe").disabled=settingsLocked;
+    // The server enforces the daily-loss lock until the next Nairobi trading day.
+    // Keep Start enabled so the server can safely begin a fresh session after expiry.
+    startDemo.disabled=selectedAccountMode!=="DEMO"||running;
+    stopDemo.disabled=!running;
+    recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
+    startDemo.textContent=state==="RISK_LOCKED"?"Check daily lock / start new DEMO":state==="PAUSED"?"Resume DEMO Session":"Start DEMO Session";
+    if(state==="RISK_LOCKED"){
+     demoMessage.textContent="Daily-loss protection is active until the next Nairobi trading day. The server will reject new entries until the lock expires; then use the button above to start a fresh DEMO session.";
+    }
+   }
    async function callDemoApi(path,payload){
     const {data:s,error:e}=await client.auth.getSession();
     if(e||!s.session)throw new Error("Please sign in again.");
@@ -1270,8 +1288,10 @@ calculateRisk();
     try{
      const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
      showDemoWorkerHealth(status.workerHeartbeat);
-     if(status.session)demoStatus.textContent="Session: "+status.session.status;
-    }catch(error){demoWorkerHealth.textContent="Worker status unavailable: "+error.message;}
+     syncDemoSessionControls(status.session);
+     renderOpenPaperPositions(status.openTrades||(status.openTrade?[status.openTrade]:[]));
+     await loadLivePositions();
+    }catch(error){demoWorkerHealth.textContent="Worker/session status unavailable: "+error.message;}
     finally{refresh.disabled=false;}
    });
    if(selectedAccountMode!=="DEMO"){
@@ -1282,17 +1302,17 @@ calculateRisk();
     startDemo.disabled=true;demoMessage.textContent="Starting your website DEMO trading session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim(),timeframe:document.getElementById("demoTimeframe").value,executionMode:document.getElementById("demoExecutionMode").value});
-     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     syncDemoSessionControls(r.session);
      showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-     stopDemo.disabled=false;recordPaper.disabled=false;document.getElementById("demoExecutionMode").disabled=true;document.getElementById("demoTimeframe").disabled=true;demoMessage.textContent=r.message;
+     demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
    });
    stopDemo.addEventListener("click",async()=>{
     stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
-     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
+     syncDemoSessionControls(r.session||null);demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
    });
    recordPaper.addEventListener("click",async()=>{
@@ -1387,26 +1407,19 @@ calculateRisk();
    {
     callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
      if(r.session){
-      activeDemoSession=r.session.status==="RUNNING"?r.session:null;
       showDemoWorkerHealth(r.workerHeartbeat);
-      demoStatus.textContent="Session: "+r.session.status;
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
       if(["M5","M15","H1","H4"].includes(String(r.session.timeframe||"").toUpperCase()))document.getElementById("demoTimeframe").value=String(r.session.timeframe).toUpperCase();
-      const running=r.session.status==="RUNNING";
       const savedDemoConfig=r.session.config_snapshot&&typeof r.session.config_snapshot==="object"?r.session.config_snapshot:{};
       const autoDemoEnabled=r.session.strategy!=="MANUAL"||(savedDemoConfig.account_mode==="DEMO"&&savedDemoConfig.execution==="WEBSITE_PAPER_ONLY"&&savedDemoConfig.auto_trading_enabled===true&&["AUTO_SELECT_V1","MULTI_CONFIRMATION_V1","TIGER_FIBONACCI_PSYCHOLOGY_V1"].includes(String(savedDemoConfig.auto_strategy||"").toUpperCase()));
       document.getElementById("demoExecutionMode").value=autoDemoEnabled?"AUTO":"MANUAL";
-      document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
-      document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
-      startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
-      stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
-      demoMessage.textContent="Your existing DEMO session has been restored. The scheduled worker manages BOT trades and checks manual SL/TP only when you separately enable that permission.";
+      syncDemoSessionControls(r.session);
+      if(r.session.status!=="RISK_LOCKED")demoMessage.textContent="Your existing DEMO session has been restored. The scheduled worker manages BOT trades and checks manual SL/TP only when you separately enable that permission.";
      }else{
-      demoStatus.textContent="Session: Not started";
+      syncDemoSessionControls(null);
       showDemoWorkerHealth(null);
       const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
       if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
-      startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
      }
      renderOpenPaperPositions(r.openTrades||(r.openTrade?[r.openTrade]:[]));
      if(r.session){
