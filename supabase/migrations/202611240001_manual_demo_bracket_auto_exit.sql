@@ -32,7 +32,7 @@ begin
      or p_quote_source is distinct from 'DERIV'
      or p_quote_as_of is null or p_quote_as_of > now()
      or p_quote_as_of < now() - interval '30 seconds'
-     or p_reason not in ('STOP_LOSS','TAKE_PROFIT') then
+     or p_reason is null or p_reason not in ('STOP_LOSS','TAKE_PROFIT') then
     raise exception 'Invalid or stale manual DEMO bracket close request';
   end if;
 
@@ -97,4 +97,4 @@ grant execute on function public.close_demo_manual_trade_at_bracket(uuid,uuid,nu
   to service_role;
 
 comment on function public.close_demo_manual_trade_at_bracket(uuid,uuid,numeric,numeric,text,timestamptz,text)
-  is 'Closes only a MANUAL-origin DEMO paper position at its verified SL/TP bracket. Requires explicit manual management, manual close, and managed-position close permissions. Never sends broker orders.';
+  is 'Closes only a MANUAL-origin DEMO paper position at its verified SL/TP bracket. Requires the separate auto_exit_manual_brackets permission; portfolio giveback permissions are independent. Never sends broker orders.';
