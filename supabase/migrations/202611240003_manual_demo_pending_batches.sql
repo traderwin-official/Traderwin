@@ -205,6 +205,9 @@ begin
  if v_batch.status<>'PENDING' then
    return jsonb_build_object('ok',v_batch.status='ACTIVE','reason','BATCH_NOT_PENDING','status',v_batch.status);
  end if;
+ if p_quote_as_of<=v_batch.last_quote_as_of then
+   return jsonb_build_object('ok',false,'activated',false,'reason','QUOTE_CHECKPOINT_NOT_NEWER');
+ end if;
  if v_batch.expires_at<=now() then
    update public.demo_manual_entry_batches set status='EXPIRED',terminal_reason='PENDING_ENTRY_EXPIRED',updated_at=now() where id=v_batch.id;
    return jsonb_build_object('ok',false,'reason','BATCH_EXPIRED');
