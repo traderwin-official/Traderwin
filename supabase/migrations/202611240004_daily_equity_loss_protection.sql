@@ -86,6 +86,7 @@ declare
   v_equity numeric(18,2);
   v_triggered boolean;
   v_day_start timestamptz;
+  v_valuation_started_at timestamptz;
 begin
   if auth.role() is distinct from 'service_role' or p_user_id is null
      or p_floating_pnl_usd is null or p_floating_pnl_usd::text in ('NaN','Infinity','-Infinity') then
@@ -95,6 +96,7 @@ begin
   v_opening := (v_baseline->>'opening_balance_usd')::numeric;
   v_threshold := (v_baseline->>'loss_threshold_usd')::numeric;
   v_day_start := (v_baseline->>'day_start')::timestamptz;
+  v_valuation_started_at := clock_timestamp();
   select coalesce(sum(realized_pnl_delta_usd),0) into v_realized
     from public.demo_paper_realized_events
    where user_id=p_user_id and realized_at>=v_day_start;
@@ -102,7 +104,7 @@ begin
   v_equity := greatest(0,round(v_opening+v_realized+v_floating,2));
   update public.demo_daily_risk_baselines
      set last_equity_usd=v_equity,
-         last_valuation_at=now(),
+         last_valuation_at=v_valuation_started_at,
          limit_reached_at=case
            when v_equity <= greatest(0,v_opening-v_threshold) then coalesce(limit_reached_at,now())
            else limit_reached_at end
