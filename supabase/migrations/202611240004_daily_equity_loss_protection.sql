@@ -456,7 +456,7 @@ end $$;
 
 drop trigger if exists demo_paper_reconcile_daily_loss_status on public.demo_paper_sessions;
 create trigger demo_paper_reconcile_daily_loss_status
-after update of current_balance on public.demo_paper_sessions
+after update of current_balance,status on public.demo_paper_sessions
 for each row execute function public.reconcile_demo_daily_loss_session_status();
 
 revoke all on function public.reconcile_demo_daily_loss_session_status() from public,anon,authenticated;
