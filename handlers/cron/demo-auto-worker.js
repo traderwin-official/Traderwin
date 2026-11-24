@@ -161,7 +161,7 @@ async function processPendingManualEntryBatches(db){
    });
    if(activationError){results.push({batchId:batch.id,action:"ERROR",reason:"ATOMIC_BATCH_ACTIVATION_FAILED",detail:safeError(activationError)});continue;}
    results.push(activated?.activated?{batchId:batch.id,action:"ACTIVATED",tradeCount:activated.trade_count,tradeIds:activated.trade_ids,plannedEntry:activated.planned_entry,triggerQuote:activated.trigger_quote}:
-    {batchId:batch.id,action:activated?.reason==="ENTRY_NOT_TOUCHED"?"WAIT":"BLOCKED",reason:activated?.reason||"BATCH_NOT_ACTIVATED"});
+    {batchId:batch.id,action:["ENTRY_NOT_TOUCHED","QUOTE_CHECKPOINT_NOT_NEWER"].includes(activated?.reason)?"WAIT":"BLOCKED",reason:activated?.reason||"BATCH_NOT_ACTIVATED"});
   }catch(e){
    results.push({batchId:batch.id,action:"ERROR",reason:"PENDING_BATCH_CHECK_FAILED",detail:safeError(e)});
   }
