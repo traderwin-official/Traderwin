@@ -21,7 +21,7 @@ This is the design contract for the next manual-entry extension. It is intention
 
 ## User workflow
 
-The scheduled DEMO worker checks pending batches on its configured schedule (currently every minute under Supabase Cron). Activation occurs on the next fresh verified quote after a crossing is observed; it is not sub-second or tick-by-tick streaming execution. The scheduler is not active in production yet, so this code must not be treated as live until release gates and scheduling verification are complete.
+The scheduled DEMO worker checks pending batches on its configured schedule (currently every minute under Supabase Cron). Activation occurs only when a scheduled fresh verified quote observes a crossing from the previous quote checkpoint. A brief touch followed by a reversal between checks can be missed; this is not a guaranteed tick-level touch detector, sub-second execution or streaming trigger. The scheduler is not active in production yet, so this code must not be treated as live until release gates and scheduling verification are complete.
 
 
 A manual setup contains:
