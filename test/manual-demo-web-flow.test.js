@@ -39,7 +39,7 @@ test("manual website DEMO entries use the session risk limits and no external bo
   const route = await readFile(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
   assert.match(route, /from\("demo_paper_sessions"\)/);
   assert.match(route, /Math\.min\(Number\(profile\.max_risk_per_trade_pct\),Number\(session\.risk_per_trade_pct\)\)/);
-  assert.match(route, /p_trade_origin:"MANUAL"/);
+  assert.match(route, /open_demo_manual_partial_trade/);
   assert.doesNotMatch(route, /from\("bot_settings"\)/);
 });
 
