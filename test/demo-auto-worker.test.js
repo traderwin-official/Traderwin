@@ -91,25 +91,17 @@ test("new BOT entries re-fetch the Deriv quote and emergency controls immediatel
  assert.match(openBlock,/ENTRY_RECHECK_NO_LONGER_VALID/);
 });
 
-test("manual DEMO entries refresh the quote, recalculate size, and recheck both emergency controls before RPC",async()=>{
- const s=await readFile(new URL("../handlers/bots/demo/trade.js",import.meta.url),"utf8");
- const rpc=s.slice(s.indexOf('const {data:result,error}=await db.rpc("open_demo_manual_partial_trade"'));
- const finalCheck=s.slice(s.indexOf("// Refresh server-owned market"));
- assert.match(finalCheck,/finalQuote=await getDerivPublicQuote\(symbol\)/);
- assert.match(finalCheck,/getDerivQuoteToUsd\(symbol,finalQuote\)/);
- assert.match(finalCheck,/calculatePaperPosition\(\{balance:Number\(session\.current_balance\),riskPct,entry:finalQuote\.quote/);
- assert.match(finalCheck,/finalEmergencyError\|\|finalLegacyError/);
- assert.match(finalCheck,/finalEmergency\?\.entries_blocked\|\|finalLegacy\?\.kill_switch_active/);
- const preflightStart=s.indexOf("// Refresh server-owned market");
- const rpcStart=s.indexOf('const {data:result,error}=await db.rpc("open_demo_manual_partial_trade"');
- assert.ok(preflightStart>=0&&preflightStart<rpcStart);
- assert.match(rpc,/p_entry:quote\.quote,p_stop:stop/);
- assert.match(rpc,/p_tp1:tp1,p_tp2:tp2,p_tp3:tp3/);
- assert.match(rpc,/p_tp1_percent:tp1Percent,p_tp2_percent:tp2Percent,p_tp3_percent:tp3Percent/);
- assert.ok(s.indexOf("quote=finalQuote;")<s.indexOf('const {data:result,error}=await db.rpc("open_demo_manual_partial_trade"'),"RPC must use the final refreshed quote");
- assert.match(rpc,/p_quote_as_of:quote\.quoteAsOf/);
+test("manual pending batches verify quote, conversion, instrument approval and emergency controls before reservation",async()=>{
+ const s=await readFile(new URL("../handlers/bots/demo/pending-batches.js",import.meta.url),"utf8");
+ assert.match(s,/quote=await getDerivPublicQuote\(symbol\)/);
+ assert.match(s,/getDerivQuoteToUsd\(symbol,quote\)/);
+ assert.match(s,/calculatePaperPosition\(\{balance:Number\(session\.current_balance\),riskPct,entry,stop,quoteToUsd:conversion\.rate\}\)/);
+ assert.match(s,/final quote|Final verified quote/i);
+ assert.match(s,/final emergency|await checkEmergency\(\)/i);
+ assert.match(s,/bot_emergency_controls/);
+ assert.match(s,/create_demo_manual_entry_batch/);
+ assert.match(s,/p_quote_as_of:quote\.quoteAsOf/);
 });
-
 
 test("manual DEMO SL/TP worker requires its dedicated opt-in and closes only at a verified bracket",async()=>{
  const worker=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
