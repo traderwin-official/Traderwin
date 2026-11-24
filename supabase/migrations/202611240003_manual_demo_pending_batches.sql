@@ -74,7 +74,6 @@ declare
  v_pending_count integer;
  v_pending_risk numeric;
  v_id uuid;
- v_daily_loss numeric;
 begin
  if auth.role() is distinct from 'service_role' then raise exception 'Service role required'; end if;
  if p_user_id is null or p_session_id is null or nullif(trim(p_instrument),'') is null
@@ -155,14 +154,7 @@ begin
      'open_risk_usd',round(v_open_risk,2),'reserved_pending_risk_usd',round(v_pending_risk,2));
  end if;
 
- v_daily_loss:=greatest(0,-coalesce((select sum(realized_pnl_usd)
-   from public.demo_paper_trades where user_id=p_user_id
-   and closed_at>=date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'),0));
- if v_daily_loss>=v_session.starting_balance*v_session.max_daily_loss_pct/100 then
-   update public.demo_paper_sessions set status='RISK_LOCKED',risk_locked_at=coalesce(risk_locked_at,now()),updated_at=now()
-    where id=p_session_id;
-   return jsonb_build_object('ok',false,'reason','DAILY_LOSS_LIMIT');
- end if;
+ -- Daily account-equity protection is enforced by the later 20% guard migration.
 
  insert into public.demo_manual_entry_batches(
   user_id,session_id,instrument,provider_symbol,side,requested_trade_count,entry_price,stop_loss,
@@ -193,7 +185,6 @@ declare
  v_open_risk numeric;
  v_other_pending_count integer;
  v_other_pending_risk numeric;
- v_daily_loss numeric;
  v_child_ids uuid[] := '{}';
  v_child_id uuid;
  v_i integer;
@@ -285,13 +276,7 @@ begin
    update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='TOTAL_OPEN_RISK_LIMIT_AT_ACTIVATION',updated_at=now() where id=v_batch.id;
    return jsonb_build_object('ok',false,'reason','TOTAL_OPEN_RISK_LIMIT_AT_ACTIVATION');
  end if;
- v_daily_loss:=greatest(0,-coalesce((select sum(realized_pnl_usd) from public.demo_paper_trades
-  where user_id=v_batch.user_id and closed_at>=date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'),0));
- if v_daily_loss>=v_session.starting_balance*v_session.max_daily_loss_pct/100 then
-   update public.demo_paper_sessions set status='RISK_LOCKED',risk_locked_at=coalesce(risk_locked_at,now()),updated_at=now() where id=v_session.id;
-   update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='DAILY_LOSS_LIMIT_AT_ACTIVATION',updated_at=now() where id=v_batch.id;
-   return jsonb_build_object('ok',false,'reason','DAILY_LOSS_LIMIT_AT_ACTIVATION');
- end if;
+ -- The daily-equity guard runs before activation and the trade INSERT trigger is authoritative.
 
  v_balance:=v_session.current_balance;
  v_total_quantity:=round(v_batch.total_risk_usd/(abs(v_batch.entry_price-v_batch.stop_loss)*p_quote_to_usd),12);
