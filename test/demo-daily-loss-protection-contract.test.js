@@ -20,7 +20,7 @@ test("daily account equity includes current-day realized P/L and all floating P/
   assert.match(sql, /v_opening\+v_realized\+v_floating/);
   assert.match(sql, /p_floating_pnl_usd numeric/);
   assert.match(sql, /demo_paper_realized_events/);
-  assert.match(sql, /last_valuation_at=now\(\)/);
+  assert.match(sql, /last_valuation_at=v_valuation_started_at/);
   assert.match(sql, /limit_reached_at=case/);
   assert.doesNotMatch(sql, /evaluate_demo_daily_loss_guard\(new\.user_id,0\)/);
 });
