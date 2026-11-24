@@ -1254,7 +1254,6 @@ calculateRisk();
       activeDemoSession=r.session.status==="RUNNING"?r.session:null;
       showDemoWorkerHealth(r.workerHeartbeat);
       demoStatus.textContent="Session: "+r.session.status;
-      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
       if(["M5","M15","H1","H4"].includes(String(r.session.timeframe||"").toUpperCase()))document.getElementById("demoTimeframe").value=String(r.session.timeframe).toUpperCase();
       const running=r.session.status==="RUNNING";
