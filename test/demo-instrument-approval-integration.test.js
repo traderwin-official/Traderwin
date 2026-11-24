@@ -5,10 +5,10 @@ import { readFileSync } from "node:fs";
 const manual = readFileSync(new URL("../handlers/bots/demo/pending-batches.js", import.meta.url), "utf8");
 const automated = readFileSync(new URL("../handlers/cron/demo-auto-worker.js", import.meta.url), "utf8");
 
-test("manual DEMO entry checks instrument approval against initial and final Deriv provider symbols", () => {
+test("manual DEMO pending batches check instrument approval before and after the final quote refresh", () => {
   assert.match(manual, /import \{ loadApprovedInstrument \}/);
   assert.match(manual, /loadApprovedInstrument\(db,\{broker:"DERIV",instrument:symbol,providerSymbol:quote\.providerSymbol\}\)/);
-  assert.match(manual, /loadApprovedInstrument\(db,\{broker:"DERIV",instrument:symbol,providerSymbol:finalQuote\.providerSymbol\}\)/);
+  assert.equal((manual.match(/loadApprovedInstrument\(db,\{broker:"DERIV",instrument:symbol,providerSymbol:quote\.providerSymbol\}\)/g)||[]).length, 2);
   assert.ok(manual.indexOf("approval=await loadApprovedInstrument") < manual.indexOf('db.rpc("open_demo_manual_partial_trade"'));
 });
 
