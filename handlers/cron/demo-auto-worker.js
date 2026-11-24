@@ -6,16 +6,19 @@ import {getDerivQuoteToUsd} from "../../lib/usd-conversion.js";
 import {loadApprovedInstrument} from "../../lib/deriv/load-approved-instrument.js";
 import {decideDemoAutoAction} from "../../lib/demo-auto-decision.js";
 import {runDemoPortfolioProtection} from "../../lib/demo-portfolio-protection-runner.js";
+import {resolveDemoAutoStrategy} from "../../lib/demo-session-mode.js";
 export const config={maxDuration:25};
 const MAX_SESSIONS_PER_TICK=3;
 const safeError=e=>String(e?.message||"Worker step failed").slice(0,240);
 const normalise=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 
 async function processSession(db,raw){
+ const autoStrategy=resolveDemoAutoStrategy(raw);
+ if(!autoStrategy)return {sessionId:raw.id,action:"SKIP",reason:"AUTO_MODE_NOT_ENABLED"};
  const session={...raw,account_mode:"DEMO",current_balance:Number(raw.current_balance),
   max_risk_per_trade_pct:Number(raw.risk_per_trade_pct),worker_last_candle_as_of:raw.last_candle_as_of};
  const settings={...(raw.config_snapshot||{}),broker:raw.broker,instrument:raw.instrument,
-  account_mode:"DEMO",strategy:raw.strategy,timeframe:raw.timeframe};
+  account_mode:"DEMO",strategy:autoStrategy,timeframe:raw.timeframe};
  const [{data:emergency,error:emergencyError},{data:legacyEmergency,error:legacyEmergencyError}]=await Promise.all([
   db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",raw.user_id).eq("broker","DERIV").eq("broker_account_ref",raw.broker_account_ref).maybeSingle(),
   db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",raw.user_id).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",raw.broker_account_ref).maybeSingle()
@@ -36,7 +39,7 @@ async function processSession(db,raw){
  if(!openTrade){
   try{
    const selected=await getDerivCandles(raw.instrument,raw.timeframe||"M15");
-   const trend=(["TIGER_FIBONACCI_PSYCHOLOGY_V1","AUTO_SELECT_V1"].includes(raw.strategy)&&raw.timeframe!=="H1")?await getDerivCandles(raw.instrument,"H1"):selected;
+   const trend=(["TIGER_FIBONACCI_PSYCHOLOGY_V1","AUTO_SELECT_V1"].includes(autoStrategy)&&raw.timeframe!=="H1")?await getDerivCandles(raw.instrument,"H1"):selected;
    market={...selected,trendCandles:trend.candles};
   }catch(e){return {sessionId:raw.id,action:"BLOCK",reason:"CANDLE_HISTORY_UNAVAILABLE",detail:safeError(e)};}
  }
@@ -114,7 +117,8 @@ export default async function handler(req,res){
   if(!claimed)return res.status(200).json({ok:true,skipped:true,reason:"WORKER_ALREADY_RUNNING"});
   let results=[];
   let portfolioProtection={processed:0,results:[]};
-   try{   const {data:sessions,error}=await db.from("demo_paper_sessions").select("*").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).neq("strategy","MANUAL").order("updated_at",{ascending:true}).limit(MAX_SESSIONS_PER_TICK);
+   try{   const {data:candidates,error}=await db.from("demo_paper_sessions").select("*").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(20);
+   const sessions=(candidates||[]).filter(s=>resolveDemoAutoStrategy(s)!==null).slice(0,MAX_SESSIONS_PER_TICK);
    if(error)throw new Error("Could not load DEMO paper sessions.");
    const portfolioPromise=runDemoPortfolioProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK})
     .catch(e=>({processed:0,results:[],error:safeError(e)}));
