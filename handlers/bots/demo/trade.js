@@ -27,7 +27,7 @@ export default async function handler(req,res){
    db.from("demo_paper_sessions").select("*").eq("user_id",uid).eq("status","RUNNING").order("created_at",{ascending:false}).limit(1).maybeSingle()
   ]);
   if(pe||!profile)return res.status(409).json({error:"Complete your account setup first."});
-  if(profile.account_mode!=="DEMO")return res.status(403).json({error:"Paper trades are DEMO-only."});
+  if(profile.account_mode!=="DEMO")return res.status(403).json({error:"This manual-entry endpoint is DEMO-only. REAL execution remains locked until a verified broker adapter, explicit live-trading permission and the required safety checks are implemented."});
   if(se||!session)return res.status(409).json({error:"Start your DEMO paper session first."});
   if(normalise(symbol)!==normalise(session.instrument))return res.status(400).json({error:"Symbol must match the instrument selected for your website DEMO session."});
   const {data:emergency,error:ee}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle();
