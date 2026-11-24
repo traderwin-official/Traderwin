@@ -172,6 +172,7 @@ begin
   end if;
   if round(v_trade.tp1_percent + v_trade.tp2_percent + v_trade.tp3_percent,2) <> 100
      or v_trade.tp1_percent <= 0 or v_trade.tp2_percent < 0 or v_trade.tp3_percent < 0
+     or (v_trade.tp3_percent > 0 and v_trade.tp2_percent <= 0)
      or v_trade.tp1_price is null
      or (v_trade.tp2_percent > 0 and v_trade.tp2_price is null)
      or (v_trade.tp3_percent > 0 and v_trade.tp3_price is null)
