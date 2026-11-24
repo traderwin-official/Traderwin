@@ -186,7 +186,7 @@ export default async function handler(req,res){
    if(error)throw new Error("Could not load DEMO paper sessions.");
    const portfolioPromise=runDemoPortfolioProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK})
     .catch(e=>({processed:0,results:[],error:safeError(e)}));
-   results=await Promise.all((sessions||[]).map(s=>processSession(db,s,dailyLossProtection.healthy!==false).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}))));
+   results=await Promise.all((sessions||[]).map(s=>{const userGuard=(dailyLossProtection.results||[]).find(r=>r.userId===s.user_id);const guardHealthy=dailyLossProtection.healthy!==false&&userGuard&&userGuard.status!=="ERROR";return processSession(db,s,Boolean(guardHealthy)).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}));}));
    portfolioProtection=await portfolioPromise;
    manualBracketExits=await processManualDemoBracketExits(db);
    const tick=new Date().toISOString();
