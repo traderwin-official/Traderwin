@@ -26,6 +26,9 @@ create table if not exists public.demo_daily_risk_baselines (
   opening_balance_usd numeric(18,2) not null check (opening_balance_usd >= 0),
   loss_limit_pct numeric(5,2) not null default 20 check (loss_limit_pct = 20),
   loss_threshold_usd numeric(18,2) not null check (loss_threshold_usd >= 0),
+  last_equity_usd numeric(18,2),
+  last_valuation_at timestamptz,
+  limit_reached_at timestamptz,
   created_at timestamptz not null default now(),
   primary key(user_id,trading_day)
 );
@@ -93,13 +96,28 @@ begin
    where user_id=p_user_id and realized_at>=v_day_start;
   v_floating := round(p_floating_pnl_usd,2);
   v_equity := greatest(0,round(v_opening+v_realized+v_floating,2));
-  v_triggered := v_equity <= greatest(0,v_opening-v_threshold);
+  update public.demo_daily_risk_baselines
+     set last_equity_usd=v_equity,
+         last_valuation_at=now(),
+         limit_reached_at=case
+           when v_equity <= greatest(0,v_opening-v_threshold) then coalesce(limit_reached_at,now())
+           else limit_reached_at end
+   where user_id=p_user_id and trading_day=(v_baseline->>'trading_day')::date;
+  select limit_reached_at is not null into v_triggered
+    from public.demo_daily_risk_baselines
+   where user_id=p_user_id and trading_day=(v_baseline->>'trading_day')::date;
 
-  -- Keep legacy session-level checks aligned to the account-wide daily baseline.
+  -- Keep legacy session-level status aligned with the sticky account-wide lock.
   update public.demo_paper_sessions
      set starting_balance=greatest(0.01,v_opening),max_daily_loss_pct=20,
-         status=case when v_triggered and status in ('RUNNING','PAUSED') then 'RISK_LOCKED' else status end,
-         risk_locked_at=case when v_triggered then coalesce(risk_locked_at,now()) else risk_locked_at end,
+         status=case
+           when v_triggered and status in ('RUNNING','PAUSED') then 'RISK_LOCKED'
+           when not v_triggered and status='RISK_LOCKED' and risk_locked_at>=v_day_start then 'RUNNING'
+           else status end,
+         risk_locked_at=case
+           when v_triggered then coalesce(risk_locked_at,now())
+           when not v_triggered and risk_locked_at>=v_day_start then null
+           else risk_locked_at end,
          updated_at=now()
    where user_id=p_user_id and broker='DERIV' and broker_account_ref='DEMO:'||p_user_id::text
      and status in ('RUNNING','PAUSED','RISK_LOCKED');
@@ -120,10 +138,10 @@ begin
      and pg_get_constraintdef(oid) ilike '%max_daily_loss_pct%'
   loop execute format('alter table public.demo_paper_sessions drop constraint %I',c.conname); end loop;
 end $$;
+update public.demo_paper_sessions set max_daily_loss_pct=20;
 alter table public.demo_paper_sessions
   add constraint demo_paper_sessions_daily_loss_fixed_20
   check (max_daily_loss_pct=20);
-update public.demo_paper_sessions set max_daily_loss_pct=20;
 
 create or replace function public.enforce_demo_daily_loss_configuration()
 returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
@@ -150,24 +168,28 @@ begin
   if v_delta=0 then return new; end if;
   insert into public.demo_paper_realized_events(user_id,session_id,trade_id,realized_pnl_delta_usd)
   values(new.user_id,new.session_id,new.id,v_delta);
-  perform public.evaluate_demo_daily_loss_guard(new.user_id,0);
+  -- Do not evaluate account equity with a fabricated zero floating P/L here.
+  -- The scheduled/server entry guard supplies fresh quotes for every open position.
   return new;
 end $$;
 
 create or replace function public.guard_new_demo_paper_session_daily_loss()
 returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
-declare v jsonb; v_opening numeric(18,2); v_threshold numeric(18,2); v_realized numeric(18,2); v_day_start timestamptz;
+declare
+  v jsonb;
+  v_day date;
+  v_locked_at timestamptz;
 begin
   v:=public.get_demo_daily_opening_balance(new.user_id);
-  v_opening:=(v->>'opening_balance_usd')::numeric;
-  v_threshold:=(v->>'loss_threshold_usd')::numeric;
-  v_day_start:=(v->>'day_start')::timestamptz;
-  select coalesce(sum(realized_pnl_delta_usd),0) into v_realized
-    from public.demo_paper_realized_events where user_id=new.user_id and realized_at>=v_day_start;
-  new.starting_balance:=greatest(0.01,v_opening);
+  v_day:=(v->>'trading_day')::date;
+  select limit_reached_at into v_locked_at
+    from public.demo_daily_risk_baselines
+   where user_id=new.user_id and trading_day=v_day;
+  new.starting_balance:=greatest(0.01,(v->>'opening_balance_usd')::numeric);
   new.max_daily_loss_pct:=20;
-  if v_opening+v_realized <= greatest(0,v_opening-v_threshold) then
-    new.status:='RISK_LOCKED'; new.risk_locked_at:=coalesce(new.risk_locked_at,now());
+  if v_locked_at is not null then
+    new.status:='RISK_LOCKED';
+    new.risk_locked_at:=coalesce(new.risk_locked_at,v_locked_at);
   end if;
   return new;
 end $$;
@@ -250,3 +272,78 @@ grant execute on function public.get_demo_daily_opening_balance(uuid),
 
 comment on table public.demo_daily_risk_baselines is
 'Immutable per-user Nairobi-day DEMO account opening balance snapshots; daily protection triggers at 20% equity drawdown from this baseline.';
+
+
+-- Every paper-entry path, including future batch activation RPCs, must have a
+-- fresh server-side equity valuation and must respect the sticky daily lock.
+create or replace function public.enforce_fresh_demo_daily_equity_before_trade()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare
+  v_day date := (now() at time zone 'Africa/Nairobi')::date;
+  v_guard public.demo_daily_risk_baselines%rowtype;
+begin
+  select * into v_guard
+    from public.demo_daily_risk_baselines
+   where user_id=new.user_id and trading_day=v_day
+   for update;
+  if not found or v_guard.last_valuation_at is null
+     or v_guard.last_valuation_at < now()-interval '60 seconds' then
+    raise exception 'DAILY_EQUITY_VALUATION_STALE';
+  end if;
+  if v_guard.limit_reached_at is not null then
+    raise exception 'DAILY_LOSS_LIMIT_REACHED';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists demo_paper_require_fresh_daily_equity on public.demo_paper_trades;
+create trigger demo_paper_require_fresh_daily_equity
+before insert on public.demo_paper_trades
+for each row execute function public.enforce_fresh_demo_daily_equity_before_trade();
+
+-- Replace the legacy realized-loss-only entry gate. The trigger above is the
+-- authoritative account-equity gate and serializes with the valuation row.
+create or replace function public.open_demo_paper_trade(
+ p_user_id uuid,p_session_id uuid,p_instrument text,p_side text,p_entry numeric,p_stop numeric,p_target numeric,
+ p_quantity numeric,p_risk_amount numeric,p_risk_pct numeric,p_quote_to_usd numeric,
+ p_quote_source text,p_quote_as_of timestamptz,p_trade_origin text default 'MANUAL',
+ p_candle_as_of timestamptz default null,p_tp1 numeric default null,p_tp2 numeric default null,p_tp3 numeric default null
+) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare v_session public.demo_paper_sessions%rowtype; v_id uuid;
+begin
+ if auth.role()<>'service_role' then raise exception 'Service role required'; end if;
+ if p_user_id is null or p_session_id is null or p_instrument is null or p_side not in('BUY','SELL')
+   or p_entry<=0 or p_stop<=0 or p_target<=0 or p_quantity<=0 or p_risk_amount<=0
+   or p_risk_pct<=0 or p_risk_pct>2 or p_quote_to_usd<=0 or p_quote_source<>'DERIV'
+   or p_quote_as_of is null or p_quote_as_of>now() or p_quote_as_of<now()-interval '30 seconds'
+   or p_trade_origin not in('BOT','MANUAL') then raise exception 'Invalid or stale paper trade'; end if;
+ select * into v_session from public.demo_paper_sessions where id=p_session_id and user_id=p_user_id for update;
+ if not found or v_session.status<>'RUNNING' then return jsonb_build_object('ok',false,'reason','SESSION_NOT_RUNNING'); end if;
+ if upper(v_session.instrument)<>upper(p_instrument) then return jsonb_build_object('ok',false,'reason','INSTRUMENT_MISMATCH'); end if;
+ if not ((p_side='BUY' and p_stop<p_entry and p_target>p_entry) or (p_side='SELL' and p_stop>p_entry and p_target<p_entry)) then
+   raise exception 'Invalid stop/target placement'; end if;
+ if exists(select 1 from public.demo_paper_emergency_controls e where e.user_id=p_user_id and e.broker='DERIV'
+   and e.broker_account_ref=v_session.broker_account_ref and e.entries_blocked) then
+   return jsonb_build_object('ok',false,'reason','KILL_SWITCH_ACTIVE'); end if;
+ if p_risk_pct>v_session.risk_per_trade_pct or p_risk_amount>v_session.current_balance*v_session.risk_per_trade_pct/100
+   or abs(p_risk_amount-abs(p_entry-p_stop)*p_quantity*p_quote_to_usd)>0.02 then
+   raise exception 'Paper position risk does not match the server-approved session limits'; end if;
+ if exists(select 1 from public.demo_paper_trades t where t.user_id=p_user_id and t.status='OPEN') then
+   return jsonb_build_object('ok',false,'reason','OPEN_POSITION_EXISTS'); end if;
+ insert into public.demo_paper_trades(session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
+   tp1_price,tp2_price,tp3_price,quantity,remaining_quantity,risk_amount_usd,risk_pct,quote_to_usd,
+   quote_source,quote_as_of,candle_as_of,trade_origin)
+ values(p_session_id,p_user_id,p_instrument,p_side,p_entry,p_stop,p_target,p_tp1,p_tp2,p_tp3,
+   p_quantity,p_quantity,p_risk_amount,p_risk_pct,p_quote_to_usd,p_quote_source,p_quote_as_of,p_candle_as_of,p_trade_origin)
+ returning id into v_id;
+ update public.demo_paper_sessions set last_candle_as_of=coalesce(p_candle_as_of,last_candle_as_of),updated_at=now() where id=p_session_id;
+ return jsonb_build_object('ok',true,'trade_id',v_id,'status','OPEN','instrument',p_instrument,'side',p_side,
+   'entry_price',p_entry,'stop_loss',p_stop,'take_profit',p_target,'quantity',p_quantity,'risk_amount_usd',p_risk_amount,'risk_pct',p_risk_pct,'opened_at',now());
+end $$;
+
+revoke all on function public.enforce_fresh_demo_daily_equity_before_trade(),
+ public.open_demo_paper_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,text,timestamptz,numeric,numeric,numeric)
+ from public,anon,authenticated;
+grant execute on function public.enforce_fresh_demo_daily_equity_before_trade(),
+ public.open_demo_paper_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,timestamptz,text,timestamptz,numeric,numeric,numeric)
+ to service_role;
