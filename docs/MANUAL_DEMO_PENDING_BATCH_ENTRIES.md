@@ -21,6 +21,9 @@ This is the design contract for the next manual-entry extension. It is intention
 
 ## User workflow
 
+The scheduled DEMO worker checks pending batches on its configured schedule (currently every minute under Supabase Cron). Activation occurs on the next fresh verified quote after a crossing is observed; it is not sub-second or tick-by-tick streaming execution. The scheduler is not active in production yet, so this code must not be treated as live until release gates and scheduling verification are complete.
+
+
 A manual setup contains:
 - instrument and BUY/SELL direction;
 - requested entry price;
