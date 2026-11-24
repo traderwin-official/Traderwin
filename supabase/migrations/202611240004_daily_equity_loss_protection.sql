@@ -425,7 +425,8 @@ declare
   v_locked_at timestamptz;
   v_valuation_at timestamptz;
 begin
-  if new.status <> 'RISK_LOCKED' or new.risk_locked_at is null or new.risk_locked_at < v_day_start then
+  if new.status <> 'RISK_LOCKED' or old.status not in ('RUNNING','PAUSED')
+     or new.risk_locked_at is null or new.risk_locked_at < v_day_start then
     return new;
   end if;
   select limit_reached_at,last_valuation_at into v_locked_at,v_valuation_at
