@@ -84,6 +84,8 @@ begin
    or p_tp1<=0 or p_tp2<=0 or p_tp3<=0
    or p_tp1_percent is null or p_tp2_percent is null or p_tp3_percent is null
    or p_tp1_percent<=0 or p_tp2_percent<=0 or p_tp3_percent<=0
+   or round(p_tp1_percent,2)<>p_tp1_percent or round(p_tp2_percent,2)<>p_tp2_percent
+   or round(p_tp3_percent,2)<>p_tp3_percent
    or round(p_tp1_percent+p_tp2_percent+p_tp3_percent,2)<>100
    or p_total_quantity is null or p_total_quantity<=0
    or p_total_risk_usd is null or p_total_risk_usd<=0 or p_total_risk_usd<0.01*p_trade_count
