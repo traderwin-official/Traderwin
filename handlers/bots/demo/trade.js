@@ -3,6 +3,7 @@ import { validatePaperSetup, calculatePaperPosition } from "../../../lib/demo-ri
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
 import { getDerivQuoteToUsd } from "../../../lib/usd-conversion.js";
 import { loadApprovedInstrument } from "../../../lib/deriv/load-approved-instrument.js";
+import { runDemoDailyLossProtection } from "../../../lib/demo-daily-loss-protection-runner.js";
 const num=value=>{const n=Number(value);return Number.isFinite(n)?n:NaN;};
 const normalise=value=>String(value||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 export default async function handler(req,res){
@@ -19,6 +20,12 @@ export default async function handler(req,res){
   const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
   const uid=a.user.id;
+  const dailyGuard=await runDemoDailyLossProtection(db,{userIds:[uid],maxAccounts:1});
+  const dailyResult=dailyGuard.results?.[0];
+  if(!dailyGuard.healthy||dailyResult?.status==="ERROR")
+   return res.status(503).json({error:"Could not verify the 20% daily account-equity protection. New entries are blocked until valuation is healthy."});
+  if(dailyResult?.status==="LIMIT_REACHED")
+   return res.status(403).json({error:"The 20% daily account-equity loss limit has been reached. New entries are locked until the next Nairobi trading day.",reason:"DAILY_LOSS_LIMIT_REACHED"});
   const [{data:profile,error:pe},{data:session,error:se}]=await Promise.all([
    db.from("trader_profiles").select("account_mode,max_risk_per_trade_pct").eq("user_id",uid).maybeSingle(),
    db.from("demo_paper_sessions").select("*").eq("user_id",uid).eq("status","RUNNING").order("created_at",{ascending:false}).limit(1).maybeSingle()
