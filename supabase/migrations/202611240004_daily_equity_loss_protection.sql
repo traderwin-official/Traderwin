@@ -111,9 +111,6 @@ begin
   -- Keep legacy session-level status aligned with the sticky account-wide lock.
   update public.demo_paper_sessions
      set starting_balance=greatest(0.01,v_opening),max_daily_loss_pct=20,
-         daily_lock_previous_status=case
-           when v_triggered and status in ('RUNNING','PAUSED') then status
-           else daily_lock_previous_status end,
          status=case
            when v_triggered and status in ('RUNNING','PAUSED') then 'RISK_LOCKED'
            when not v_triggered and status='RISK_LOCKED' and risk_locked_at>=v_day_start
