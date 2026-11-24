@@ -172,8 +172,8 @@ begin
   if new.realized_pnl_usd is not distinct from old.realized_pnl_usd then return new; end if;
   v_delta:=round(coalesce(new.realized_pnl_usd,0)-coalesce(old.realized_pnl_usd,0),2);
   if v_delta=0 then return new; end if;
-  insert into public.demo_paper_realized_events(user_id,session_id,trade_id,realized_pnl_delta_usd)
-  values(new.user_id,new.session_id,new.id,v_delta);
+  insert into public.demo_paper_realized_events(user_id,session_id,trade_id,realized_pnl_delta_usd,realized_at)
+  values(new.user_id,new.session_id,new.id,v_delta,clock_timestamp());
   -- Do not evaluate account equity with a fabricated zero floating P/L here.
   -- The scheduled/server entry guard supplies fresh quotes for every open position.
   return new;
