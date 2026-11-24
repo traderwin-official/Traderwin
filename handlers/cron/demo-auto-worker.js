@@ -92,6 +92,83 @@ async function processManualDemoBracketExits(db){
  return {processed:results.length,closed:results.filter(r=>r.action==="CLOSED").length,
   partialExits:results.reduce((n,r)=>n+(r.partialExits||0),0),results};
 }
+
+/**
+ * Watches MANUAL DEMO pending batches. A batch activates only when a fresh
+ * verified Deriv quote crosses its planned entry from the recorded pre-touch
+ * side. The SQL RPC inserts all child paper positions in one transaction.
+ */
+async function processPendingManualEntryBatches(db){
+ const {data:batches,error}=await db.from("demo_manual_entry_batches")
+  .select("id,user_id,session_id,instrument,side,entry_price,expires_at,status")
+  .eq("status","PENDING").order("created_at",{ascending:true}).limit(8);
+ if(error)return {processed:0,activated:0,results:[],error:"PENDING_BATCH_QUEUE_FAILED"};
+ const results=[];
+ for(const batch of batches||[]){
+  try{
+   if(Date.parse(batch.expires_at)<=Date.now()){
+    const {data:r,error:e}=await db.rpc("cancel_demo_manual_entry_batch",{
+     p_user_id:batch.user_id,p_batch_id:batch.id,p_terminal_status:"EXPIRED",p_reason:"PENDING_ENTRY_EXPIRED"
+    });
+    results.push({batchId:batch.id,action:e?"ERROR":"EXPIRED",reason:e?safeError(e):r?.reason||"PENDING_ENTRY_EXPIRED"});
+    continue;
+   }
+   const {data:session,error:sessionError}=await db.from("demo_paper_sessions")
+    .select("id,user_id,broker,broker_account_ref,instrument,status")
+    .eq("id",batch.session_id).eq("user_id",batch.user_id).maybeSingle();
+   if(sessionError)throw new Error("Could not verify pending batch DEMO session.");
+   if(!session||session.status!=="RUNNING"||session.broker!=="DERIV"||normalise(session.instrument)!==normalise(batch.instrument)){
+    const {data:r,error:e}=await db.rpc("cancel_demo_manual_entry_batch",{
+     p_user_id:batch.user_id,p_batch_id:batch.id,p_terminal_status:"BLOCKED",p_reason:"SESSION_STOPPED_OR_INSTRUMENT_CHANGED"
+    });
+    results.push({batchId:batch.id,action:e?"ERROR":"BLOCKED",reason:e?safeError(e):r?.reason||"SESSION_STOPPED_OR_INSTRUMENT_CHANGED"});
+    continue;
+   }
+   const [{data:emergency,error:emergencyError},{data:legacy,error:legacyError}]=await Promise.all([
+    db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",batch.user_id).eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle(),
+    db.from("bot_emergency_controls").select("kill_switch_active").eq("user_id",batch.user_id).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle()
+   ]);
+   if(emergencyError||legacyError)throw new Error("Could not verify the DEMO emergency stop.");
+   if(emergency?.entries_blocked||legacy?.kill_switch_active){
+    const {data:r,error:e}=await db.rpc("cancel_demo_manual_entry_batch",{
+     p_user_id:batch.user_id,p_batch_id:batch.id,p_terminal_status:"BLOCKED",p_reason:"EMERGENCY_STOP_ACTIVE"
+    });
+    results.push({batchId:batch.id,action:e?"ERROR":"BLOCKED",reason:e?safeError(e):r?.reason||"EMERGENCY_STOP_ACTIVE"});
+    continue;
+   }
+   let quote;
+   try{quote=await getDerivPublicQuote(batch.instrument);}
+   catch(e){results.push({batchId:batch.id,action:"WAIT",reason:"VERIFIED_QUOTE_UNAVAILABLE",detail:safeError(e)});continue;}
+   const quoteTime=Date.parse(quote.quoteAsOf||"");
+   if(quote.source!=="DERIV"||normalise(quote.instrument)!==normalise(batch.instrument)||!quote.providerSymbol
+      ||!Number.isFinite(quoteTime)||Date.now()-quoteTime>30000||quoteTime>Date.now()+5000||!Number.isFinite(Number(quote.quote))||Number(quote.quote)<=0){
+    results.push({batchId:batch.id,action:"WAIT",reason:"VERIFIED_QUOTE_STALE_OR_MISMATCHED"});continue;
+   }
+   const approval=await loadApprovedInstrument(db,{broker:"DERIV",instrument:batch.instrument,providerSymbol:quote.providerSymbol});
+   if(!approval.approved){
+    const {data:r,error:e}=await db.rpc("cancel_demo_manual_entry_batch",{
+     p_user_id:batch.user_id,p_batch_id:batch.id,p_terminal_status:"BLOCKED",p_reason:"INSTRUMENT_APPROVAL_REVOKED"
+    });
+    results.push({batchId:batch.id,action:e?"ERROR":"BLOCKED",reason:e?safeError(e):r?.reason||"INSTRUMENT_APPROVAL_REVOKED"});
+    continue;
+   }
+   let fx;
+   try{fx=await getDerivQuoteToUsd(batch.instrument,quote);}
+   catch(e){results.push({batchId:batch.id,action:"WAIT",reason:"USD_CONVERSION_UNAVAILABLE",detail:safeError(e)});continue;}
+   const {data:activated,error:activationError}=await db.rpc("activate_demo_manual_entry_batch",{
+    p_batch_id:batch.id,p_quote:quote.quote,p_quote_source:quote.source,
+    p_quote_as_of:quote.quoteAsOf,p_quote_to_usd:fx.rate
+   });
+   if(activationError){results.push({batchId:batch.id,action:"ERROR",reason:"ATOMIC_BATCH_ACTIVATION_FAILED",detail:safeError(activationError)});continue;}
+   results.push(activated?.activated?{batchId:batch.id,action:"ACTIVATED",tradeCount:activated.trade_count,tradeIds:activated.trade_ids,plannedEntry:activated.planned_entry,triggerQuote:activated.trigger_quote}:
+    {batchId:batch.id,action:activated?.reason==="ENTRY_NOT_TOUCHED"?"WAIT":"BLOCKED",reason:activated?.reason||"BATCH_NOT_ACTIVATED"});
+  }catch(e){
+   results.push({batchId:batch.id,action:"ERROR",reason:"PENDING_BATCH_CHECK_FAILED",detail:safeError(e)});
+  }
+ }
+ return {processed:results.length,activated:results.filter(r=>r.action==="ACTIVATED").length,results};
+}
+
 async function processSession(db,raw){
  const autoStrategy=resolveDemoAutoStrategy(raw);
  if(!autoStrategy)return {sessionId:raw.id,action:"SKIP",reason:"AUTO_MODE_NOT_ENABLED"};
@@ -198,6 +275,7 @@ export default async function handler(req,res){
   let results=[];
   let portfolioProtection={processed:0,results:[]};
   let manualBracketExits={processed:0,closed:0,results:[]};
+  let pendingManualBatches={processed:0,activated:0,results:[]};
    try{   const {data:candidates,error}=await db.from("demo_paper_sessions").select("*").neq("strategy","MANUAL").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(20);
    const sessions=(candidates||[]).filter(s=>resolveDemoAutoStrategy(s)!==null).slice(0,MAX_SESSIONS_PER_TICK);
    if(error)throw new Error("Could not load DEMO paper sessions.");
@@ -206,6 +284,7 @@ export default async function handler(req,res){
    results=await Promise.all((sessions||[]).map(s=>processSession(db,s).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}))));
    portfolioProtection=await portfolioPromise;
    manualBracketExits=await processManualDemoBracketExits(db);
+   pendingManualBatches=await processPendingManualEntryBatches(db);
    const tick=new Date().toISOString();
    const beats=(sessions||[]).map(s=>{const r=results.find(x=>x.sessionId===s.id);return {session_id:s.id,user_id:s.user_id,last_tick_at:tick,last_action:r?.action||"UNKNOWN",last_reason:r?.reason||null,last_error:["ERROR","BLOCK"].includes(r?.action)?(r.detail||r.reason):null,updated_at:tick};});
    if(beats.length){const {error:e}=await db.from("demo_paper_worker_heartbeats").upsert(beats,{onConflict:"session_id"});if(e)console.error("DEMO heartbeat:",e.message);}
@@ -214,6 +293,6 @@ export default async function handler(req,res){
    const {error}=await db.rpc("release_demo_paper_worker",{p_token:token});if(error)console.error("DEMO lease release:",error.message);
   }
    const counts=results.reduce((o,r)=>(o[r.action]=(o[r.action]||0)+1,o),{});
-  return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,manualBracketExits,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
+  return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,manualBracketExits,pendingManualBatches,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
  }catch(e){console.error("DEMO paper worker:",e.message);return res.status(500).json({error:"DEMO paper worker failed safely."});}
 }
