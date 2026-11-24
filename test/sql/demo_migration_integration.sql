@@ -102,6 +102,10 @@ begin
    where session_id=v_session_risk and status='OPEN';
   update public.demo_paper_sessions set status='STOPPED',stopped_at=now() where id=v_session_risk;
 
+  -- Realized exits invalidate the previous valuation; refresh account equity
+  -- before opening positions in the next session.
+  select public.evaluate_demo_daily_loss_guard(v_user,0) into v_result;
+
   -- A separate session proves the configurable position-count cap.
   insert into public.demo_paper_sessions(
     user_id,broker,broker_account_ref,instrument,strategy,timeframe,status,
