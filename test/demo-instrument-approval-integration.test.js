@@ -2,14 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const manual = readFileSync(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
+const manual = readFileSync(new URL("../handlers/bots/demo/pending-batches.js", import.meta.url), "utf8");
 const automated = readFileSync(new URL("../handlers/cron/demo-auto-worker.js", import.meta.url), "utf8");
 
 test("manual DEMO entry checks instrument approval against initial and final Deriv provider symbols", () => {
   assert.match(manual, /import \{ loadApprovedInstrument \}/);
   assert.match(manual, /loadApprovedInstrument\(db,\{broker:"DERIV",instrument:symbol,providerSymbol:quote\.providerSymbol\}\)/);
   assert.match(manual, /loadApprovedInstrument\(db,\{broker:"DERIV",instrument:symbol,providerSymbol:finalQuote\.providerSymbol\}\)/);
-  assert.ok(manual.indexOf("finalApproval=await loadApprovedInstrument") < manual.indexOf('db.rpc("open_demo_manual_partial_trade"'));
+  assert.ok(manual.indexOf("approval=await loadApprovedInstrument") < manual.indexOf('db.rpc("open_demo_manual_partial_trade"'));
 });
 
 test("automated DEMO entries check instrument approval after the final quote and strategy recheck", () => {
