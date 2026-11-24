@@ -52,7 +52,7 @@ export default async function handler(req,res){
   if(!/^[A-Z0-9._-]{2,24}$/.test(symbol))return res.status(400).json({error:"Enter a valid instrument symbol."});
   if(!Number.isInteger(tradeCount)||tradeCount<1||tradeCount>10)return res.status(400).json({error:"Number of trades must be a whole number from 1 to 10."});
   if(![entry,stop,tp1,tp2,tp3].every(v=>Number.isFinite(v)&&v>0))return res.status(400).json({error:"Enter a positive entry, stop-loss and all three target prices."});
-  if(!allocations.every(v=>Number.isFinite(v)&&v>0&&v<=100)||Math.round(allocations.reduce((a,b)=>a+b,0)*100)!==10000)
+  if(!allocations.every(v=>Number.isFinite(v)&&v>0&&v<=100&&Math.round(v*100)===v*100)||Math.round(allocations.reduce((a,b)=>a+b,0)*100)!==10000)
    return res.status(400).json({error:"T1, T2 and T3 allocations must total exactly 100%."});
   const levelError=validatePaperSetup({direction,entry,stop,target:tp3});
   if(levelError)return res.status(400).json({error:levelError});
