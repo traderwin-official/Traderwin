@@ -113,7 +113,7 @@ export default async function handler(req,res){
 
   sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry,stop,quoteToUsd:conversion.rate});
   const {data:result,error}=await db.rpc("create_demo_manual_entry_batch",{
-   p_user_id:userId,p_session_id:session.id,p_instrument:symbol,p_side:direction,p_trade_count:tradeCount,
+   p_user_id:userId,p_session_id:session.id,p_instrument:symbol,p_provider_symbol:quote.providerSymbol,p_side:direction,p_trade_count:tradeCount,
    p_entry:entry,p_stop:stop,p_tp1:tp1,p_tp2:tp2,p_tp3:tp3,
    p_tp1_percent:allocations[0],p_tp2_percent:allocations[1],p_tp3_percent:allocations[2],
    p_total_quantity:sizing.units,p_total_risk_usd:sizing.riskAmount,p_total_risk_pct:riskPct,
