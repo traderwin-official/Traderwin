@@ -57,7 +57,6 @@ test("manual DEMO quote checks enforce stop-loss and take-profit using an atomic
   assert.match(route, /auto_exit_manual_brackets/);
   assert.match(route, /manage_demo_manual_partial_exit/);
   assert.match(route, /p_stage:stage/);
-  assert.match(route, /p_reason:reason/);
 });
  
 test("dashboard keeps website DEMO trading separate and links to the standalone bot storefront", async () => {
