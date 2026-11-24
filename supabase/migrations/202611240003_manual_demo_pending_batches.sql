@@ -84,7 +84,7 @@ begin
    or p_tp1_percent is null or p_tp2_percent is null or p_tp3_percent is null
    or p_tp1_percent<=0 or p_tp2_percent<=0 or p_tp3_percent<=0
    or round(p_tp1_percent+p_tp2_percent+p_tp3_percent,2)<>100
-   or p_total_quantity is null or p_total_quantity<=0
+   or p_total_quantity is null or p_total_quantity<=0 or p_total_risk_usd/p_trade_count<0.01
    or p_total_risk_usd is null or p_total_risk_usd<=0
    or p_total_risk_pct is null or p_total_risk_pct<=0 or p_total_risk_pct>2
    or p_quote_to_usd is null or p_quote_to_usd<=0
@@ -336,3 +336,48 @@ grant execute on function public.cancel_demo_manual_entry_batch(uuid,uuid,text,t
 
 comment on table public.demo_manual_entry_batches is
  'DEMO-only pending manual multi-position setups. Aggregate risk is reserved while pending; child virtual positions are inserted atomically only after a verified price crossing.';
+
+
+-- Prevent ordinary BOT/manual opens from consuming slots or risk already
+-- reserved by pending batches. Batch activation inserts carry the batch id and
+-- are checked atomically by activate_demo_manual_entry_batch itself.
+create or replace function public.guard_demo_pending_batch_reservations()
+returns trigger
+language plpgsql security definer set search_path=public,pg_temp as $$
+declare
+ v_session public.demo_paper_sessions%rowtype;
+ v_open_count integer;
+ v_open_risk numeric;
+ v_pending_count integer;
+ v_pending_risk numeric;
+begin
+ if new.metadata ? 'manual_entry_batch_id' then return new; end if;
+ select * into v_session from public.demo_paper_sessions
+  where id=new.session_id and user_id=new.user_id for update;
+ if not found then raise exception 'DEMO session not found for pending reservation check'; end if;
+ select count(*),coalesce(sum(risk_amount_usd*remaining_quantity/nullif(quantity,0)),0)
+  into v_open_count,v_open_risk
+  from public.demo_paper_trades
+  where user_id=new.user_id and session_id=new.session_id and status='OPEN';
+ select coalesce(sum(requested_trade_count),0),coalesce(sum(total_risk_usd),0)
+  into v_pending_count,v_pending_risk
+  from public.demo_manual_entry_batches
+  where user_id=new.user_id and session_id=new.session_id and status='PENDING' and expires_at>now();
+ if v_open_count+v_pending_count+1>v_session.max_open_positions then
+  raise exception 'Pending manual batch reservations leave insufficient open-position slots';
+ end if;
+ if v_open_risk+v_pending_risk+new.risk_amount_usd >
+   v_session.current_balance*v_session.max_total_open_risk_pct/100+0.000001 then
+  raise exception 'Pending manual batch reservations leave insufficient aggregate risk capacity';
+ end if;
+ return new;
+end;
+$$;
+
+drop trigger if exists demo_paper_respect_pending_manual_batches on public.demo_paper_trades;
+create trigger demo_paper_respect_pending_manual_batches
+ before insert on public.demo_paper_trades
+ for each row execute function public.guard_demo_pending_batch_reservations();
+
+revoke all on function public.guard_demo_pending_batch_reservations() from public,anon,authenticated;
+grant execute on function public.guard_demo_pending_batch_reservations() to service_role;
