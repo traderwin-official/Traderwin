@@ -361,10 +361,10 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <div class="grid">
    <div class="field"><label for="profileRisk">Risk per trade (%)</label><input id="profileRisk" type="number" min="0.1" max="2" step="0.1" value="0.5"></div>
-   <div class="field"><label for="profileDailyLoss">Daily loss limit (%)</label><input id="profileDailyLoss" type="number" min="0.5" max="10" step="0.5" value="2"></div>
+   <div class="field"><label for="profileDailyLoss">Personal daily planning target (%)</label><input id="profileDailyLoss" type="number" min="0.5" max="10" step="0.5" value="2"></div>
    <div class="field"><label for="profileGiveback">Profit giveback limit (%)</label><input id="profileGiveback" type="number" min="1" max="50" step="1" value="20"></div>
   </div>
-  <p class="muted">Profit protection default: once a trade has been profitable, the protective level follows its peak profit. A 20% giveback means the bot aims to retain 80% of the highest unrealised profit, subject to spread, slippage, gaps and broker stop rules.</p>
+  <p class="muted">The DEMO account safety lock is separate and fixed at 20% below your balance at the start of each Nairobi trading day. This personal planning target cannot change that system protection.</p><p class="muted">Profit protection default: once a trade has been profitable, the protective level follows its peak profit. A 20% giveback means the bot aims to retain 80% of the highest unrealised profit, subject to spread, slippage, gaps and broker stop rules.</p>
   <button type="button" id="saveModeProfile">Save This Mode's Settings</button>
   <p id="modeProfileMessage" class="muted" role="status" aria-live="polite"></p>
   <p class="notice">REAL EXECUTION: LOCKED. This screen cannot enable live orders. A verified broker connection and a separate server-side approval are required.</p>
@@ -1096,7 +1096,7 @@ calculateRisk();
   profileMode.addEventListener("change",loadModeProfile);
   document.getElementById("saveModeProfile").addEventListener("click",async()=>{
    const risk=Number(profileRisk.value),daily=Number(profileDaily.value),giveback=Number(profileGiveback.value),instrument=profileInstrument.value.trim();
-   if(!instrument||!Number.isFinite(risk)||risk<.1||risk>2||!Number.isFinite(daily)||daily<.5||daily>10||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk (0.1–2%), daily loss (0.5–10%) and giveback (1–50%).";return;}
+   if(!instrument||!Number.isFinite(risk)||risk<.1||risk>2||!Number.isFinite(daily)||daily<.5||daily>10||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk (0.1–2%), daily planning target (0.5–10%) and giveback (1–50%).";return;}
    const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user){profileMessage.textContent="Please sign in again.";return;}
    const button=document.getElementById("saveModeProfile");button.disabled=true;
    try{
