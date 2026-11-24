@@ -64,7 +64,7 @@ create or replace function public.create_demo_manual_entry_batch(
  p_entry numeric,p_stop numeric,p_tp1 numeric,p_tp2 numeric,p_tp3 numeric,
  p_tp1_percent numeric,p_tp2_percent numeric,p_tp3_percent numeric,
  p_total_quantity numeric,p_total_risk_usd numeric,p_total_risk_pct numeric,
- p_quote_to_usd numeric,p_quote_source text,p_provider_symbol text,p_quote numeric,p_quote_as_of timestamptz
+ p_quote_to_usd numeric,p_quote_source text,p_quote numeric,p_quote_as_of timestamptz
 ) returns jsonb
 language plpgsql security definer set search_path=public,pg_temp as $$
 declare
@@ -349,15 +349,15 @@ begin
 end;
 $$;
 
-revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,text,numeric,timestamptz)
+revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)
  from public,anon,authenticated;
 revoke all on function public.activate_demo_manual_entry_batch(uuid,numeric,text,text,timestamptz,numeric)
  from public,anon,authenticated;
 revoke all on function public.cancel_demo_manual_entry_batch(uuid,uuid,text,text)
  from public,anon,authenticated;
-grant execute on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)
+grant execute on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)
  to service_role;
-grant execute on function public.activate_demo_manual_entry_batch(uuid,numeric,text,timestamptz,numeric)
+grant execute on function public.activate_demo_manual_entry_batch(uuid,numeric,text,text,timestamptz,numeric)
  to service_role;
 grant execute on function public.cancel_demo_manual_entry_batch(uuid,uuid,text,text)
  to service_role;
