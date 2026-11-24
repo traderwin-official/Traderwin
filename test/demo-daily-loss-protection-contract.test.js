@@ -10,6 +10,7 @@ test("daily DEMO limit is fixed at 20% of the Nairobi day-opening account balanc
   assert.match(sql, /check \(max_daily_loss_pct=20\)/);
   assert.match(sql, /on conflict\(user_id,trading_day\) do nothing/);
   assert.match(sql, /10000 \+ coalesce\(sum\(realized_pnl_usd\),0\)/);
+  assert.doesNotMatch(sql, /greatest\(0,round\(10000 \+ coalesce\(sum\(realized_pnl_usd\)/);
   assert.ok(sql.indexOf("update public.demo_paper_sessions set max_daily_loss_pct=20;") < sql.indexOf("add constraint demo_paper_sessions_daily_loss_fixed_20"));
 });
 
