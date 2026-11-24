@@ -13,9 +13,12 @@ export default async function handler(req,res){
  const h=req.headers.authorization||"";if(!h.startsWith("Bearer "))return res.status(401).json({error:"Sign in is required."});
  try{
   const b=typeof req.body==="string"?JSON.parse(req.body):(req.body||{}),symbol=String(b.symbol||"").trim().toUpperCase(),direction=String(b.direction||"").trim().toUpperCase();
-  const stop=num(b.stopLoss),target=num(b.takeProfit);
+  const stop=num(b.stopLoss),tp1=num(b.tp1),tp2=num(b.tp2),tp3=num(b.tp3),target=tp3;
+  const tp1Percent=num(b.tp1Percent),tp2Percent=num(b.tp2Percent),tp3Percent=num(b.tp3Percent);
+  const validTargets=(entry,side)=>side==="BUY"?(stop<entry&&entry<tp1&&tp1<tp2&&tp2<tp3):(stop>entry&&entry>tp1&&tp1>tp2&&tp2>tp3);
   if(!/^[A-Z0-9._-]{2,24}$/.test(symbol))return res.status(400).json({error:"Enter a valid instrument symbol."});
-  if(!Number.isFinite(stop)||!Number.isFinite(target)||stop<=0||target<=0)return res.status(400).json({error:"Enter valid stop-loss and take-profit levels."});
+  if(!Number.isFinite(stop)||stop<=0||![tp1,tp2,tp3].every(v=>Number.isFinite(v)&&v>0))return res.status(400).json({error:"Enter a valid stop-loss and all three take-profit levels."});
+  if(![tp1Percent,tp2Percent,tp3Percent].every(v=>Number.isFinite(v)&&v>0)||Math.round((tp1Percent+tp2Percent+tp3Percent)*100)!==10000)return res.status(400).json({error:"T1, T2 and T3 allocation percentages must each be positive and total exactly 100%."});
   const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:a,error:ae}=await db.auth.getUser(h.slice(7).trim());if(ae||!a.user)return res.status(401).json({error:"Your login session is invalid."});
   const uid=a.user.id;
@@ -39,6 +42,7 @@ export default async function handler(req,res){
   let conversion;try{conversion=await getDerivQuoteToUsd(symbol,quote);}catch(e){return res.status(503).json({error:e.message||"Fresh USD conversion unavailable."});}
   const entry=quote.quote,setupError=validatePaperSetup({direction,entry,stop,target});
   if(setupError)return res.status(400).json({error:setupError});
+  if(!validTargets(entry,direction))return res.status(400).json({error:"Set T1, T2 and T3 beyond entry in the correct order for your trade direction."});
   const riskPct=Math.min(Number(profile.max_risk_per_trade_pct),Number(session.risk_per_trade_pct));
   let sizing;try{sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry,stop,quoteToUsd:conversion.rate});}
   catch{return res.status(400).json({error:"Could not calculate a safe paper position size."});}
@@ -55,7 +59,7 @@ export default async function handler(req,res){
    finalConversion=await getDerivQuoteToUsd(symbol,finalQuote);
   }catch(e){return res.status(503).json({error:e.message||"Final verified quote or USD conversion unavailable."});}
   const finalSetupError=validatePaperSetup({direction,entry:finalQuote.quote,stop,target});
-  if(finalSetupError)return res.status(409).json({error:"Market price changed; review your stop-loss and take-profit levels.",detail:finalSetupError});
+  if(finalSetupError||!validTargets(finalQuote.quote,direction))return res.status(409).json({error:"Market price changed; review your stop-loss and T1, T2 and T3 levels.",detail:finalSetupError||"Target levels no longer fit the current quote."});
   try{sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry:finalQuote.quote,stop,quoteToUsd:finalConversion.rate});}
   catch{return res.status(409).json({error:"Could not recalculate a safe paper position size at the final quote."});}
   if(!Number.isFinite(sizing.units)||sizing.units<=0||sizing.units>1e12)
@@ -68,10 +72,11 @@ export default async function handler(req,res){
   if(finalEmergency?.entries_blocked||finalLegacy?.kill_switch_active)return res.status(403).json({error:"Emergency stop is active. New paper entries are blocked."});
   quote=finalQuote;
   conversion=finalConversion;
-  const {data:result,error}=await db.rpc("open_demo_paper_trade",{
-   p_user_id:uid,p_session_id:session.id,p_instrument:symbol,p_side:direction,p_entry:quote.quote,p_stop:stop,p_target:target,
+  const {data:result,error}=await db.rpc("open_demo_manual_partial_trade",{
+   p_user_id:uid,p_session_id:session.id,p_instrument:symbol,p_side:direction,p_entry:quote.quote,p_stop:stop,
+   p_tp1:tp1,p_tp2:tp2,p_tp3:tp3,p_tp1_percent:tp1Percent,p_tp2_percent:tp2Percent,p_tp3_percent:tp3Percent,
    p_quantity:sizing.units,p_risk_amount:sizing.riskAmount,p_risk_pct:riskPct,p_quote_to_usd:conversion.rate,
-   p_quote_source:quote.source,p_quote_as_of:quote.quoteAsOf,p_trade_origin:"MANUAL"
+   p_quote_source:quote.source,p_quote_as_of:quote.quoteAsOf
   });
   if(error){console.error("DEMO paper open RPC:",error.message);return res.status(503).json({error:"Paper entry could not be committed safely."});}
   if(!result?.ok){const status=["KILL_SWITCH_ACTIVE","DAILY_LOSS_LIMIT"].includes(result?.reason)?403:409;return res.status(status).json({error:({SESSION_NOT_RUNNING:"Your DEMO session is no longer running.",INSTRUMENT_MISMATCH:"Instrument no longer matches session settings.",KILL_SWITCH_ACTIVE:"Emergency stop is active.",DAILY_LOSS_LIMIT:"Daily DEMO loss limit reached.",OPEN_POSITION_EXISTS:"Close the existing paper position first.",MAX_OPEN_POSITIONS:"Your DEMO account has reached its simultaneous position limit.",BOT_POSITION_EXISTS:"The automated strategy already has an open BOT position.",TOTAL_OPEN_RISK_LIMIT:"This entry would exceed your combined open-risk limit."})[result?.reason]||"Paper entry blocked by a server-side risk check.",reason:result?.reason});}
