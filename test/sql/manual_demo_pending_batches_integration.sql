@@ -42,6 +42,16 @@ begin
   raise exception 'Unexpected pending batch response: %',v_result;
  end if;
 
+ -- Pending batches reserve position slots before they activate.
+ select public.create_demo_manual_entry_batch(
+  v_user,v_session,'EURUSD','EURUSD','BUY',2,
+  1.10000,1.09000,1.11000,1.12000,1.13000,
+  40,30,30,5000,50,0.50,1,'DERIV',1.10500,now()
+ ) into v_result;
+ if v_result->>'reason'<>'MAX_OPEN_POSITIONS' then
+  raise exception 'Expected pending slot reservation to reject an over-sized second batch: %',v_result;
+ end if;
+
  -- A fresh quote still above the BUY limit only refreshes the checkpoint.
  select public.activate_demo_manual_entry_batch(v_batch,1.10200,'DERIV','EURUSD',now()-interval '5 seconds',1)
  into v_result;
@@ -73,6 +83,27 @@ begin
  select count(*) into v_count from public.demo_paper_trades
   where session_id=v_session and status='OPEN' and trade_origin='MANUAL';
  if v_count<>2 then raise exception 'Activation retry created duplicate children: %',v_count; end if;
+
+ -- SELL pending entries activate only after a fresh quote crosses upward.
+ select public.create_demo_manual_entry_batch(
+  v_user,v_session,'EURUSD','EURUSD','SELL',1,
+  1.10000,1.11000,1.09000,1.08000,1.07000,
+  40,30,30,5000,50,0.50,1,'DERIV',1.09500,now()-interval '5 seconds'
+ ) into v_result;
+ if coalesce((v_result->>'ok')::boolean,false) is not true then
+  raise exception 'Expected SELL pending batch: %',v_result;
+ end if;
+ v_cancel_batch:=(v_result->>'batch_id')::uuid;
+ select public.activate_demo_manual_entry_batch(v_cancel_batch,1.10100,'DERIV','EURUSD',now(),1)
+ into v_result;
+ if coalesce((v_result->>'activated')::boolean,false) is not true
+   or (v_result->>'trade_count')::integer<>1 then
+  raise exception 'Expected SELL batch to activate after upward touch: %',v_result;
+ end if;
+ select count(*) into v_count from public.demo_paper_trades
+  where session_id=v_session and side='SELL' and trade_origin='MANUAL'
+    and entry_price=1.10000 and stop_loss=1.11000 and tp1_price=1.09000;
+ if v_count<>1 then raise exception 'Expected one SELL child with shared pending levels'; end if;
 
  -- A user can cancel a still-pending batch; it creates no child positions.
  insert into auth.users default values returning id into v_user_cancel;
