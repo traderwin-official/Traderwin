@@ -101,7 +101,8 @@ begin
          status=case when v_triggered and status in ('RUNNING','PAUSED') then 'RISK_LOCKED' else status end,
          risk_locked_at=case when v_triggered then coalesce(risk_locked_at,now()) else risk_locked_at end,
          updated_at=now()
-   where user_id=p_user_id and status in ('RUNNING','PAUSED','RISK_LOCKED');
+   where user_id=p_user_id and broker='DERIV' and broker_account_ref='DEMO:'||p_user_id::text
+     and status in ('RUNNING','PAUSED','RISK_LOCKED');
 
   return jsonb_build_object('ok',true,'trading_day',v_baseline->>'trading_day',
     'opening_balance_usd',v_opening,'realized_pnl_usd',round(v_realized,2),
@@ -204,7 +205,10 @@ begin
   if v_trade.status<>'OPEN' then return jsonb_build_object('ok',false,'reason','TRADE_NOT_OPEN'); end if;
   select * into v_session from public.demo_paper_sessions
    where id=v_trade.session_id and user_id=p_user_id for update;
-  if not found or v_session.broker<>'DERIV' then return jsonb_build_object('ok',false,'reason','DEMO_ACCOUNT_NOT_FOUND'); end if;
+  if not found or v_session.broker<>'DERIV'
+     or v_session.broker_account_ref<>'DEMO:'||p_user_id::text then
+    return jsonb_build_object('ok',false,'reason','DEMO_ACCOUNT_NOT_FOUND');
+  end if;
   select * into v_permission from public.portfolio_trade_permissions
    where user_id=p_user_id and account_mode='DEMO' and broker='DERIV'
      and broker_account_ref=v_session.broker_account_ref for update;
