@@ -1302,17 +1302,17 @@ calculateRisk();
     startDemo.disabled=true;demoMessage.textContent="Starting your website DEMO trading session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim(),timeframe:document.getElementById("demoTimeframe").value,executionMode:document.getElementById("demoExecutionMode").value});
-     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     syncDemoSessionControls(r.session);
      showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-     stopDemo.disabled=false;recordPaper.disabled=false;document.getElementById("demoExecutionMode").disabled=true;document.getElementById("demoTimeframe").disabled=true;demoMessage.textContent=r.message;
+     demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
    });
    stopDemo.addEventListener("click",async()=>{
     stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
-     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
+     syncDemoSessionControls(r.session||null);demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
    });
    recordPaper.addEventListener("click",async()=>{
