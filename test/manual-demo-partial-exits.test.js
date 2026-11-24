@@ -2,14 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("manual DEMO entries require three ordered targets and allocations totaling 100 percent", async () => {
+test("legacy immediate manual DEMO route is disabled so pending-entry controls cannot be bypassed", async () => {
   const route = await readFile(new URL("../handlers/bots/demo/trade.js", import.meta.url), "utf8");
-  assert.match(route, /tp1=num\(b\.tp1\),tp2=num\(b\.tp2\),tp3=num\(b\.tp3\)/);
-  assert.match(route, /Math\.round\(\(tp1Percent\+tp2Percent\+tp3Percent\)\*100\)!==10000/);
-  assert.match(route, /validTargets\(finalQuote\.quote,direction\)/);
-  assert.match(route, /open_demo_manual_partial_trade/);
-  assert.match(route, /profile\.account_mode!=="DEMO"/);
-  assert.doesNotMatch(route, /buy\(|sell\(|placeOrder|sendBrokerOrder/i);
+  assert.match(route, /status\(410\)/);
+  assert.match(route, /MANUAL_ENTRY_REQUIRES_PENDING_BATCH/);
+  assert.match(route, /pending manual setup form/);
+  assert.doesNotMatch(route, /open_demo_manual_partial_trade/);
 });
 
 test("manual partial-exit migration enforces percentages and service-role-only DEMO RPCs", async () => {
