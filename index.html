@@ -227,6 +227,17 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <button type="button" class="secondary" id="closePaperTrade" disabled>Close at Latest Verified Quote</button>
   <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="card" id="demoTradeHistory" style="margin-top:14px">
+   <div class="dashboard-head"><h4>DEMO Trade History</h4><button type="button" class="secondary" id="refreshDemoTradeHistory">Refresh History</button></div>
+   <p class="muted" id="demoHistorySummary">Loading your saved DEMO trades…</p>
+   <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:680px;font-size:13px">
+     <thead><tr><th style="text-align:left;padding:9px">Closed / Opened</th><th style="text-align:left;padding:9px">Instrument</th><th style="text-align:left;padding:9px">Side</th><th style="text-align:left;padding:9px">Entry</th><th style="text-align:left;padding:9px">Exit</th><th style="text-align:left;padding:9px">Status</th><th style="text-align:right;padding:9px">Realised P/L</th></tr></thead>
+     <tbody id="demoHistoryRows"><tr><td colspan="7" style="padding:10px">Loading…</td></tr></tbody>
+    </table>
+   </div>
+   <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss.</p>
+  </div>
   <div class="grid">
    <p class="muted">The optional combined DEMO portfolio guard activates at USD 20 peak unrealised profit and protects 80% of the peak. It is separate from manual entries and requires its own tested server-side monitoring setup. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
   </div>
@@ -1085,6 +1096,40 @@ calculateRisk();
     if(!response.ok)throw new Error(result.error||"Demo request failed.");
     return result;
    }
+   async function loadDemoTradeHistory(){
+    const summary=document.getElementById("demoHistorySummary");
+    const rows=document.getElementById("demoHistoryRows");
+    const refresh=document.getElementById("refreshDemoTradeHistory");
+    if(refresh)refresh.disabled=true;
+    summary.textContent="Loading saved DEMO trades…";
+    try{
+     const {data:s,error:e}=await client.auth.getSession();
+     if(e||!s.session)throw new Error("Please sign in again.");
+     const response=await fetch("/api/bots/demo/history",{method:"GET",headers:{"Authorization":"Bearer "+s.session.access_token},credentials:"same-origin",cache:"no-store"});
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(result.error||"Could not load DEMO history.");
+     const money=n=>"USD "+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+     demoBalance.textContent="Virtual balance: "+money(result.accountBalance);
+     summary.textContent="Account realised P/L: "+money(result.realizedPnl)+" · "+(result.trades||[]).length+" recorded trades · Balance carries across sessions.";
+     rows.replaceChildren();
+     const trades=result.trades||[];
+     if(!trades.length){
+      const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="No DEMO trades have been recorded yet.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
+     }else{
+      trades.forEach(t=>{
+       const tr=document.createElement("tr");
+       const values=[t.closed_at||t.opened_at||"—",t.instrument||"—",t.side||"—",Number(t.entry_price||0).toFixed(5),t.status==="CLOSED"&&t.last_mark_price?Number(t.last_mark_price).toFixed(5):(t.status==="CLOSED"?"—":"Open"),t.status||"—",money(t.realized_pnl_usd)];
+       values.forEach((value,i)=>{const td=document.createElement("td");td.textContent=String(value);td.style.padding="9px";td.style.borderTop="1px solid #26364b";if(i===6){td.style.textAlign="right";td.style.color=Number(t.realized_pnl_usd)>=0?"#25c58a":"#f16c75";}tr.appendChild(td);});
+       rows.appendChild(tr);
+      });
+     }
+    }catch(error){
+     summary.textContent="History unavailable: "+error.message;
+     rows.replaceChildren();
+     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="Please refresh after the account-balance database upgrade is applied.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
+    }finally{if(refresh)refresh.disabled=false;}
+   }
+   document.getElementById("refreshDemoTradeHistory").addEventListener("click",loadDemoTradeHistory);
    document.getElementById("refreshDemoWorkerStatus").addEventListener("click",async()=>{
     const refresh=document.getElementById("refreshDemoWorkerStatus");
     refresh.disabled=true;
@@ -1150,6 +1195,7 @@ calculateRisk();
      msg.textContent=r.message+" Simulated P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);
      document.getElementById("paperTradeId").value="";markPaper.disabled=true;
      await refreshOpenPaperPositions();
+     await loadDemoTradeHistory();
     }catch(e){msg.textContent=e.message;closePaper.disabled=false;}
    });
 
@@ -1208,7 +1254,6 @@ calculateRisk();
       activeDemoSession=r.session.status==="RUNNING"?r.session:null;
       showDemoWorkerHealth(r.workerHeartbeat);
       demoStatus.textContent="Session: "+r.session.status;
-      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
       if(["M5","M15","H1","H4"].includes(String(r.session.timeframe||"").toUpperCase()))document.getElementById("demoTimeframe").value=String(r.session.timeframe).toUpperCase();
       const running=r.session.status==="RUNNING";
@@ -1237,6 +1282,8 @@ calculateRisk();
     }).catch(e=>{demoMessage.textContent=e.message;});
    }
 
+   loadDemoTradeHistory();
+   
    // SIGN OUT BUTTON
   const logout=document.createElement("button");
   logout.textContent="Sign Out";

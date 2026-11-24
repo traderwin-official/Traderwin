@@ -102,9 +102,15 @@ export default async function handler(req,res){
    const {data:orphanOpen,error:orphanError}=await db.from("demo_paper_trades").select("id").eq("user_id",uid).eq("status","OPEN").limit(1);
    if(orphanError)return res.status(503).json({error:"Could not verify existing DEMO positions."});
    if(orphanOpen?.length)return res.status(409).json({error:"Close your existing open DEMO paper position before starting a new session."});
+   const {data:accountBalance,error:balanceError}=await db.rpc("get_demo_paper_account_balance",{p_user_id:uid});
+   const carriedBalance=Number(accountBalance);
+   if(balanceError||!Number.isFinite(carriedBalance)||carriedBalance<0){
+    console.error("DEMO account balance lookup:",balanceError?.message||"invalid balance");
+    return res.status(503).json({error:"Could not safely restore your cumulative DEMO account balance. Apply the DEMO account-balance migration and retry."});
+   }
    const {data:session,error}=await db.from("demo_paper_sessions").insert({
     user_id:uid,broker:"DERIV",broker_account_ref:brokerAccountRef,instrument:requestedInstrument,
-    strategy:selectedStrategy,timeframe,status:"RUNNING",starting_balance:10000,current_balance:10000,
+    strategy:selectedStrategy,timeframe,status:"RUNNING",starting_balance:carriedBalance,current_balance:carriedBalance,
     risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:maxOpenPositions,max_total_open_risk_pct:2.00,
      config_snapshot:{broker:"DERIV_PUBLIC_MARKET_DATA",instrument:requestedInstrument,strategy:selectedStrategy,timeframe,account_mode:"DEMO",execution:executionMode==="AUTO"?"WEBSITE_DEMO_AUTO_PAPER_ONLY":"WEBSITE_PAPER_ONLY"}
    }).select("*").single();
