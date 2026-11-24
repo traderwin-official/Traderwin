@@ -6,6 +6,7 @@ import {getDerivQuoteToUsd} from "../../lib/usd-conversion.js";
 import {loadApprovedInstrument} from "../../lib/deriv/load-approved-instrument.js";
 import {decideDemoAutoAction} from "../../lib/demo-auto-decision.js";
 import {runDemoPortfolioProtection} from "../../lib/demo-portfolio-protection-runner.js";
+import {runDemoDailyLossProtection} from "../../lib/demo-daily-loss-protection-runner.js";
 import {resolveDemoAutoStrategy} from "../../lib/demo-session-mode.js";
 export const config={maxDuration:25};
 const MAX_SESSIONS_PER_TICK=3;
@@ -69,7 +70,7 @@ async function processManualDemoBracketExits(db){
  return {processed:results.length,closed:results.filter(r=>r.action==="CLOSED").length,results};
 }
 
-async function processSession(db,raw){
+async function processSession(db,raw,dailyLossGuardHealthy=true){
  const autoStrategy=resolveDemoAutoStrategy(raw);
  if(!autoStrategy)return {sessionId:raw.id,action:"SKIP",reason:"AUTO_MODE_NOT_ENABLED"};
  const session={...raw,account_mode:"DEMO",current_balance:Number(raw.current_balance),
@@ -114,6 +115,7 @@ async function processSession(db,raw){
   return r?.ok?{sessionId:raw.id,action:decision.action,reason:stage,tradeId:decision.tradeId,closed:r.closed,closedUnits:r.closed_units,remainingUnits:r.remaining_units,realizedPnl:r.realized_pnl_this_stage}:{sessionId:raw.id,action:"SKIP",reason:r?.reason||"EXIT_NOT_APPLIED"};
  }
  if(decision.action==="OPEN"){
+  if(!dailyLossGuardHealthy)return {sessionId:raw.id,action:"BLOCK",reason:"DAILY_EQUITY_GUARD_UNAVAILABLE"};
   // Close the time-of-check/time-of-use gap: fetch a second server quote,
   // refresh the emergency controls, and rerun the same strategy before the
   // atomic paper-entry RPC. The browser never supplies this snapshot.
@@ -173,14 +175,18 @@ export default async function handler(req,res){
   if(claimError){console.error("DEMO worker lease:",claimError.message);return res.status(503).json({error:"Could not acquire the DEMO paper worker lease. Install ledger v2 migration."});}
   if(!claimed)return res.status(200).json({ok:true,skipped:true,reason:"WORKER_ALREADY_RUNNING"});
   let results=[];
+  let dailyLossProtection={processed:0,results:[],healthy:true};
   let portfolioProtection={processed:0,results:[]};
   let manualBracketExits={processed:0,closed:0,results:[]};
-   try{   const {data:candidates,error}=await db.from("demo_paper_sessions").select("*").neq("strategy","MANUAL").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(20);
+   try{
+   try{dailyLossProtection=await runDemoDailyLossProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK});}
+   catch(e){dailyLossProtection={processed:0,results:[],healthy:false,error:safeError(e)};}
+   const {data:candidates,error}=await db.from("demo_paper_sessions").select("*").neq("strategy","MANUAL").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(20);
    const sessions=(candidates||[]).filter(s=>resolveDemoAutoStrategy(s)!==null).slice(0,MAX_SESSIONS_PER_TICK);
    if(error)throw new Error("Could not load DEMO paper sessions.");
    const portfolioPromise=runDemoPortfolioProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK})
     .catch(e=>({processed:0,results:[],error:safeError(e)}));
-   results=await Promise.all((sessions||[]).map(s=>processSession(db,s).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}))));
+   results=await Promise.all((sessions||[]).map(s=>processSession(db,s,dailyLossProtection.healthy!==false).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}))));
    portfolioProtection=await portfolioPromise;
    manualBracketExits=await processManualDemoBracketExits(db);
    const tick=new Date().toISOString();
@@ -191,6 +197,6 @@ export default async function handler(req,res){
    const {error}=await db.rpc("release_demo_paper_worker",{p_token:token});if(error)console.error("DEMO lease release:",error.message);
   }
    const counts=results.reduce((o,r)=>(o[r.action]=(o[r.action]||0)+1,o),{});
-  return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,manualBracketExits,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
+  return res.status(200).json({ok:true,processed:results.length,counts,results,dailyLossProtection,portfolioProtection,manualBracketExits,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
  }catch(e){console.error("DEMO paper worker:",e.message);return res.status(500).json({error:"DEMO paper worker failed safely."});}
 }
