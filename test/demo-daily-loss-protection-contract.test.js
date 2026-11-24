@@ -64,7 +64,7 @@ test("daily BOT closes use a fresh verified Deriv quote and the dedicated permis
 test("all DEMO trade insertion paths require a fresh valuation and no sticky daily lock", async () => {
   const sql = await readFile(new URL("../supabase/migrations/202611240004_daily_equity_loss_protection.sql", import.meta.url), "utf8");
   assert.match(sql, /before insert on public\.demo_paper_trades/);
-  assert.match(sql, /last_valuation_at < now\(\)-interval '60 seconds'/);
+  assert.match(sql, /last_valuation_at < now\(\)-interval '30 seconds'/);
   assert.match(sql, /limit_reached_at is not null/);
   assert.match(sql, /max\(realized_at\)/);
   assert.match(sql, /v_latest_realized_at>v_guard\.last_valuation_at/);
