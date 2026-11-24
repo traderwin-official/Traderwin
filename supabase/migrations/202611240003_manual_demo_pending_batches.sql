@@ -307,7 +307,7 @@ begin
      v_risk:=v_batch.total_risk_usd-(trunc(v_batch.total_risk_usd/v_batch.requested_trade_count,2)*(v_batch.requested_trade_count-1));
    else
      v_qty:=round(v_total_quantity/v_batch.requested_trade_count,12);
-     v_risk:=round(v_batch.total_risk_usd/v_batch.requested_trade_count,2);
+     v_risk:=trunc(v_batch.total_risk_usd/v_batch.requested_trade_count,2);
    end if;
    v_risk_pct:=greatest(0.01,round(v_risk/v_balance*100,2));
    insert into public.demo_paper_trades(
