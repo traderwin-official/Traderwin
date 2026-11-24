@@ -1,6 +1,9 @@
 -- Permission-gated automatic SL/TP exits for manual-origin DEMO paper positions.
 -- This is separate from portfolio giveback and never touches REAL broker positions.
 
+alter table public.portfolio_trade_permissions
+  add column if not exists auto_exit_manual_brackets boolean not null default false;
+
 create or replace function public.close_demo_manual_trade_at_bracket(
   p_user_id uuid,
   p_trade_id uuid,
@@ -63,9 +66,7 @@ begin
      and broker_account_ref = v_session.broker_account_ref
    for update;
   if not found
-     or v_permission.manual_trade_management is not true
-     or v_permission.close_manual_trades is not true
-     or v_permission.close_managed_positions is not true then
+     or v_permission.auto_exit_manual_brackets is not true then
     return jsonb_build_object('ok',false,'reason','MANUAL_BRACKET_CLOSE_PERMISSION_NOT_GRANTED');
   end if;
 
