@@ -107,3 +107,22 @@ test("manual DEMO entries refresh the quote, recalculate size, and recheck both 
  assert.ok(s.indexOf("quote=finalQuote;")<s.indexOf('const {data:result,error}=await db.rpc("open_demo_paper_trade"'),"RPC must use the final refreshed quote");
  assert.match(rpc,/p_quote_as_of:quote\.quoteAsOf/);
 });
+
+
+test("manual DEMO SL/TP worker requires its dedicated opt-in and closes only at a verified bracket",async()=>{
+ const worker=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ const migration=await readFile(new URL("../supabase/migrations/202611240001_manual_demo_bracket_auto_exit.sql",import.meta.url),"utf8");
+ const ui=await readFile(new URL("../index.html",import.meta.url),"utf8");
+ assert.match(worker,/eq\("auto_exit_manual_brackets",true\)/);
+ assert.match(worker,/eq\("trade_origin","MANUAL"\)/);
+ assert.match(worker,/close_demo_manual_trade_at_bracket/);
+ assert.match(worker,/p_reason:reason/);
+ assert.match(migration,/auto_exit_manual_brackets boolean not null default false/);
+ assert.match(migration,/v_trade\.trade_origin <> 'MANUAL'/);
+ assert.match(migration,/v_permission\.auto_exit_manual_brackets is not true/);
+ assert.match(migration,/p_exit_price <= v_trade\.stop_loss/);
+ assert.match(migration,/p_exit_price >= v_trade\.take_profit/);
+ assert.match(migration,/to service_role/);
+ assert.match(ui,/id="autoExitManualBrackets"/);
+ assert.match(ui,/separate from the 20% portfolio giveback permission/);
+});
