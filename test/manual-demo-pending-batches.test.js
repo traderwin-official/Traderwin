@@ -6,6 +6,7 @@ test("pending batch API validates count, planned levels, percentages, DEMO mode 
  const api=await readFile(new URL("../handlers/bots/demo/pending-batches.js",import.meta.url),"utf8");
  assert.match(api,/Number\.isInteger\(tradeCount\)/);
  assert.match(api,/tradeCount<1\|\|tradeCount>10/);
+ assert.match(api,/Math\.round\(v\*100\)===v\*100/);
  assert.match(api,/Math\.round\(allocations\.reduce\(\(a,b\)=>a\+b,0\)\*100\)!==10000/);
  assert.match(api,/profile\.account_mode!=="DEMO"/);
  assert.match(api,/loadApprovedInstrument/);
@@ -34,6 +35,7 @@ test("pending batch migration reserves aggregate risk and position slots, activa
  assert.match(sql,/create table if not exists public\.demo_manual_entry_batches/);
  assert.match(sql,/status text not null default 'PENDING'/);
  assert.match(sql,/create or replace function public\.create_demo_manual_entry_batch/);
+ assert.match(sql,/round\(p_tp1_percent,2\)<>p_tp1_percent/);
  assert.match(sql,/v_open_count\+v_pending_count\+p_trade_count>v_session\.max_open_positions/);
  assert.match(sql,/v_open_risk\+v_pending_risk\+p_total_risk_usd/);
  assert.match(sql,/create or replace function public\.activate_demo_manual_entry_batch/);
