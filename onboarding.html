@@ -24,7 +24,7 @@ a{color:var(--gold)}.small{font-size:12px}
 <label class="choice"><input type="radio" name="mode" value="REAL"><strong>Real account mode</strong><br><span class="small">For traders who intend to connect a real broker account. Live trading remains locked until broker verification and safety checks are completed.</span></label>
 <div id="realAck" hidden><input id="ack" type="checkbox"><span>I understand that real trading can cause substantial financial loss, that no profits are guaranteed, and that choosing REAL here does not authorize Young Tiger FX to place trades.</span></div>
 <label for="risk">Maximum planned risk per trade (%)</label><input id="risk" type="number" min="0.1" max="2" step="0.1" value="0.5" required>
-<label for="daily">Personal daily planning target (%)</label><input id="daily" type="number" min="0.5" max="10" step="0.5" value="2" required>
+<label for="daily">Personal daily planning target (%)</label><input id="daily" type="number" min="0.5" max="10" step="0.5" value="2" required><p class="small">This is a personal planning target. DEMO account protection is fixed at 20% below the balance at the start of each Nairobi trading day and cannot be changed here.</p>
 <button id="save" type="submit">Save account preference</button>
 </form>
 <div id="message" role="status" aria-live="polite">Checking your secure login...</div>
