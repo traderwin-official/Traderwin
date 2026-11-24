@@ -15,7 +15,7 @@ test("emergency control schema is service-role only and scoped to user/account/m
 });
 test("DEMO start and manual entry both enforce the persisted legacy emergency latch",async()=>{
  const start=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
- const entry=await readFile(new URL("../handlers/bots/demo/trade.js",import.meta.url),"utf8");
+ const entry=await readFile(new URL("../handlers/bots/demo/pending-batches.js",import.meta.url),"utf8");
  assert.match(start,/brokerAccountRef="DEMO:"\+uid/);
  assert.match(start,/from\("bot_emergency_controls"\)/);assert.match(start,/kill_switch_active/);
  assert.match(entry,/from\("bot_emergency_controls"\)/);assert.match(entry,/session\.broker_account_ref/);
