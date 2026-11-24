@@ -68,6 +68,10 @@ begin
      or p_tp1 <= 0 or p_tp2 <= 0 or p_tp3 <= 0
      or p_tp1_percent is null or p_tp2_percent is null or p_tp3_percent is null
      or p_tp1_percent <= 0 or p_tp2_percent <= 0 or p_tp3_percent <= 0
+     or p_tp1_percent > 100 or p_tp2_percent > 100 or p_tp3_percent > 100
+     or round(p_tp1_percent,2) <> p_tp1_percent
+     or round(p_tp2_percent,2) <> p_tp2_percent
+     or round(p_tp3_percent,2) <> p_tp3_percent
      or round(p_tp1_percent + p_tp2_percent + p_tp3_percent, 2) <> 100 then
     raise exception 'Three positive target allocations must total exactly 100 percent';
   end if;
@@ -78,6 +82,13 @@ begin
     (p_side = 'SELL' and p_stop > p_entry and p_entry > p_tp1 and p_tp1 > p_tp2 and p_tp2 > p_tp3)
   ) then
     raise exception 'Manual target levels must be ordered beyond entry in the trade direction';
+  end if;
+
+  if not exists (
+    select 1 from public.demo_paper_sessions
+     where id = p_session_id and user_id = p_user_id and broker = 'DERIV'
+  ) then
+    return jsonb_build_object('ok',false,'reason','DERIV_DEMO_SESSION_REQUIRED');
   end if;
 
   v_result := public.open_demo_paper_trade(
@@ -158,6 +169,20 @@ begin
   end if;
   if v_trade.trade_origin <> 'MANUAL' then
     return jsonb_build_object('ok',false,'reason','NOT_A_MANUAL_TRADE');
+  end if;
+  if round(v_trade.tp1_percent + v_trade.tp2_percent + v_trade.tp3_percent,2) <> 100
+     or v_trade.tp1_percent <= 0 or v_trade.tp2_percent <= 0 or v_trade.tp3_percent <= 0
+     or v_trade.tp1_price is null or v_trade.tp2_price is null or v_trade.tp3_price is null
+     or not (
+       (v_trade.side='BUY' and v_trade.stop_loss < v_trade.entry_price
+        and v_trade.entry_price < v_trade.tp1_price and v_trade.tp1_price < v_trade.tp2_price
+        and v_trade.tp2_price < v_trade.tp3_price)
+       or
+       (v_trade.side='SELL' and v_trade.stop_loss > v_trade.entry_price
+        and v_trade.entry_price > v_trade.tp1_price and v_trade.tp1_price > v_trade.tp2_price
+        and v_trade.tp2_price > v_trade.tp3_price)
+     ) then
+    return jsonb_build_object('ok',false,'reason','MANUAL_EXIT_CONFIGURATION_INVALID');
   end if;
 
   select * into v_session
