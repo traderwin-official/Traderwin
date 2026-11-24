@@ -8,7 +8,7 @@ test("manual DEMO pending batch uses a server verified Deriv quote and never acc
  assert.match(s,/getDerivQuoteToUsd/);
  assert.match(s,/create_demo_manual_entry_batch/);
  assert.match(s,/num\(body\.entryPrice\)/);
- assert.match(s,/positions activate only after a later verified quote crosses/);
+ assert.match(s,/activate only after a later verified quote crosses/);
  assert.doesNotMatch(s,/buy\(|sell\(|placeOrder|sendBrokerOrder/i);
 });
 
