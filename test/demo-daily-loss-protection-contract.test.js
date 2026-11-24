@@ -65,6 +65,8 @@ test("all DEMO trade insertion paths require a fresh valuation and no sticky dai
   assert.match(sql, /before insert on public\.demo_paper_trades/);
   assert.match(sql, /last_valuation_at < now\(\)-interval '60 seconds'/);
   assert.match(sql, /limit_reached_at is not null/);
+  assert.match(sql, /max\(realized_at\)/);
+  assert.match(sql, /v_latest_realized_at>v_guard\.last_valuation_at/);
   assert.match(sql, /create or replace function public\.open_demo_paper_trade/);
   assert.doesNotMatch(sql, /v_daily_loss := greatest/);
   assert.ok(sql.indexOf("from public.demo_daily_risk_baselines") < sql.indexOf("from public.demo_paper_sessions"));
