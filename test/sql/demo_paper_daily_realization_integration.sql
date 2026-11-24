@@ -81,6 +81,14 @@ begin
     raise exception 'Once reached, the daily limit must remain locked until next Nairobi day: %',v_result;
   end if;
 
+  -- Even if later manual losses drive the clamped virtual balance to zero,
+  -- the next day's opening baseline must still reconstruct from the ledger.
+  update public.demo_paper_trades set realized_pnl_usd=-12000 where id=v_trade;
+  select public.get_demo_daily_opening_balance(v_user) into v_baseline;
+  if (v_baseline->>'opening_balance_usd')::numeric<>10000 then
+    raise exception 'Clamped account balance corrupted the day-opening baseline: %',v_baseline;
+  end if;
+
   update public.demo_paper_sessions set status='STOPPED',stopped_at=now()
    where id=v_session;
   insert into public.demo_paper_sessions(
