@@ -1,5 +1,22 @@
 # Manual DEMO pending batch entries
 
+## Implementation progress (2026-11-24)
+
+The feature is now implemented in source on `feature/manual-partial-exits`:
+
+- Dashboard asks for a positive whole-number trade count and a planned entry price.
+- `POST /api/bots/demo/pending-batches` validates the owner, DEMO mode, session, instrument approval, fresh quote, entry side, target ordering, allocation total and aggregate risk.
+- `demo_manual_entry_batches` stores one shared plan and reserves both aggregate risk and position slots while pending.
+- The scheduled DEMO worker watches pending batches, verifies current Deriv quotes and instrument approval, then calls the atomic activation RPC.
+- Activation creates all child paper positions in one database transaction at the planned entry price. Child positions share the same SL, T1/T2/T3 and percentages and are independently managed by the existing partial-exit engine.
+- Pending setups can be cancelled. The worker blocks batches when the session stops, emergency stop activates, or instrument approval is revoked; stale/missing quotes defer activation without fabricating a fill.
+- The legacy immediate manual-entry endpoint now returns HTTP 410 so it cannot bypass pending entry and aggregate reservations.
+- A database trigger prevents ordinary manual/BOT opens from consuming risk or position slots reserved by pending batches.
+
+The migration and SQL integration test are wired into GitHub Actions. This is source implementation, not proof of CI success or a live Supabase application. Apply the new migration only after CI validates it and after explicit production migration approval.
+
+
+
 This is the design contract for the next manual-entry extension. It is intentionally separate from the already implemented staged partial-exit work.
 
 ## User workflow
