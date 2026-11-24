@@ -68,7 +68,7 @@ begin
  if v_count<>2 then raise exception 'Expected two identical shared-plan child positions, got %',v_count; end if;
 
  -- Repeated activation cannot duplicate children.
- select public.activate_demo_manual_entry_batch(v_batch,1.09800,'DERIV',now()+interval '1 millisecond',1)
+ select public.activate_demo_manual_entry_batch(v_batch,1.09800,'DERIV','EURUSD',now(),1)
  into v_result;
  select count(*) into v_count from public.demo_paper_trades
   where session_id=v_session and status='OPEN' and trade_origin='MANUAL';
