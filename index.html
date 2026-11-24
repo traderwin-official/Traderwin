@@ -287,6 +287,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <p class="muted">Automatic BOT positions are included in the combined DEMO profit guard by default. Manual positions are excluded unless you opt in below. Monitoring and permission to automatically close manual positions are separate choices.</p>
    <label class="field"><input id="monitorManualTrades" type="checkbox"> Include my manual DEMO positions in combined portfolio monitoring</label>
    <label class="field"><input id="closeManualTrades" type="checkbox" disabled> Allow the portfolio guard to automatically close my manual DEMO positions after the 20% giveback trigger</label>
+   <label class="field"><input id="autoExitManualBrackets" type="checkbox"> Automatically close my manual DEMO positions when their own stop-loss or take-profit is reached</label>
+   <p class="muted">This SL/TP permission is separate from the 20% portfolio giveback permission. It applies only to virtual DEMO positions and never sends broker orders.</p>
    <button type="button" class="secondary" id="saveDemoPortfolioPermissions">Save manual-position permissions</button>
    <p id="demoPortfolioPermissionMessage" class="muted" role="status" aria-live="polite"></p>
   </div>
@@ -1363,6 +1365,7 @@ calculateRisk();
    }
    const monitorManualInput=document.getElementById("monitorManualTrades");
    const closeManualInput=document.getElementById("closeManualTrades");
+   const autoExitManualInput=document.getElementById("autoExitManualBrackets");
    const savePortfolioPermissions=document.getElementById("saveDemoPortfolioPermissions");
    const portfolioPermissionMessage=document.getElementById("demoPortfolioPermissionMessage");
    monitorManualInput.addEventListener("change",()=>{
@@ -1373,7 +1376,8 @@ calculateRisk();
     savePortfolioPermissions.disabled=true;portfolioPermissionMessage.textContent="Saving permissions...";
     try{
      const result=await callDemoApi("/api/bots/demo/portfolio-permissions",{
-      action:"UPDATE",monitorManualTrades:monitorManualInput.checked,closeManualTrades:closeManualInput.checked
+      action:"UPDATE",monitorManualTrades:monitorManualInput.checked,closeManualTrades:closeManualInput.checked,
+      autoExitManualBrackets:autoExitManualInput.checked
      });
      portfolioPermissionMessage.textContent=result.message;
     }catch(error){portfolioPermissionMessage.textContent=error.message;}
@@ -1396,7 +1400,7 @@ calculateRisk();
       document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
       startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
       stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
-      demoMessage.textContent="Your existing DEMO session has been restored. The scheduled Smart Auto worker manages bot-originated trades only; manual paper positions remain under your control.";
+      demoMessage.textContent="Your existing DEMO session has been restored. The scheduled worker manages BOT trades and checks manual SL/TP only when you separately enable that permission.";
      }else{
       demoStatus.textContent="Session: Not started";
       showDemoWorkerHealth(null);
@@ -1411,6 +1415,7 @@ calculateRisk();
        monitorManualInput.checked=permission.manualTradeManagement;
        closeManualInput.checked=permission.closeManualTrades;
        closeManualInput.disabled=!monitorManualInput.checked;
+       autoExitManualInput.checked=permission.autoExitManualBrackets===true;
       }catch(error){portfolioPermissionMessage.textContent=error.message;}
      }
     }).catch(e=>{demoMessage.textContent=e.message;});
