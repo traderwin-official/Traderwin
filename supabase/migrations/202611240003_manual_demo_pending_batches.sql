@@ -219,6 +219,11 @@ begin
    update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='SESSION_NOT_RUNNING',updated_at=now() where id=v_batch.id;
    return jsonb_build_object('ok',false,'reason','SESSION_NOT_RUNNING');
  end if;
+ if v_batch.total_risk_pct>v_session.risk_per_trade_pct
+   or v_batch.total_risk_usd>v_session.current_balance*v_session.risk_per_trade_pct/100 then
+   update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='SESSION_RISK_LIMIT_CHANGED',updated_at=now() where id=v_batch.id;
+   return jsonb_build_object('ok',false,'reason','SESSION_RISK_LIMIT_CHANGED');
+ end if;
  if upper(v_session.instrument)<>upper(v_batch.instrument) then
    update public.demo_manual_entry_batches set status='BLOCKED',terminal_reason='INSTRUMENT_MISMATCH',updated_at=now() where id=v_batch.id;
    return jsonb_build_object('ok',false,'reason','INSTRUMENT_MISMATCH');
