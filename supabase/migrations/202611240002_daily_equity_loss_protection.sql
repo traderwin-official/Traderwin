@@ -79,7 +79,7 @@ begin
 
   -- Keep legacy session-level checks aligned to the account-wide daily baseline.
   update public.demo_paper_sessions
-     set starting_balance=v_opening,max_daily_loss_pct=20,
+     set starting_balance=greatest(0.01,v_opening),max_daily_loss_pct=20,
          status=case when v_triggered and status in ('RUNNING','PAUSED') then 'RISK_LOCKED' else status end,
          risk_locked_at=case when v_triggered then coalesce(risk_locked_at,now()) else risk_locked_at end,
          updated_at=now()
@@ -111,7 +111,7 @@ returns trigger language plpgsql security definer set search_path=public,pg_temp
 declare v jsonb;
 begin
   v:=public.get_demo_daily_opening_balance(new.user_id);
-  new.starting_balance:=(v->>'opening_balance_usd')::numeric;
+  new.starting_balance:=greatest(0.01,(v->>'opening_balance_usd')::numeric);
   new.max_daily_loss_pct:=20;
   return new;
 end $$;
@@ -145,7 +145,7 @@ begin
   v_day_start:=(v->>'day_start')::timestamptz;
   select coalesce(sum(realized_pnl_delta_usd),0) into v_realized
     from public.demo_paper_realized_events where user_id=new.user_id and realized_at>=v_day_start;
-  new.starting_balance:=v_opening;
+  new.starting_balance:=greatest(0.01,v_opening);
   new.max_daily_loss_pct:=20;
   if v_opening+v_realized <= greatest(0,v_opening-v_threshold) then
     new.status:='RISK_LOCKED'; new.risk_locked_at:=coalesce(new.risk_locked_at,now());
@@ -167,7 +167,8 @@ begin
   if p_user_id is null or p_trade_id is null or p_exit_price is null or p_exit_price<=0
      or p_quote_to_usd is null or p_quote_to_usd<=0 or p_quote_source is distinct from 'DERIV'
      or p_quote_as_of is null or p_quote_as_of>now() or p_quote_as_of<now()-interval '30 seconds'
-     or p_idempotency_key is null or nullif(trim(p_idempotency_key),'') is null then
+     or p_idempotency_key is null or nullif(trim(p_idempotency_key),'') is null
+     or length(p_idempotency_key)>200 then
     raise exception 'Invalid or stale daily-loss close request';
   end if;
   select * into v_trade from public.demo_paper_trades
