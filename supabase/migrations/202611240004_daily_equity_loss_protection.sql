@@ -32,6 +32,7 @@ create table if not exists public.demo_daily_risk_baselines (
   created_at timestamptz not null default now(),
   primary key(user_id,trading_day)
 );
+alter table public.demo_paper_sessions add column if not exists daily_lock_previous_status text check (daily_lock_previous_status in ('RUNNING','PAUSED'));
 alter table public.demo_daily_risk_baselines enable row level security;
 revoke all on public.demo_daily_risk_baselines from public,anon,authenticated;
 grant all on public.demo_daily_risk_baselines to service_role;
@@ -110,14 +111,22 @@ begin
   -- Keep legacy session-level status aligned with the sticky account-wide lock.
   update public.demo_paper_sessions
      set starting_balance=greatest(0.01,v_opening),max_daily_loss_pct=20,
+         daily_lock_previous_status=case
+           when v_triggered and status in ('RUNNING','PAUSED') then status
+           else daily_lock_previous_status end,
          status=case
            when v_triggered and status in ('RUNNING','PAUSED') then 'RISK_LOCKED'
-           when not v_triggered and status='RISK_LOCKED' and risk_locked_at>=v_day_start then 'RUNNING'
+           when not v_triggered and status='RISK_LOCKED' and risk_locked_at>=v_day_start
+             then coalesce(daily_lock_previous_status,'RUNNING')
            else status end,
          risk_locked_at=case
            when v_triggered then coalesce(risk_locked_at,now())
            when not v_triggered and risk_locked_at>=v_day_start then null
            else risk_locked_at end,
+         daily_lock_previous_status=case
+           when not v_triggered and status='RISK_LOCKED' and risk_locked_at>=v_day_start then null
+           when v_triggered and status in ('RUNNING','PAUSED') then status
+           else daily_lock_previous_status end,
          updated_at=now()
    where user_id=p_user_id and broker='DERIV' and broker_account_ref='DEMO:'||p_user_id::text
      and status in ('RUNNING','PAUSED','RISK_LOCKED');
@@ -188,6 +197,7 @@ begin
   new.starting_balance:=greatest(0.01,(v->>'opening_balance_usd')::numeric);
   new.max_daily_loss_pct:=20;
   if v_locked_at is not null then
+    new.daily_lock_previous_status:=case when new.status in ('RUNNING','PAUSED') then new.status else null end;
     new.status:='RISK_LOCKED';
     new.risk_locked_at:=coalesce(new.risk_locked_at,v_locked_at);
   end if;
@@ -368,7 +378,7 @@ begin
   if v_locked_at is null and v_valuation_at is not null
      and v_valuation_at >= now()-interval '60 seconds' then
     update public.demo_paper_sessions
-       set status='RUNNING',risk_locked_at=null,updated_at=now()
+       set status=old.status,risk_locked_at=null,daily_lock_previous_status=null,updated_at=now()
      where id=new.id and status='RISK_LOCKED';
   end if;
   return new;
