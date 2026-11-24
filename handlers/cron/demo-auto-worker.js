@@ -12,6 +12,63 @@ const MAX_SESSIONS_PER_TICK=3;
 const safeError=e=>String(e?.message||"Worker step failed").slice(0,240);
 const normalise=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 
+/**
+ * Enforce individual SL/TP brackets for MANUAL-origin DEMO paper positions.
+ * This is separate from portfolio giveback and requires the dedicated
+ * auto_exit_manual_brackets permission for the user's DEMO Deriv account.
+ */
+async function processManualDemoBracketExits(db){
+ const {data:permissions,error:permissionQueueError}=await db.from("portfolio_trade_permissions")
+  .select("user_id,broker_account_ref").eq("account_mode","DEMO").eq("broker","DERIV")
+  .eq("auto_exit_manual_brackets",true).limit(100);
+ if(permissionQueueError)return {processed:0,closed:0,results:[],error:"MANUAL_PERMISSION_QUEUE_FAILED"};
+ const eligible=new Map((permissions||[]).map(p=>[p.user_id,p.broker_account_ref]));
+ if(!eligible.size)return {processed:0,closed:0,results:[]};
+ const {data:trades,error}=await db.from("demo_paper_trades")
+  .select("id,user_id,session_id,instrument,side,stop_loss,take_profit,status")
+  .eq("status","OPEN").eq("trade_origin","MANUAL").in("user_id",[...eligible.keys()])
+  .order("last_mark_at",{ascending:true,nullsFirst:true}).limit(4);
+ if(error)return {processed:0,closed:0,results:[],error:"MANUAL_TRADE_QUEUE_FAILED"};
+ const results=[];
+ for(const trade of trades||[]){
+  try{
+   const {data:session,error:sessionError}=await db.from("demo_paper_sessions")
+    .select("broker,broker_account_ref").eq("id",trade.session_id).eq("user_id",trade.user_id).maybeSingle();
+   if(sessionError||!session||session.broker!=="DERIV"||eligible.get(trade.user_id)!==session.broker_account_ref){
+    results.push({tradeId:trade.id,action:"BLOCK",reason:"DEMO_SESSION_OR_PERMISSION_SCOPE_MISMATCH"});continue;
+   }
+   const quote=await getDerivPublicQuote(trade.instrument);
+   if(quote.source!=="DERIV"||normalise(quote.instrument)!==normalise(trade.instrument)||!quote.providerSymbol){
+    results.push({tradeId:trade.id,action:"BLOCK",reason:"VERIFIED_QUOTE_MISMATCH"});continue;
+   }
+   const fx=await getDerivQuoteToUsd(trade.instrument,quote);
+   const stopHit=trade.side==="BUY"?quote.quote<=Number(trade.stop_loss):quote.quote>=Number(trade.stop_loss);
+   const targetHit=trade.side==="BUY"?quote.quote>=Number(trade.take_profit):quote.quote<=Number(trade.take_profit);
+   const reason=stopHit?"STOP_LOSS":targetHit?"TAKE_PROFIT":null;
+   if(!reason){
+    const {error:markError}=await db.rpc("mark_demo_paper_trade",{
+     p_user_id:trade.user_id,p_trade_id:trade.id,p_price:quote.quote,p_quote_as_of:quote.quoteAsOf
+    });
+    results.push(markError?{tradeId:trade.id,action:"ERROR",reason:"MANUAL_MARK_FAILED"}:
+     {tradeId:trade.id,action:"MARK",reason:"BRACKETS_NOT_REACHED"});
+    continue;
+   }
+   const {data:closed,error:closeError}=await db.rpc("close_demo_manual_trade_at_bracket",{
+    p_user_id:trade.user_id,p_trade_id:trade.id,p_exit_price:quote.quote,
+    p_quote_to_usd:fx.rate,p_quote_source:quote.source,p_quote_as_of:quote.quoteAsOf,p_reason:reason
+   });
+   if(closeError){
+    results.push({tradeId:trade.id,action:"ERROR",reason:"MANUAL_BRACKET_CLOSE_FAILED",detail:safeError(closeError)});continue;
+   }
+   results.push(closed?.ok?{tradeId:trade.id,action:"CLOSED",reason,exitPrice:closed.exit_price,realizedPnl:closed.realized_pnl_total}:
+    {tradeId:trade.id,action:"SKIP",reason:closed?.reason||"MANUAL_BRACKET_CLOSE_NOT_APPLIED"});
+  }catch(e){
+   results.push({tradeId:trade.id,action:"ERROR",reason:"MANUAL_BRACKET_CHECK_FAILED",detail:safeError(e)});
+  }
+ }
+ return {processed:results.length,closed:results.filter(r=>r.action==="CLOSED").length,results};
+}
+
 async function processSession(db,raw){
  const autoStrategy=resolveDemoAutoStrategy(raw);
  if(!autoStrategy)return {sessionId:raw.id,action:"SKIP",reason:"AUTO_MODE_NOT_ENABLED"};
@@ -117,13 +174,15 @@ export default async function handler(req,res){
   if(!claimed)return res.status(200).json({ok:true,skipped:true,reason:"WORKER_ALREADY_RUNNING"});
   let results=[];
   let portfolioProtection={processed:0,results:[]};
-   try{   const {data:candidates,error}=await db.from("demo_paper_sessions").select("*").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(20);
+  let manualBracketExits={processed:0,closed:0,results:[]};
+   try{   const {data:candidates,error}=await db.from("demo_paper_sessions").select("*").neq("strategy","MANUAL").in("status",["RUNNING","PAUSED","RISK_LOCKED"]).order("updated_at",{ascending:true}).limit(20);
    const sessions=(candidates||[]).filter(s=>resolveDemoAutoStrategy(s)!==null).slice(0,MAX_SESSIONS_PER_TICK);
    if(error)throw new Error("Could not load DEMO paper sessions.");
    const portfolioPromise=runDemoPortfolioProtection(db,{maxAccounts:MAX_SESSIONS_PER_TICK})
     .catch(e=>({processed:0,results:[],error:safeError(e)}));
    results=await Promise.all((sessions||[]).map(s=>processSession(db,s).catch(e=>({sessionId:s.id,action:"ERROR",reason:"UNHANDLED_SESSION_ERROR",detail:safeError(e)}))));
    portfolioProtection=await portfolioPromise;
+   manualBracketExits=await processManualDemoBracketExits(db);
    const tick=new Date().toISOString();
    const beats=(sessions||[]).map(s=>{const r=results.find(x=>x.sessionId===s.id);return {session_id:s.id,user_id:s.user_id,last_tick_at:tick,last_action:r?.action||"UNKNOWN",last_reason:r?.reason||null,last_error:["ERROR","BLOCK"].includes(r?.action)?(r.detail||r.reason):null,updated_at:tick};});
    if(beats.length){const {error:e}=await db.from("demo_paper_worker_heartbeats").upsert(beats,{onConflict:"session_id"});if(e)console.error("DEMO heartbeat:",e.message);}
@@ -132,6 +191,6 @@ export default async function handler(req,res){
    const {error}=await db.rpc("release_demo_paper_worker",{p_token:token});if(error)console.error("DEMO lease release:",error.message);
   }
    const counts=results.reduce((o,r)=>(o[r.action]=(o[r.action]||0)+1,o),{});
-  return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
+  return res.status(200).json({ok:true,processed:results.length,counts,results,portfolioProtection,manualBracketExits,mode:"DEMO_PAPER_ONLY",realOrdersSent:0});
  }catch(e){console.error("DEMO paper worker:",e.message);return res.status(500).json({error:"DEMO paper worker failed safely."});}
 }

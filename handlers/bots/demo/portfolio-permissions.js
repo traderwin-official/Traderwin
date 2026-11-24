@@ -26,7 +26,7 @@ export default async function handler(req,res){
   if(!session)return res.status(409).json({error:"Start a DEMO session before changing portfolio permissions."});
   if(action==="STATUS"){
    const [{data:permission,error},{data:state,error:stateError}]=await Promise.all([
-    db.from("portfolio_trade_permissions").select("manual_trade_management,close_manual_trades")
+    db.from("portfolio_trade_permissions").select("manual_trade_management,close_manual_trades,auto_exit_manual_brackets")
      .eq("user_id",userId).eq("account_mode","DEMO").eq("broker","DERIV").eq("broker_account_ref",accountRef).maybeSingle(),
     db.from("portfolio_profit_protection_state")
      .select("protection_active,peak_unrealized_profit_usd,current_unrealized_profit_usd,protected_profit_floor_usd,last_valuation_at,quote_source,quote_as_of")
@@ -34,7 +34,7 @@ export default async function handler(req,res){
    ]);
    if(error||stateError)return res.status(503).json({error:"Could not load your portfolio status."});
    return res.status(200).json({ok:true,manualTradeManagement:permission?.manual_trade_management===true,
-    closeManualTrades:permission?.close_manual_trades===true,botTradeManagement:true,closeManagedPositions:true,
+    closeManualTrades:permission?.close_manual_trades===true,autoExitManualBrackets:permission?.auto_exit_manual_brackets===true,botTradeManagement:true,closeManagedPositions:true,
     portfolioProtection:state?{
      active:state.protection_active===true,
      peakProfitUsd:Number(state.peak_unrealized_profit_usd)||0,
@@ -45,8 +45,8 @@ export default async function handler(req,res){
      quoteAsOf:state.quote_as_of
     }:null});
   }
-  if(typeof body.monitorManualTrades!=="boolean"||typeof body.closeManualTrades!=="boolean")
-   return res.status(400).json({error:"Choose both manual monitoring and manual close permissions."});
+  if(typeof body.monitorManualTrades!=="boolean"||typeof body.closeManualTrades!=="boolean"||typeof body.autoExitManualBrackets!=="boolean")
+   return res.status(400).json({error:"Choose the manual monitoring, portfolio-close and SL/TP auto-exit permissions."});
   if(body.closeManualTrades&&!body.monitorManualTrades)
    return res.status(400).json({error:"Manual closing requires manual positions to be included in portfolio monitoring."});
   const now=new Date().toISOString();
@@ -54,12 +54,13 @@ export default async function handler(req,res){
    user_id:userId,account_mode:"DEMO",broker:"DERIV",broker_account_ref:accountRef,
    manual_trade_management:body.monitorManualTrades,bot_trade_management:true,
    close_managed_positions:true,close_manual_trades:body.closeManualTrades,
+   auto_exit_manual_brackets:body.autoExitManualBrackets,
    permission_granted_at:body.monitorManualTrades?now:null,
    permission_revoked_at:!body.monitorManualTrades&&!body.closeManualTrades?now:null,updated_at:now
   },{onConflict:"user_id,account_mode,broker,broker_account_ref"});
   if(saveError){console.error("DEMO portfolio permission save:",saveError.message);return res.status(503).json({error:"Could not save your portfolio permissions."});}
   return res.status(200).json({ok:true,manualTradeManagement:body.monitorManualTrades,
-   closeManualTrades:body.closeManualTrades,botTradeManagement:true,closeManagedPositions:true,
+   closeManualTrades:body.closeManualTrades,autoExitManualBrackets:body.autoExitManualBrackets,botTradeManagement:true,closeManagedPositions:true,
    message:"Your DEMO portfolio permissions have been saved."});
  }catch(error){console.error("DEMO portfolio permissions:",error.message);return res.status(500).json({error:"Could not update DEMO portfolio permissions safely."});}
 }
