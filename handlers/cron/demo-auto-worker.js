@@ -27,7 +27,7 @@ async function processManualDemoBracketExits(db){
  const {data:trades,error}=await db.from("demo_paper_trades")
   .select("id,user_id,session_id,instrument,side,stop_loss,tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,status")
   .eq("status","OPEN").eq("trade_origin","MANUAL").in("user_id",[...eligible.keys()])
-  .order("last_mark_at",{ascending:true,nullsFirst:true}).limit(12);
+  .order("last_mark_at",{ascending:true,nullsFirst:true}).limit(4);
  if(error)return {processed:0,closed:0,partialExits:0,results:[],error:"MANUAL_TRADE_QUEUE_FAILED"};
  const results=[];
  for(const trade of trades||[]){
