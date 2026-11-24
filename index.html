@@ -228,9 +228,11 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field"><label for="demoTimeframe">DEMO chart / trading timeframe</label><select id="demoTimeframe"><option value="M5">M5 — 5 minutes</option><option value="M15" selected>M15 — 15 minutes</option><option value="H1">H1 — 1 hour</option><option value="H4">H4 — 4 hours</option></select></div>
   </div>
   <div class="grid">
-   <div class="field"><label>Entry price</label><input value="Fetched securely from Deriv when you open the paper position" readonly></div>
+   <div class="field"><label for="paperTradeCount">Number of trades to open</label><input id="paperTradeCount" type="number" min="1" max="10" step="1" value="1" inputmode="numeric" required></div>
+   <div class="field"><label for="paperEntry">Planned entry price (pending)</label><input id="paperEntry" type="number" step="any" min="0" inputmode="decimal" required></div>
    <div class="field"><label for="paperStop">Stop-loss (closes remaining position)</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal" required></div>
   </div>
+  <p class="muted">Your setup waits while price is away from entry. It activates only after a later verified market quote touches or crosses your planned price. The requested positions share the same entry, SL and T1/T2/T3 levels.</p>
   <h4>Take-profit targets and partial exits</h4>
   <p class="muted">Set three target prices in order. Each target closes its allocation of the original position. Allocations must total 100%; the stop-loss closes whatever remains.</p>
   <div class="grid">
@@ -242,8 +244,9 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field"><label for="paperTp3Percent">T3 allocation (%)</label><input id="paperTp3Percent" type="number" step="0.01" min="0.01" max="99.98" value="30" inputmode="decimal" required></div>
   </div>
   <p id="manualExitAllocationStatus" class="muted" role="status" aria-live="polite">T1 40% + T2 30% + T3 30% = 100%.</p>
-  <button type="button" id="recordPaperTrade" disabled>Open DEMO Position at Live Quote</button>
+  <button type="button" id="recordPaperTrade" disabled>Save Pending DEMO Trade Setup</button>
   <p id="paperTradeMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="card" id="pendingManualBatches"><h4>Pending manual setups</h4><p class="muted" id="pendingManualBatchesStatus">Loading pending setups…</p><div id="pendingManualBatchesList"></div></div>
   <div class="field"><label for="paperOpenPositionSelect">Select an open DEMO position</label><select id="paperOpenPositionSelect"><option value="">No open positions</option></select></div>
   <div class="grid">
    <div class="field"><label for="paperTradeId">Selected paper trade ID</label><input id="paperTradeId" placeholder="Choose a position above or enter its ID"></div>
@@ -1317,14 +1320,51 @@ calculateRisk();
    };
    allocationInputs.forEach(input=>input.addEventListener("input",updateAllocationStatus));
    updateAllocationStatus();
+   async function loadPendingManualBatches(){
+    const status=document.getElementById("pendingManualBatchesStatus");
+    const list=document.getElementById("pendingManualBatchesList");
+    if(!status||!list)return;
+    try{
+     const {data:s,error:e}=await client.auth.getSession();
+     if(e||!s.session)throw new Error("Please sign in again.");
+     const response=await fetch("/api/bots/demo/pending-batches",{headers:{Authorization:"Bearer "+s.session.access_token},credentials:"same-origin",cache:"no-store"});
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(result.error||"Could not load pending setups.");
+     const batches=Array.isArray(result.batches)?result.batches:[];
+     status.textContent=batches.length?batches.length+" recent setup(s). Pending setups reserve account risk until activated, cancelled or expired.":"No recent pending setups.";
+     list.replaceChildren();
+     batches.forEach(batch=>{
+      const row=document.createElement("div");row.className="card";row.style.marginTop="8px";
+      const title=document.createElement("strong");title.textContent=batch.instrument+" "+batch.side+" · "+batch.requested_trade_count+" position(s)";
+      const detail=document.createElement("p");detail.className="muted";
+      detail.textContent="Entry "+batch.entry_price+" · SL "+batch.stop_loss+" · T1/T2/T3 "+batch.tp1_price+" / "+batch.tp2_price+" / "+batch.tp3_price+" · Reserved risk USD "+Number(batch.total_risk_usd).toFixed(2)+" · "+batch.status;
+      row.append(title,detail);
+      if(batch.status==="PENDING"){
+       const cancel=document.createElement("button");cancel.type="button";cancel.className="secondary";cancel.textContent="Cancel pending setup";
+       cancel.addEventListener("click",async()=>{
+        cancel.disabled=true;
+        try{const r=await callDemoApi("/api/bots/demo/pending-batches",{action:"CANCEL",batchId:batch.id});status.textContent=r.message||"Pending setup cancelled.";await loadPendingManualBatches();}
+        catch(error){status.textContent=error.message;cancel.disabled=false;}
+       });
+       row.append(cancel);
+      }
+      list.append(row);
+     });
+    }catch(error){status.textContent=error.message;}
+   }
    recordPaper.addEventListener("click",async()=>{
     recordPaper.disabled=true;const msg=document.getElementById("paperTradeMessage");
     if(!updateAllocationStatus()){msg.textContent="T1, T2 and T3 allocation percentages must total exactly 100%.";recordPaper.disabled=!activeDemoSession;return;}
-    msg.textContent="Recording virtual paper trade...";
+    const count=Number(document.getElementById("paperTradeCount").value);
+    if(!Number.isInteger(count)||count<1||count>10){msg.textContent="Number of trades must be a whole number from 1 to 10.";recordPaper.disabled=!activeDemoSession;return;}
+    msg.textContent="Checking risk and saving pending DEMO setup...";
     try{
-     const r=await callDemoApi("/api/bots/demo/trade",{
+     const r=await callDemoApi("/api/bots/demo/pending-batches",{
+      action:"CREATE",
       symbol:document.getElementById("paperSymbol").value.trim(),
       direction:document.getElementById("paperDirection").value,
+      tradeCount:count,
+      entryPrice:document.getElementById("paperEntry").value,
       stopLoss:document.getElementById("paperStop").value,
       tp1:document.getElementById("paperTp1").value,
       tp2:document.getElementById("paperTp2").value,
@@ -1333,11 +1373,12 @@ calculateRisk();
       tp2Percent:document.getElementById("paperTp2Percent").value,
       tp3Percent:document.getElementById("paperTp3Percent").value
      });
-     document.getElementById("paperTradeId").value=r.trade.id;closePaper.disabled=false;markPaper.disabled=false;
-     msg.textContent=r.message+" Virtual risk: USD "+Number(r.trade.risk_amount).toFixed(2)+".";
+     msg.textContent=r.message+" Aggregate reserved risk: USD "+Number(r.batch.aggregateRiskUsd).toFixed(2)+".";
+     await loadPendingManualBatches();
     }catch(e){msg.textContent=e.message;}
     finally{recordPaper.disabled=!activeDemoSession;}
    });
+   loadPendingManualBatches();
    const markPaper=document.getElementById("markPaperTrade");
    markPaper.addEventListener("click",async()=>{
     markPaper.disabled=true;const msg=document.getElementById("paperProtectionMessage");msg.textContent="Updating profit protection...";
