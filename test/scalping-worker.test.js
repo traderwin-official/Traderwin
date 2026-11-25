@@ -8,7 +8,8 @@ test("continuous worker is explicitly DEMO opt-in and read-only",async()=>{
  assert.match(s,/eq\("execution","WEBSITE_PAPER_ONLY"\)/);
  assert.match(s,/trading_instrument_approvals/);
  assert.match(s,/ticks_history:[\s\S]*granularity:60/);
- assert.match(s,/event:"signal"/);
+ assert.match(s,/scalping_signal_events/);
+ assert.doesNotMatch(s,/db\\.channel\\(|\\.send\\(\\{type:\\"broadcast\"/);
  assert.match(s,/SIGNAL_ONLY_NO_ORDERS/);
  assert.doesNotMatch(s,/open_demo_paper_trade|buy\s*\(|sell\s*\(/i);
 });
