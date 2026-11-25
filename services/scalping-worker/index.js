@@ -64,12 +64,19 @@ async function eligibleSymbols(){
  }
  if(!wantedByInstrument.size)return [];
  const instruments=[...wantedByInstrument.keys()];
- const {data:approved,error:approvalError}=await db.from("trading_instrument_approvals")
-  .select("instrument,provider_symbol,status,is_active").eq("broker","DERIV")
-  .eq("status","APPROVED").eq("is_active",true).in("instrument",instruments);
+ const {data:registry,error:approvalError}=await db.from("trading_instrument_approvals")
+  .select("instrument,provider_symbol,status,is_active").eq("broker","DERIV").in("instrument",instruments);
  if(approvalError)throw approvalError;
- return (approved||[]).filter(a=>wantedByInstrument.has(norm(a.instrument))&&a.provider_symbol)
-  .map(a=>({...wantedByInstrument.get(norm(a.instrument)),providerSymbol:String(a.provider_symbol)}));
+ const desired=[];
+ for(const row of registry||[]){
+  const group=wantedByInstrument.get(norm(row.instrument));
+  if(!group||!row.provider_symbol)continue;
+  const canEnter=row.status==="APPROVED"&&row.is_active===true;
+  const canManage=group.sessions.some(x=>x.manageOpen);
+  if(!canEnter&&!canManage)continue;
+  desired.push({...group,sessions:group.sessions.map(x=>({...x,entryEnabled:x.entryEnabled&&canEnter})),providerSymbol:String(row.provider_symbol)});
+ }
+ return desired;
 }
 
 async function refreshOpenTrades(){
