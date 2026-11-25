@@ -8,7 +8,7 @@ const norm=v=>String(v||"").trim().toUpperCase().replace(/[\\s/.-]/g,"");
 const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-const channels=new Map(),lastPersisted=new Map(),history=new Map(),lastSignal=new Map();
+const lastPersisted=new Map(),history=new Map(),lastSignal=new Map();
 let socket=null,stopping=false,retry=1000,reconnectTimer=null,reconcileTimer=null;
 const server=http.createServer((req,res)=>{
  if(req.url==="/healthz"){const healthy=state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0);res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"SIGNAL_ONLY_NO_ORDERS"}));}
@@ -38,7 +38,6 @@ async function saveSignal(instrument,result,candleEpoch){
  if(error){logError(error);return;}
  lastSignal.set(instrument,key);
  state.signals++;state.lastSignalAt=new Date().toISOString();
- const ch=channels.get(instrument);if(ch)await ch.send({type:"broadcast",event:"signal",payload:signal});
 }
 async function publishTick(instrument,tick){
  const quote=Number(tick.quote),epoch=Number(tick.epoch),providerSymbol=String(tick.symbol||"");
@@ -46,7 +45,6 @@ async function publishTick(instrument,tick){
  if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(epoch)||Math.abs(Date.now()-epoch*1000)>30000)return;
  const payload={instrument,providerSymbol,quote,bid:typeof tick.bid==="number"&&Number.isFinite(tick.bid)&&tick.bid>0?tick.bid:null,ask:typeof tick.ask==="number"&&Number.isFinite(tick.ask)&&tick.ask>0?tick.ask:null,quoteAsOf,receivedAt,source:"DERIV"};
  state.lastTickAt=receivedAt;state.ticks++;
- const ch=channels.get(instrument);if(ch)await ch.send({type:"broadcast",event:"tick",payload});
  if(Date.now()-(lastPersisted.get(instrument)||0)>=1000){
   lastPersisted.set(instrument,Date.now());
   const {error}=await db.from("scalping_market_ticks").upsert({instrument,provider_symbol:providerSymbol,quote,bid:payload.bid,ask:payload.ask,quote_as_of:quoteAsOf,received_at:receivedAt,source:"DERIV",updated_at:receivedAt},{onConflict:"instrument"});
@@ -67,7 +65,7 @@ function closeSocket(){if(socket){try{socket.onclose=null;socket.close();}catch{
 async function subscribeSet(desired){
  const list=desired.map(x=>x.providerSymbol).sort();
  if(JSON.stringify(list)===JSON.stringify(state.subscribed.slice().sort())&&["CONNECTED","CONNECTING"].includes(state.socket))return;
- closeSocket();for(const c of channels.values())await db.removeChannel(c).catch(()=>{});channels.clear();history.clear();state.readySymbols=[];state.subscribed=list;
+ closeSocket();history.clear();state.readySymbols=[];state.subscribed=list;
  if(!list.length){state.socket="IDLE_NO_OPTED_IN_DEMO_SESSIONS";return;}
  socket=new WebSocket(ENDPOINT);state.socket="CONNECTING";
  const requestMap=new Map();let nextId=100;
@@ -81,7 +79,6 @@ async function subscribeSet(desired){
    const active=Array.isArray(msg.active_symbols)?msg.active_symbols:[];
    for(const wanted of desired){
     const found=active.find(a=>String(a.underlying_symbol||a.symbol||"")===wanted.providerSymbol);if(!found){logError(new Error("Approved provider symbol is not currently active on Deriv."));closeSocket();scheduleReconnect();return;}
-    const ch=db.channel("scalping-market:"+wanted.instrument);channels.set(wanted.instrument,ch);await ch.subscribe();
     const m1Id=nextId++,m5Id=nextId++;requestMap.set(m1Id,{instrument:wanted.instrument,kind:"M1"});requestMap.set(m5Id,{instrument:wanted.instrument,kind:"M5"});
     socket.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:180,end:"latest",style:"candles",granularity:60,req_id:m1Id}));
     socket.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:60,end:"latest",style:"candles",granularity:300,req_id:m5Id}));
