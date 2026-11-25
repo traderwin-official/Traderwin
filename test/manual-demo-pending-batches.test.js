@@ -84,6 +84,6 @@ test("manual dashboard asks for trade count and planned entry and allows cancell
  assert.match(page,/Cancel pending setup/);
  assert.ok(page.includes("automatically detects LIMIT or STOP"));
  assert.ok(page.includes("same entry, SL and T1/T2/T3 levels."));
- assert.ok(page.includes("A brief touch and reversal between checks can be missed"));
+ assert.ok(page.includes("so a brief touch and reversal between checks can be missed"));
  assert.ok(page.includes("approximately once per minute"));
 });
