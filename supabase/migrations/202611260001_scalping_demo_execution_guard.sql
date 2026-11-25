@@ -168,3 +168,126 @@ comment on function public.open_demo_scalping_paper_trade(
   uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,
   numeric,numeric,numeric,numeric,timestamptz,timestamptz
 ) is 'Service-role-only scalping DEMO paper entry: explicit opt-in, fresh Deriv quote, one open position, candle idempotency, max 0.25% risk and max 1% daily loss. Never sends a broker order.';
+
+-- Keep manual and other BOT entries from bypassing the single-position cap
+-- while scalping is opted in or a scalping position is still open.
+create or replace function public.guard_scalping_single_open_position()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_scalping_active boolean;
+begin
+  if new.status <> 'OPEN' then
+    return new;
+  end if;
+
+  select
+    exists (
+      select 1 from public.demo_scalping_preferences p
+       where p.session_id = new.session_id
+         and p.user_id = new.user_id
+         and p.enabled = true
+    )
+    or exists (
+      select 1 from public.demo_paper_trades t
+       where t.user_id = new.user_id
+         and t.status = 'OPEN'
+         and t.trade_origin = 'BOT'
+         and t.metadata->>'strategy' = 'TIGER_SCHEME_QUANTUM_SCALPING'
+    )
+    into v_scalping_active;
+
+  if v_scalping_active and exists (
+    select 1 from public.demo_paper_trades t
+     where t.user_id = new.user_id and t.status = 'OPEN'
+  ) then
+    raise exception 'Scalping DEMO enforces one open position across the user's paper account';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists demo_paper_guard_scalping_single_open_position
+  on public.demo_paper_trades;
+create trigger demo_paper_guard_scalping_single_open_position
+before insert on public.demo_paper_trades
+for each row execute function public.guard_scalping_single_open_position();
+
+revoke all on function public.guard_scalping_single_open_position()
+  from public, anon, authenticated;
+
+-- Dedicated singleton lease: do not collide with the existing scheduled DEMO
+-- worker's global lease. Multiple Railway replicas must never run this worker.
+create table if not exists public.scalping_worker_leases (
+  lease_key text primary key default 'global' check (lease_key = 'global'),
+  lease_token uuid,
+  lease_until timestamptz,
+  updated_at timestamptz not null default now()
+);
+insert into public.scalping_worker_leases(lease_key)
+values ('global') on conflict do nothing;
+alter table public.scalping_worker_leases enable row level security;
+revoke all on public.scalping_worker_leases from public, anon, authenticated;
+grant all on public.scalping_worker_leases to service_role;
+
+create or replace function public.claim_traderwin_scalping_worker(
+  p_lease_token uuid,
+  p_lease_seconds integer default 90
+) returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_claimed boolean := false;
+begin
+  if auth.role() is distinct from 'service_role'
+     or p_lease_token is null
+     or p_lease_seconds is null
+     or p_lease_seconds < 15 or p_lease_seconds > 180 then
+    raise exception 'Unauthorized or invalid scalping worker lease request';
+  end if;
+
+  update public.scalping_worker_leases
+     set lease_token = p_lease_token,
+         lease_until = now() + make_interval(secs => p_lease_seconds),
+         updated_at = now()
+   where lease_key = 'global'
+     and (lease_until is null or lease_until < now() or lease_token = p_lease_token)
+  returning true into v_claimed;
+  return coalesce(v_claimed,false);
+end;
+$$;
+
+create or replace function public.release_traderwin_scalping_worker(
+  p_lease_token uuid
+) returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_released boolean := false;
+begin
+  if auth.role() is distinct from 'service_role' or p_lease_token is null then
+    raise exception 'Unauthorized scalping worker release';
+  end if;
+  update public.scalping_worker_leases
+     set lease_token = null, lease_until = null, updated_at = now()
+   where lease_key = 'global' and lease_token = p_lease_token
+  returning true into v_released;
+  return coalesce(v_released,false);
+end;
+$$;
+
+revoke all on function public.claim_traderwin_scalping_worker(uuid,integer)
+  from public, anon, authenticated;
+revoke all on function public.release_traderwin_scalping_worker(uuid)
+  from public, anon, authenticated;
+grant execute on function public.claim_traderwin_scalping_worker(uuid,integer)
+  to service_role;
+grant execute on function public.release_traderwin_scalping_worker(uuid)
+  to service_role;
