@@ -147,7 +147,9 @@ async function saveSignal(wanted,result,candleEpoch,tick){
  const ready=wanted.sessions.filter(x=>x.entryEnabled&&lastEntryAttempt.get(x.session.id)!==candleEpoch);
  if(!ready.length)return;
  for(const item of ready)lastEntryAttempt.set(item.session.id,candleEpoch);
- const conversion=await getDerivQuoteToUsd(wanted.instrument,tick);
+ let conversion;
+ try{conversion=await getDerivQuoteToUsd(wanted.instrument,tick);}
+ catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);return;}
  await Promise.all(ready.map(async item=>{
   try{
    const opened=await openScalpingPaperPosition({db,session:item.session,preference:item.preference,signal:{...result,instrument:wanted.instrument},tick,candleEpoch,quoteToUsd:conversion.rate,now:Date.now()});
