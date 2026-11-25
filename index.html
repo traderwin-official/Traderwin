@@ -1383,9 +1383,13 @@ calculateRisk();
      }
      scalpFeedStatus.textContent=feed.feedStatus==="LIVE"?"LIVE · DERIV":feed.feedStatus==="STALE"?"STALE QUOTE":"WAITING FOR MARKET DATA";
      scalpFeedPrice.textContent=feed.tick?feed.instrument+" · "+Number(feed.tick.quote).toLocaleString("en-US",{maximumFractionDigits:8}):feed.instrument+" · Waiting for quote";
-     scalpFeedDetails.textContent=feed.tick
-      ?"Bid "+Number(feed.tick.bid).toLocaleString("en-US",{maximumFractionDigits:8})+" · Ask "+Number(feed.tick.ask).toLocaleString("en-US",{maximumFractionDigits:8})+" · Spread "+(Number(feed.tick.ask)-Number(feed.tick.bid)).toFixed(6)+" · Quote age "+Math.max(0,Math.round(feed.quoteAgeMs/1000))+"s"
-      :"No verified quote has been stored yet.";
+     if(feed.tick){
+      const hasBidAsk=feed.tick.bid!==null&&feed.tick.ask!==null&&Number.isFinite(Number(feed.tick.bid))&&Number.isFinite(Number(feed.tick.ask));
+      const age=Number.isFinite(feed.quoteAgeMs)?Math.max(0,Math.round(feed.quoteAgeMs/1000))+"s":"unknown";
+      scalpFeedDetails.textContent=hasBidAsk
+       ?"Bid "+Number(feed.tick.bid).toLocaleString("en-US",{maximumFractionDigits:8})+" · Ask "+Number(feed.tick.ask).toLocaleString("en-US",{maximumFractionDigits:8})+" · Spread "+(Number(feed.tick.ask)-Number(feed.tick.bid)).toFixed(6)+" · Quote age "+age
+       :"Verified quote received; Deriv bid/ask is currently unavailable · Quote age "+age;
+     }else scalpFeedDetails.textContent="No verified quote has been stored yet.";
      scalpSignals.replaceChildren();
      if(!feed.signals.length){const empty=document.createElement("li");empty.className="muted";empty.textContent="No M1 signal candidates yet. The strategy will wait when conditions are not confirmed.";scalpSignals.appendChild(empty);}
      feed.signals.forEach(signal=>{
