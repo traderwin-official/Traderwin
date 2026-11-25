@@ -99,6 +99,7 @@ async function refreshOpenTrades(){
 }
 
 async function manageOpenTrades(instrument,tick){
+ let healthy=true;
  for(const trade of activeTrades.values()){
   if(norm(trade.instrument)!==norm(instrument)||tradeLocks.has(trade.id))continue;
   tradeLocks.add(trade.id);
@@ -156,12 +157,13 @@ async function publishTick(wanted,tick){
  if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(epoch)||Math.abs(Date.now()-epoch*1000)>30000)return;
  const payload={instrument:wanted.instrument,providerSymbol,quote,bid:typeof tick.bid==="number"&&Number.isFinite(tick.bid)&&tick.bid>0?tick.bid:null,ask:typeof tick.ask==="number"&&Number.isFinite(tick.ask)&&tick.ask>0?tick.ask:null,quoteAsOf,receivedAt,source:"DERIV"};
  state.lastTickAt=receivedAt;state.ticks++;
- await manageOpenTrades(wanted.instrument,payload);
+ const managementHealthy=await manageOpenTrades(wanted.instrument,payload);
  if(Date.now()-(lastPersisted.get(wanted.instrument)||0)>=1000){
   lastPersisted.set(wanted.instrument,Date.now());
   const {error}=await db.from("scalping_market_ticks").upsert({instrument:wanted.instrument,provider_symbol:providerSymbol,quote,bid:payload.bid,ask:payload.ask,quote_as_of:quoteAsOf,received_at:receivedAt,source:"DERIV",updated_at:receivedAt},{onConflict:"instrument"});
   if(error)logError(error);
  }
+ if(!managementHealthy)return;
  const h=history.get(wanted.instrument);if(!h||h.m1.length<35)return;
  const minute=Math.floor(epoch/60)*60;
  if(!h.current||minute>h.current.epoch){
@@ -185,9 +187,10 @@ async function subscribeSet(desired){
  socket=new WebSocket(ENDPOINT);state.socket="CONNECTING";
  const requestMap=new Map();let nextId=100;
  socket.onopen=()=>{retry=1000;state.socket="CONNECTED";socket.send(JSON.stringify({active_symbols:"brief",req_id:1}));};
- socket.onerror=()=>{state.socket="ERROR";};
+ socket.onerror=()=>{state.socket="ERROR";closeSocket();logError(new Error("Deriv WebSocket transport error."));scheduleReconnect();};
  socket.onclose=()=>{state.socket="DISCONNECTED";if(!stopping)scheduleReconnect();};
  socket.onmessage=async event=>{
+  try {
   let msg;try{msg=JSON.parse(typeof event.data==="string"?event.data:event.data.toString());}catch{return;}
   if(msg.error){logError(new Error("Deriv rejected the public streaming request."));return;}
   if(msg.msg_type==="active_symbols"){
@@ -213,6 +216,7 @@ async function subscribeSet(desired){
    const wanted=desiredSymbols.find(x=>x.providerSymbol===String(msg.tick.symbol||""));
    if(wanted)await publishTick(wanted,msg.tick);
   }
+  } catch(e) { closeSocket();logError(e);scheduleReconnect(); }
  };
 }
 function validCandle(c){return c&&[c.epoch,c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.epoch>0&&c.low>0&&c.high>=c.low&&c.open>=c.low&&c.open<=c.high&&c.close>=c.low&&c.close<=c.high;}
