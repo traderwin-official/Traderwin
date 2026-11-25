@@ -116,11 +116,12 @@ async function manageOpenTrades(instrument,tick){
     if(Date.now()-last>=1000){
      lastMarked.set(trade.id,Date.now());
      const {error}=await db.rpc("mark_demo_paper_trade",{p_user_id:trade.user_id,p_trade_id:trade.id,p_price:Number(tick.quote),p_quote_as_of:tick.quoteAsOf});
-     if(error)logError(error);
+     if(error){healthy=false;logError(error);}
     }
    }
-  }catch(e){logError(e);}finally{tradeLocks.delete(trade.id);}
+  }catch(e){healthy=false;logError(e);}finally{tradeLocks.delete(trade.id);}
  }
+ return healthy;
 }
 
 async function saveSignal(wanted,result,candleEpoch,tick){
