@@ -1435,7 +1435,7 @@ calculateRisk();
      }catch(e){scalpStatus.textContent="Scalping status unavailable: "+e.message;scalpPaperStatus.textContent="Automatic DEMO paper trading: status unavailable";scalpEnable.disabled=selectedAccountMode!=="DEMO";scalpDisable.disabled=true;scalpPaperEnable.disabled=true;scalpPaperDisable.disabled=true;stopScalpingFeedPolling();}
     }
     scalpEnable.addEventListener("click",async()=>{
-     if(!window.confirm("Enable the live Deriv scalping signal feed for this DEMO session? This does not place paper or broker orders."))return;
+     if(!window.confirm("Enable the live Deriv scalping signal feed for this DEMO session? This does not place any order."))return;
      scalpEnable.disabled=true;scalpMessage.textContent="Verifying your Deriv DEMO account and approved instrument...";
      try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE"});scalpStatus.textContent="Scalping feed: ENABLED · "+r.instrument+" · DEMO only";scalpMessage.textContent=r.message;scalpDisable.disabled=false;startScalpingFeedPolling();await loadScalpingPreference();}
      catch(e){scalpMessage.textContent=e.message;scalpEnable.disabled=false;}
@@ -1446,7 +1446,7 @@ calculateRisk();
      catch(e){scalpMessage.textContent=e.message;scalpDisable.disabled=false;}
     });
     scalpPaperEnable.addEventListener("click",async()=>{
-     if(!window.confirm("Enable automatic DEMO paper trading for this session? The bot may open and manage virtual positions in Traderwin's DEMO paper ledger only. No Deriv broker order or REAL trade will be sent. Maximum risk is 0.25% per trade, daily loss is capped at 1%, and only one position may be open."))return;
+     if(!window.confirm("Enable automatic DEMO paper trading for this session? The bot may open and manage virtual positions in the platform's DEMO paper ledger only. No Deriv broker order or REAL trade will be sent. Maximum risk is 0.25% per trade, daily loss is capped at 1%, and only one position may be open."))return;
      scalpPaperEnable.disabled=true;scalpMessage.textContent="Verifying the separate automatic DEMO paper-trading permission...";
      try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE_PAPER_EXECUTION"});scalpPaperStatus.textContent="Automatic DEMO paper trading: ON · virtual ledger only";scalpMessage.textContent=r.message;await loadScalpingPreference();}
      catch(e){scalpMessage.textContent=e.message;scalpPaperEnable.disabled=false;}
