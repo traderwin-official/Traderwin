@@ -28,7 +28,7 @@ test("dashboard renders private feed values and separates automatic DEMO paper c
  assert.match(s,/enableDemoScalpingPaper/);
  assert.match(s,/ENABLE_PAPER_EXECUTION/);
  assert.match(s,/DISABLE_PAPER_EXECUTION/);
- assert.match(s,/This does not place paper or broker orders/);
+ assert.match(s,/This does not place any order/);
  assert.match(s,/scalpSignals\.appendChild/);
  assert.doesNotMatch(s,/scalping-market:/);
 });
