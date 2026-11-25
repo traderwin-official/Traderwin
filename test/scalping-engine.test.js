@@ -128,3 +128,15 @@ test("market structure identifies a bearish CHOCH after higher highs and higher 
  assert.equal(context.bosDirection,"SELL");
  assert.equal(context.chochDirection,"SELL");
 });
+
+test("market structure flags a bearish liquidity sweep above the latest swing high",()=>{
+ const highs=[10,11,12,11,10,9,10,11,12,11,10,9,10,11,15,14,13,14,16];
+ const rows=highs.map((high,i)=>{
+  const low=high-2,open=high-1;
+  const close=i===18?14.5:(i%2===0?high-0.4:high-1.4);
+  return {epoch:3000+i*60,open,high,low,close};
+ });
+ const context=marketStructureContext(rows);
+ assert.equal(context.latestSwingHigh,15);
+ assert.equal(context.liquiditySweep,"SELL");
+});
