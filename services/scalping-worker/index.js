@@ -1,7 +1,7 @@
 import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { analyseScalping, mergeCompletedM5 } from "./lib/scalping-engine.js";
+import { analyseScalping, mergeCompletedM5, latestContiguousCandles } from "./lib/scalping-engine.js";
 import { getDerivQuoteToUsd } from "./lib/usd-conversion.js";
 import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/scalping-paper-adapter.js";
 
@@ -165,7 +165,7 @@ async function publishTick(wanted,tick){
  const h=history.get(wanted.instrument);if(!h||h.m1.length<35)return;
  const minute=Math.floor(epoch/60)*60;
  if(!h.current||minute>h.current.epoch){
-  if(h.current&&h.current.epoch+60<=minute){h.m1.push(h.current);h.m1=h.m1.slice(-240);}
+  if(h.current&&h.current.epoch+60<=minute){h.m1.push(h.current);h.m1=latestContiguousCandles(h.m1,60,240);}
   h.current={epoch:minute,open:quote,high:quote,low:quote,close:quote};
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
  if(!wanted.sessions.some(x=>x.entryEnabled))return;
@@ -203,9 +203,9 @@ async function subscribeSet(desired){
   if(msg.msg_type==="candles"&&requestMap.has(Number(msg.req_id))){
    const req=requestMap.get(Number(msg.req_id));const candles=(msg.candles||[]).map(c=>({epoch:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(validCandle).filter(c=>(c.epoch+(req.kind==="M1"?60:300))*1000<=Date.now());
    const h=history.get(req.instrument)||{m1:[],m5:[],current:null,loadedM1:false,loadedM5:false};
-   h[req.kind.toLowerCase()]=candles.slice(-240);h[req.kind.toLowerCase()==="m1"?"loadedM1":"loadedM5"]=true;history.set(req.instrument,h);
+   h[req.kind.toLowerCase()]=latestContiguousCandles(candles,req.kind==="M1"?60:300,240);h[req.kind.toLowerCase()==="m1"?"loadedM1":"loadedM5"]=true;history.set(req.instrument,h);
    if(h.loadedM1&&h.loadedM5){
-    if(h.m1.length<35||h.m5.length<25){logError(new Error("Deriv did not provide enough completed M1/M5 history to warm up the scalping engine."));closeSocket();scheduleReconnect();return;}
+    if(h.m1.length<35||mergeCompletedM5(h.m5,h.m1).length<25){logError(new Error("Deriv did not provide enough completed M1/M5 history to warm up the scalping engine."));closeSocket();scheduleReconnect();return;}
     if(!h.subscribed){h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted) return;socket.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);}
    }
   }
