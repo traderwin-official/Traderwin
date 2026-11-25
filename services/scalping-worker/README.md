@@ -1,6 +1,6 @@
-# Young Tiger continuous DEMO scalping market-data worker
+# Young Tiger continuous DEMO scalping worker
 
-This is a persistent, read-only market-data service. It is the first latency layer for the scalping engine; it deliberately does not place paper or broker orders.
+A persistent Deriv public market-data worker for **Tiger Scheme AI Bot — Quantum Scalping**. It generates M1/M5 candidates and manages virtual DEMO paper positions in Traderwin's isolated `demo_paper_*` ledger. It does not send Deriv broker orders and cannot execute REAL trades.
 
 ## Runtime and deployment
 
@@ -12,29 +12,39 @@ Required service variables:
 
 Expose the generated Railway domain on port 8080. Configure a health check at `/healthz`.
 
-## Activation gate
+## Entry activation gates
 
-The worker subscribes only to instruments belonging to a RUNNING DEMO Deriv session whose server-side `config_snapshot` contains all of:
-- `account_mode: "DEMO"`
-- `execution: "WEBSITE_PAPER_ONLY"`
-- a matching enabled row in the private `demo_scalping_preferences` table (session and user must match)
+The worker opens a paper position only for a session that:
+- belongs to the user's own Deriv DEMO paper ledger;
+- is RUNNING and explicitly opted in through the private `demo_scalping_preferences` row;
+- has `account_mode: "DEMO"` and a supported paper-only execution setting in its server-side `config_snapshot`;
+- uses an active, explicitly approved Deriv instrument;
+- has fresh, timestamped Deriv bid and ask values and a fresh quote-currency-to-USD conversion.
 
-The instrument must also be present in the active, approved Deriv instrument registry. No browser value, client quote, or unapproved symbol can activate a feed subscription.
+A disabled preference blocks new entries. Existing scalping BOT positions remain subscribed and managed to their stop or staged targets even if the user disables new entries or pauses the session.
 
-## Data path
+## Strategy and execution
+
+- M1 is the fast entry timeframe; completed M5 candles confirm direction.
+- The strategy uses EMA9/EMA21, RSI14, ATR/spread filters, momentum breakout and Fibonacci context.
+- Conflicting or incomplete conditions return WAIT.
+- The server-side entry RPC enforces one open DEMO position per user, candle idempotency, no more than 0.25% risk per trade and a 1% daily-loss cap.
+- Position size uses the verified USD value of the instrument's quote currency. Unsupported or stale conversions fail closed.
+- Paper positions use staged exits: TP1 0.75R, TP2 1.1R, TP3 at the engine's 1.5R–3R target, with the existing 40/30/30 staged-close ledger and stop-loss.
+- Exit decisions use the correct side of the spread: bid for BUY positions and ask for SELL positions. Missing bid/ask or stale quotes never trigger an exit.
+- Database RPCs are the only entry/exit path. They are service-role-only and preserve the existing daily-realization and portfolio-protection ledger.
+
+## Data path and health
 
 - One persistent Deriv public WebSocket connection subscribes to approved symbols.
-- Tick events are broadcast through Supabase Realtime on `scalping-market:<INSTRUMENT>`.
-- A private latest-tick cache is persisted at most once per second per instrument in `public.scalping_market_ticks`.
-- `GET /healthz` reports connection state, last tick time, subscription set, and processed tick count.
+- M1/M5 history is warmed up before a symbol becomes ready.
+- Latest ticks and signal candidates are persisted to private Supabase tables.
+- Open scalping positions are refreshed from the private paper ledger and managed from the same tick stream.
+- `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error.
 
 ## Safety and rollout
 
-- Read-only market-data feed: no order placement, no account tokens, no REAL mode.
-- Keep the existing scheduled DEMO worker enabled for existing strategies while this feed is validated.
-- Do not enable `scalping_enabled` for any account until the UI opt-in, strategy/risk controls, M1 history warm-up, paper-execution adapter, duplicate suppression, and independent end-to-end tests are released.
-- Do not add the service-role key to a browser environment or commit it to the repository.
-- Measure feed latency as `receivedAt - quoteAsOf`; do not claim a fixed millisecond execution time.
-
-
-The dashboard feed is accessed only through the authenticated `/api/bots/demo/scalping-feed` endpoint. It verifies the current user's own RUNNING Deriv DEMO session and enabled server-side preference before returning the latest quote and signal candidates. The browser polls every three seconds while the page is visible.
+- DEMO virtual paper ledger only. The public Deriv WebSocket is read-only; no account token, OTP, broker order, or REAL execution is used.
+- Do not deploy until the migration has been reviewed and explicitly approved for the target Supabase project.
+- Do not add the service-role key to a browser environment, GitHub source, or chat.
+- Keep the service stopped until code checks are green and the Railway trial credit balance has been checked. Do not upgrade to a paid Railway plan without the account owner's explicit approval.
