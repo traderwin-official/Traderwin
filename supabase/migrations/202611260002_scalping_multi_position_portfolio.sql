@@ -12,6 +12,18 @@ alter table public.demo_scalping_preferences
 update public.demo_scalping_preferences set max_open_positions=15,updated_at=now()
  where max_open_positions=1;
 
+-- The underlying DEMO ledger also had a one-BOT-per-session unique index and
+-- a 10-position session cap. Remove that obsolete runner restriction.
+alter table public.demo_paper_sessions
+  drop constraint if exists demo_paper_sessions_max_open_positions_check;
+alter table public.demo_paper_sessions
+  add constraint demo_paper_sessions_max_open_positions_check
+  check (max_open_positions between 1 and 15);
+update public.demo_paper_sessions
+   set max_open_positions=15,updated_at=now()
+ where strategy='TIGER_SCHEME_QUANTUM_SCALPING';
+drop index if exists public.demo_paper_one_open_bot_trade_per_session;
+
 -- The old ledger's global unique indexes made concurrent portfolio positions
 -- impossible. The server-side RPCs below now enforce limits transactionally.
 drop index if exists public.demo_paper_one_open_trade_per_session;
@@ -159,16 +171,17 @@ begin
     into v_open_count,v_open_risk
     from public.demo_paper_trades
    where user_id=p_user_id and status='OPEN';
-  if v_open_count >= least(v_preference.max_open_positions,15) then
+  if v_open_count >= least(v_preference.max_open_positions,v_session.max_open_positions,15) then
     return jsonb_build_object('ok',false,'reason','SCALPING_MAX_OPEN_POSITIONS',
-      'open_positions',v_open_count,'max_open_positions',least(v_preference.max_open_positions,15));
+      'open_positions',v_open_count,'max_open_positions',least(v_preference.max_open_positions,v_session.max_open_positions,15));
   end if;
 
   -- Hard portfolio ceiling: all open trades combined may risk at most 1%
   -- of starting DEMO equity if every remaining stop is reached.
   -- Reserve daily realized losses first; remaining open stop-risk plus this
   -- entry must still fit inside the same 1% daily equity-loss budget.
-  v_total_risk_limit := greatest(0,v_session.starting_balance * 0.01 - v_daily_loss);
+  v_total_risk_limit := least(greatest(0,v_session.starting_balance * 0.01 - v_daily_loss),
+    v_session.current_balance * v_session.max_total_open_risk_pct / 100);
   if v_open_risk + p_risk_amount > v_total_risk_limit + 0.01 then
     return jsonb_build_object('ok',false,'reason','SCALPING_TOTAL_OPEN_RISK_LIMIT',
       'open_risk_usd',v_open_risk,'requested_risk_usd',p_risk_amount,
