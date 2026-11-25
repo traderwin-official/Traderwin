@@ -4,6 +4,8 @@ import {readFile} from "node:fs/promises";
 test("continuous worker is explicitly DEMO opt-in and read-only",async()=>{
  const s=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
  assert.match(s,/demo_scalping_preferences/);
+ assert.match(s,/config_snapshot/);
+ assert.match(s,/WEBSITE_DEMO_AUTO_PAPER_ONLY/);
  assert.match(s,/eq\("account_mode","DEMO"\)/);
  assert.match(s,/eq\("execution","WEBSITE_PAPER_ONLY"\)/);
  assert.match(s,/trading_instrument_approvals/);
