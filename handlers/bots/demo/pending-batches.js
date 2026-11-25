@@ -26,7 +26,7 @@ export default async function handler(req,res){
 
   if(req.method==="GET"){
    const {data,error}=await db.from("demo_manual_entry_batches")
-    .select("id,instrument,side,requested_trade_count,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,total_risk_usd,total_risk_pct,status,expires_at,activated_at,terminal_reason,child_trade_ids,created_at")
+    .select("id,instrument,side,entry_type,requested_trade_count,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,total_risk_usd,total_risk_pct,status,expires_at,activated_at,terminal_reason,child_trade_ids,created_at")
     .eq("user_id",userId).order("created_at",{ascending:false}).limit(25);
    if(error)return res.status(503).json({error:"Could not load pending manual DEMO setups."});
    return res.status(200).json({mode:"DEMO",paperOnly:true,batches:data||[]});
@@ -87,8 +87,14 @@ export default async function handler(req,res){
    conversion=await getDerivQuoteToUsd(symbol,quote);
   }catch(e){return res.status(503).json({error:e.message||"Verified market quote or USD conversion unavailable."});}
 
-  const untouched=direction==="BUY"?Number(quote.quote)>entry:Number(quote.quote)<entry;
-  if(!untouched)return res.status(409).json({error:"Your entry price has already been touched or crossed. Submit a new pending level on the untouched side of the market.",currentPrice:Number(quote.quote)}); 
+  const detectEntryType=currentQuote=>{
+   const price=Number(currentQuote);
+   if(!Number.isFinite(price)||price<=0||price===entry)return null;
+   if(direction==="BUY")return price>entry?"LIMIT":"STOP";
+   return price<entry?"LIMIT":"STOP";
+  };
+  let entryType=detectEntryType(quote.quote);
+  if(!entryType)return res.status(409).json({error:"Market is exactly at your planned entry or the quote is invalid. Choose a different entry price.",currentPrice:Number(quote.quote)});
 
   const riskPct=Math.min(Number(profile.max_risk_per_trade_pct),Number(session.risk_per_trade_pct));
   if(!Number.isFinite(riskPct)||riskPct<=0)return res.status(409).json({error:"Your DEMO risk setting is invalid."});
@@ -108,12 +114,12 @@ export default async function handler(req,res){
    conversion=await getDerivQuoteToUsd(symbol,quote);
    await checkEmergency();
   }catch(e){return res.status(503).json({error:e.message||"Final entry checks could not be completed."});}
-  if(direction==="BUY"?Number(quote.quote)<=entry:Number(quote.quote)>=entry)
-   return res.status(409).json({error:"Market touched or crossed your entry during submission. No batch was created.",currentPrice:Number(quote.quote)});
+  entryType=detectEntryType(quote.quote);
+  if(!entryType)return res.status(409).json({error:"Market reached your planned entry during submission. No batch was created; review the new market price.",currentPrice:Number(quote.quote)});
 
   sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry,stop,quoteToUsd:conversion.rate});
   const {data:result,error}=await db.rpc("create_demo_manual_entry_batch",{
-   p_user_id:userId,p_session_id:session.id,p_instrument:symbol,p_provider_symbol:quote.providerSymbol,p_side:direction,p_trade_count:tradeCount,
+   p_user_id:userId,p_session_id:session.id,p_instrument:symbol,p_provider_symbol:quote.providerSymbol,p_side:direction,p_entry_type:entryType,p_trade_count:tradeCount,
    p_entry:entry,p_stop:stop,p_tp1:tp1,p_tp2:tp2,p_tp3:tp3,
    p_tp1_percent:allocations[0],p_tp2_percent:allocations[1],p_tp3_percent:allocations[2],
    p_total_quantity:sizing.units,p_total_risk_usd:sizing.riskAmount,p_total_risk_pct:riskPct,
@@ -121,6 +127,6 @@ export default async function handler(req,res){
   });
   if(error){console.error("Pending manual batch create:",error.message);return res.status(503).json({error:"Pending batch could not be reserved safely."});}
   if(!result?.ok)return res.status(409).json({error:({MAX_OPEN_POSITIONS:"Not enough open-position slots for this batch, including other pending setups.",TOTAL_OPEN_RISK_LIMIT:"This batch exceeds the available aggregate risk after existing and pending reservations.",DAILY_LOSS_LIMIT:"Your DEMO daily loss limit has been reached.",KILL_SWITCH_ACTIVE:"Emergency stop is active.",INSTRUMENT_MISMATCH:"Instrument no longer matches your DEMO session.",SESSION_NOT_RUNNING_OR_NOT_DERIV:"Your DEMO session is no longer running."})[result.reason]||"Pending batch rejected by a server-side safety check.",reason:result.reason});
-  return res.status(201).json({ok:true,mode:"DEMO",paperOnly:true,batch:{id:result.batch_id,status:"PENDING",tradeCount:result.trade_count,entryPrice:entry,stopLoss:stop,tp1:tp1,tp2:tp2,tp3:tp3,tp1Percent:allocations[0],tp2Percent:allocations[1],tp3Percent:allocations[2],aggregateRiskUsd:Number(result.aggregate_risk_usd),aggregateRiskPct:Number(result.aggregate_risk_pct),expiresAt:result.expires_at},quote:{source:quote.source,asOf:quote.quoteAsOf,instrument:quote.providerSymbol},message:"Pending DEMO setup saved. No position is open yet. It will activate only after a later verified quote crosses your planned entry; fills are simulated at your planned entry price."});
+  return res.status(201).json({ok:true,mode:"DEMO",paperOnly:true,batch:{id:result.batch_id,status:"PENDING",entryType,tradeCount:result.trade_count,entryPrice:entry,stopLoss:stop,tp1:tp1,tp2:tp2,tp3:tp3,tp1Percent:allocations[0],tp2Percent:allocations[1],tp3Percent:allocations[2],aggregateRiskUsd:Number(result.aggregate_risk_usd),aggregateRiskPct:Number(result.aggregate_risk_pct),expiresAt:result.expires_at},quote:{source:quote.source,asOf:quote.quoteAsOf,instrument:quote.providerSymbol},message:"Pending DEMO setup saved as "+direction+" "+entryType+". No position is open yet. It will activate only after a later verified quote crosses your planned entry in the detected direction; fills are simulated at your planned entry price."});
  }catch(e){console.error("Pending DEMO batch:",e?.message||e);return res.status(500).json({error:"Pending DEMO batch could not be processed safely."});}
 }
