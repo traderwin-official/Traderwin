@@ -51,7 +51,7 @@ export default async function handler(req,res){
   if(!connection?.demo_account_id||!verified||!Number.isFinite(expiry)||expiry<=Date.now())
    return res.status(409).json({error:"Connect and verify an active Deriv DEMO account before enabling scalping."});
   const {data:approval,error:approvalError}=await db.from("trading_instrument_approvals")
-   .select("instrument,provider_symbol,status,is_active").eq("broker","DERIV").eq("instrument",String(session.instrument).toUpperCase().replace(/[\\s/.-]/g,""))
+   .select("instrument,provider_symbol,status,is_active").eq("broker","DERIV").eq("instrument",String(session.instrument).toUpperCase().replace(/[\s/.-]/g,""))
    .eq("status","APPROVED").eq("is_active",true).limit(2);
   if(approvalError)return res.status(503).json({error:"Could not verify the instrument approval."});
   if(!approval||approval.length!==1||!approval[0].provider_symbol)return res.status(403).json({error:"This instrument is not currently approved for the DEMO scalping feed."});
