@@ -20,6 +20,7 @@ test("scalping preference endpoint is authenticated, verified DEMO-only and boun
  assert.match(s,/ENABLE_PAPER_EXECUTION/);
  assert.match(s,/DISABLE_PAPER_EXECUTION/);
  assert.match(s,/paper_execution_enabled/);
+ assert.match(s,/paper_execution_enabled:action==="ENABLE_PAPER_EXECUTION"\?true:current\?\.paper_execution_enabled===true/);
  assert.match(s,/paperExecutionEnabled/);
  assert.match(s,/entryModeEligible/);
  assert.match(s,/profile\.account_mode!==\"DEMO\"/);
