@@ -54,7 +54,7 @@ test("scalping portfolio migration allows up to 15 positions with a 1 percent ag
  const sql=await readFile(new URL("../supabase/migrations/202611260002_scalping_multi_position_portfolio.sql",import.meta.url),"utf8");
  assert.match(sql,/max_open_positions between 1 and 15/);
  assert.match(sql,/least\(v_preference\.max_open_positions,15\)/);
- assert.match(sql,/v_total_risk_limit := v_session\.starting_balance \* 0\.01/);
+ assert.match(sql,/v_total_risk_limit := greatest\(0,v_session\.starting_balance \* 0\.01 - v_daily_loss\)/);
  assert.match(sql,/v_open_risk \+ p_risk_amount > v_total_risk_limit/);
  assert.match(sql,/drop index if exists public\.demo_paper_one_open_trade_per_user/);
  assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(p_user_id::text, 0\)\)/);
