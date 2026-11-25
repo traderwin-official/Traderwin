@@ -57,7 +57,7 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611250001_manual_demo_stop_limit_entry_types.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611250002_demo_paper_trade_target_allocations.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611250003_manual_demo_partial_exit_rpcs.sql
-          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260001_scalping_market_ticks.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611250004_scalping_market_ticks.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/trading_instrument_approval_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/deriv_account_selection_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/demo_migration_integration.sql
