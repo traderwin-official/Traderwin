@@ -180,19 +180,20 @@ async function publishTick(wanted,tick){
  if(result.direction==="BUY"||result.direction==="SELL")await saveSignal(wanted,result,h.m1.at(-1).epoch,payload);
 }
 
-function closeSocket(){if(socket){try{socket.onclose=null;socket.close();}catch{}socket=null;}state.socket="DISCONNECTED";}
+function closeSocket(){if(socket){const old=socket;socket=null;try{old.onopen=null;old.onmessage=null;old.onerror=null;old.onclose=null;old.close();}catch{}}state.socket="DISCONNECTED";}
 async function subscribeSet(desired){
  desiredSymbols=desired;
  const list=desired.map(x=>x.providerSymbol).sort();
  if(JSON.stringify(list)===JSON.stringify(state.subscribed.slice().sort())&&["CONNECTED","CONNECTING"].includes(state.socket))return;
  closeSocket();history.clear();state.readySymbols=[];state.subscribed=list;
  if(!list.length){state.socket="IDLE_NO_OPTED_IN_DEMO_SESSIONS";return;}
- socket=new WebSocket(ENDPOINT);state.socket="CONNECTING";
+ const ws=new WebSocket(ENDPOINT);socket=ws;state.socket="CONNECTING";
  const requestMap=new Map();let nextId=100;
- socket.onopen=()=>{retry=1000;state.socket="CONNECTED";socket.send(JSON.stringify({active_symbols:"brief",req_id:1}));};
- socket.onerror=()=>{state.socket="ERROR";closeSocket();logError(new Error("Deriv WebSocket transport error."));scheduleReconnect();};
- socket.onclose=()=>{state.socket="DISCONNECTED";if(!stopping)scheduleReconnect();};
- socket.onmessage=async event=>{
+ ws.onopen=()=>{if(socket!==ws)return;retry=1000;state.socket="CONNECTED";ws.send(JSON.stringify({active_symbols:"brief",req_id:1}));};
+ ws.onerror=()=>{if(socket!==ws)return;state.socket="ERROR";closeSocket();logError(new Error("Deriv WebSocket transport error."));scheduleReconnect();};
+ ws.onclose=()=>{if(socket!==ws)return;socket=null;state.socket="DISCONNECTED";if(!stopping)scheduleReconnect();};
+ ws.onmessage=async event=>{
+  if(socket!==ws)return;
   try {
   let msg;try{msg=JSON.parse(typeof event.data==="string"?event.data:event.data.toString());}catch{return;}
   if(msg.error){logError(new Error("Deriv rejected the public streaming request."));closeSocket();scheduleReconnect();return;}
@@ -202,8 +203,8 @@ async function subscribeSet(desired){
     const found=active.find(a=>String(a.underlying_symbol||a.symbol||"")===wanted.providerSymbol);
     if(!found){logError(new Error("Approved provider symbol is not currently active on Deriv."));closeSocket();scheduleReconnect();return;}
     const m1Id=nextId++,m5Id=nextId++;requestMap.set(m1Id,{instrument:wanted.instrument,kind:"M1"});requestMap.set(m5Id,{instrument:wanted.instrument,kind:"M5"});
-    socket.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:180,end:"latest",style:"candles",granularity:60,req_id:m1Id}));
-    socket.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:60,end:"latest",style:"candles",granularity:300,req_id:m5Id}));
+    ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:180,end:"latest",style:"candles",granularity:60,req_id:m1Id}));
+    ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:60,end:"latest",style:"candles",granularity:300,req_id:m5Id}));
    }
   }
   if(msg.msg_type==="candles"&&requestMap.has(Number(msg.req_id))){
@@ -212,7 +213,7 @@ async function subscribeSet(desired){
    h[req.kind.toLowerCase()]=latestContiguousCandles(candles,req.kind==="M1"?60:300,240);h[req.kind.toLowerCase()==="m1"?"loadedM1":"loadedM5"]=true;history.set(req.instrument,h);
    if(h.loadedM1&&h.loadedM5){
     if(h.m1.length<35||mergeCompletedM5(h.m5,h.m1).length<25){logError(new Error("Deriv did not provide enough completed M1/M5 history to warm up the scalping engine."));closeSocket();scheduleReconnect();return;}
-    if(!h.subscribed){h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted) return;socket.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);}
+    if(!h.subscribed){h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted) return;ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);}
    }
   }
   if(msg.msg_type==="tick"&&msg.tick){
