@@ -35,7 +35,7 @@ The setup is stored as one pending batch. It does not create open positions unti
 
 ## Entry-price and touch semantics
 
-The requested entry is a pending limit trigger, not the quote at form submission. For a BUY limit, the setup waits for a verified quote above the requested entry and activates on a subsequent verified quote at or below it. For a SELL limit, it waits for a verified quote below the requested entry and activates on a subsequent verified quote at or above it. A setup submitted when the quote is already on the triggered side is rejected for review rather than being silently filled at a different price. The worker must retain a verified pre-touch quote checkpoint; a first quote already beyond the level is not proof of a touch.
+The platform automatically selects LIMIT or STOP from the latest verified quote at submission. BUY with market above entry is BUY LIMIT; BUY with market below entry is BUY STOP. SELL with market below entry is SELL LIMIT; SELL with market above entry is SELL STOP. Exact equality is rejected because the platform cannot establish a pre-touch side. Activation requires a later fresh verified quote to cross entry in the detected direction: LIMIT BUY crosses downward, LIMIT SELL upward, STOP BUY upward, and STOP SELL downward. The worker retains a verified pre-trigger quote checkpoint; a first quote already beyond the level is not proof of a crossing.
 
 DEMO paper fills use the requested entry price, clearly labeled as simulated. They are not represented as broker executions. The app must disclose that real markets can gap or slip; REAL pending orders require broker-native pending-order semantics and cannot reuse this paper fill path.
 
