@@ -13,6 +13,8 @@ test("pending batch API validates count, planned levels, percentages, DEMO mode 
  assert.match(api,/loadApprovedInstrument/);
  assert.match(api,/freshQuote\(quote,symbol\)/);
  assert.match(api,/detectDemoPendingEntryType\(direction,quote\.quote,entry\)/);
+ assert.match(api,/finalDetectedEntryType!==initiallyDetectedEntryType/);
+ assert.match(api,/Market crossed your planned entry while you were submitting/);
  assert.match(api,/p_entry_type:entryType/);
  assert.match(api,/Market is exactly at your planned entry/);
  assert.match(api,/entryType,tradeCount/);
@@ -58,6 +60,9 @@ test("pending batch migration reserves aggregate risk and position slots, activa
  assert.match(sql,/p_entry_type text/);
  assert.match(upgrade,/add column if not exists entry_type/);
  assert.match(upgrade,/create or replace function public\.create_demo_manual_entry_batch/);
+ assert.match(upgrade,/create or replace function public\.activate_demo_manual_entry_batch/);
+ assert.match(upgrade,/v_batch\.side=\x27SELL\x27 and v_batch\.entry_type=\x27STOP\x27 and v_batch\.last_quote>v_batch\.entry_price and p_quote<=v_batch\.entry_price/);
+ assert.match(upgrade,/\$activate_batch\$/);
  assert.match(upgrade,/p_entry_type is null/);
  assert.match(sql,/v_batch\.side=\x27BUY\x27 and v_batch\.entry_type=\x27STOP\x27 and v_batch\.last_quote<v_batch\.entry_price and p_quote>=v_batch\.entry_price/);
  assert.match(sql,/v_batch\.side=\x27SELL\x27 and v_batch\.entry_type=\x27STOP\x27 and v_batch\.last_quote>v_batch\.entry_price and p_quote<=v_batch\.entry_price/);
