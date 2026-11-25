@@ -19,12 +19,16 @@ test("scalping feed endpoint is authenticated and only returns data for an enabl
  assert.doesNotMatch(s,/account_mode:\s*\"REAL\"|execution:\s*\"BROKER_ORDER\"/);
 });
 
-test("dashboard renders scalping feed values using text nodes and polls only the authenticated API",async()=>{
+test("dashboard renders private feed values and separates automatic DEMO paper consent",async()=>{
  const s=await readFile(new URL("../index.html",import.meta.url),"utf8");
  assert.match(s,/demoScalpingFeedStatus/);
  assert.match(s,/api\/bots\/demo\/scalping-feed/);
  assert.match(s,/Authorization:\"Bearer \"\+authState\.session\.access_token/);
- assert.match(s,/scalpFeedTimer=setInterval/);\n assert.match(s,/enableDemoScalpingPaper/);\n assert.match(s,/ENABLE_PAPER_EXECUTION/);\n assert.match(s,/DISABLE_PAPER_EXECUTION/);\n assert.match(s,/This does not place paper or broker orders/);
+ assert.match(s,/scalpFeedTimer=setInterval/);
+ assert.match(s,/enableDemoScalpingPaper/);
+ assert.match(s,/ENABLE_PAPER_EXECUTION/);
+ assert.match(s,/DISABLE_PAPER_EXECUTION/);
+ assert.match(s,/This does not place paper or broker orders/);
  assert.match(s,/scalpSignals\.appendChild/);
  assert.doesNotMatch(s,/scalping-market:/);
 });
