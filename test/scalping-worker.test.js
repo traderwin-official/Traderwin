@@ -37,6 +37,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/trade\.side==="BUY"\?tick\.bid:tick\.ask/);
  assert.match(s,/p_price:markPrice/);
  assert.match(s,/catch\(e\) \{ closeSocket\(\);logError\(e\);scheduleReconnect\(\); \}/);
+ assert.match(s,/if\(msg\.error\)\{logError\(new Error\("Deriv rejected the public streaming request\."\)\);closeSocket\(\);scheduleReconnect\(\);return;\}/);
  assert.match(s,/mergeCompletedM5\(h\.m5,h\.m1\)\.length<25/);
  assert.match(s,/h\.m1=latestContiguousCandles\(h\.m1,60,240\)/);
  assert.doesNotMatch(s,/proposal_open_contract|buy\s*\(|sell\s*\(/i);
