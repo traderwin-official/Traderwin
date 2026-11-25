@@ -19,11 +19,13 @@ export default async function handler(req,res){
   if(profile.account_mode!=="DEMO")return res.status(403).json({error:"The scalping feed is currently restricted to DEMO mode."});
   const accountRef="DEMO:"+userId;
   const {data:session,error:sessionError}=await db.from("demo_paper_sessions")
-   .select("id,user_id,broker,broker_account_ref,instrument,status")
+   .select("id,user_id,broker,broker_account_ref,instrument,status,config_snapshot")
    .eq("user_id",userId).eq("broker","DERIV").eq("broker_account_ref",accountRef)
    .order("created_at",{ascending:false}).limit(1).maybeSingle();
   if(sessionError)return res.status(503).json({error:"Could not verify your DEMO session."});
   if(!session||session.status!=="RUNNING")return res.status(200).json({ok:true,enabled:false,feedStatus:"OFF",signals:[]});
+  const sessionConfig=session?.config_snapshot&&typeof session.config_snapshot==="object"?session.config_snapshot:{};
+  if(!session||sessionConfig.account_mode!=="DEMO"||!["WEBSITE_PAPER_ONLY","WEBSITE_DEMO_AUTO_PAPER_ONLY"].includes(sessionConfig.execution))return res.status(200).json({ok:true,enabled:false,feedStatus:"OFF",signals:[]});
   const {data:preference,error:preferenceError}=await db.from("demo_scalping_preferences")
    .select("enabled,account_mode,execution,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions")
    .eq("session_id",session.id).eq("user_id",userId).maybeSingle();
