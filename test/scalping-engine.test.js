@@ -140,3 +140,9 @@ test("market structure flags a bearish liquidity sweep above the latest swing hi
  assert.equal(context.latestSwingHigh,15);
  assert.equal(context.liquiditySweep,"SELL");
 });
+
+test("scalping engine rejects missing M1 minutes instead of calculating across a gap",()=>{
+ const rows=candles();
+ rows[30]={...rows[30],epoch:rows[30].epoch+60};
+ assert.throws(()=>analyseScalping({instrument:"XAUUSD",candles:rows,tick:tick(),now}),/non-contiguous completed M1 candle history/);
+});
