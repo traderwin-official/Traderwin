@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Young Tiger Forex Platform | Instrument Approvals</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;--bg:#080d17;--panel:#111b2b;--gold:#f5bd45;--muted:#9eabc0;--line:#26364b}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:#f4f6fa;font:15px Arial,sans-serif}
+main{max-width:760px;margin:auto}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin:16px 0}
+h1,h2{color:var(--gold)}p{color:var(--muted);line-height:1.6}
+label{display:block;margin:14px 0 7px;color:var(--muted)}select,input{width:100%;padding:12px;border-radius:7px;border:1px solid var(--line);background:#0a1220;color:white}
+button{padding:12px 16px;border:0;border-radius:7px;background:var(--gold);color:#111;font-weight:bold;margin-top:14px}
+button:disabled{opacity:.5}#status{white-space:pre-wrap;line-height:1.6}.back{color:var(--gold)}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="/">← Back to trading dashboard</a>
+<h1>Instrument Approval</h1>
+<p>Owner/admin-only control. An instrument must be explicitly approved before members can open website DEMO positions. Provider discovery alone never enables trading.</p>
+<div class="card">
+ <h2>Approve a supported Deriv DEMO instrument</h2>
+ <label for="instrument">Instrument</label>
+ <select id="instrument">
+  <option value="XAUUSD|frxXAUUSD">Gold / USD — XAUUSD</option>
+  <option value="XAGUSD|frxXAGUSD">Silver / USD — XAGUSD</option>
+  <option value="EURUSD|frxEURUSD">EUR / USD</option>
+  <option value="GBPUSD|frxGBPUSD">GBP / USD</option>
+  <option value="USDJPY|frxUSDJPY">USD / JPY</option>
+  <option value="AUDUSD|frxAUDUSD">AUD / USD</option>
+  <option value="USDCAD|frxUSDCAD">USD / CAD</option>
+  <option value="USDCHF|frxUSDCHF">USD / CHF</option>
+  <option value="NZDUSD|frxNZDUSD">NZD / USD</option>
+  <option value="BTCUSD|cryBTCUSD">Bitcoin / USD</option>
+  <option value="ETHUSD|cryETHUSD">Ethereum / USD</option>
+  <option value="R_10|R_10">Volatility 10 Index</option>
+  <option value="R_25|R_25">Volatility 25 Index</option>
+  <option value="R_50|R_50">Volatility 50 Index</option>
+  <option value="R_75|R_75">Volatility 75 Index</option>
+  <option value="R_100|R_100">Volatility 100 Index</option>
+ </select>
+ <button id="approve" type="button">Approve selected instrument</button>
+ <p id="status" role="status" aria-live="polite">Checking administrator access…</p>
+</div>
+<div class="card">
+ <h2>Current registry</h2>
+ <button id="refresh" type="button">Refresh registry</button>
+ <div id="registry"><p>Registry has not loaded.</p></div>
+</div>
+</main>
+<script>
+(async()=>{
+ const SUPABASE_URL="https://whcmrzdvaiqfmgvlfqxo.supabase.co";
+ const SUPABASE_KEY="sb_publishable_EsWQFeqMpYC6ZVexRkCV7Q_qC1tvKJI";
+ const status=document.getElementById("status");
+ const approve=document.getElementById("approve");
+ const refresh=document.getElementById("refresh");
+ const registry=document.getElementById("registry");
+ let token="";
+ try{
+  const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  const {data,error}=await client.auth.getSession();
+  if(error||!data.session){location.replace("/auth.html");return;}
+  token=data.session.access_token;
+  await loadRegistry();
+ }catch(e){status.textContent=e.message||"Could not verify your admin session.";approve.disabled=true;}
+ async function api(method="GET",body){
+  const response=await fetch("/api/admin/instruments",{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined,cache:"no-store"});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||"Admin request failed.");
+  return result;
+ }
+ async function loadRegistry(){
+  registry.textContent="Loading…";
+  try{
+   const result=await api();
+   const rows=result.instruments||[];
+   registry.textContent=rows.length?rows.map(x=>x.instrument+" · "+x.provider_symbol+" · "+x.status+(x.is_active?" (active)":"")).join("\n"):"No instruments are registered. All instruments remain blocked until explicitly approved.";
+   status.textContent="Administrator access verified. Choose the first DEMO instrument to approve.";
+  }catch(e){status.textContent=e.message;approve.disabled=true;registry.textContent="Registry unavailable.";}
+ }
+ approve.addEventListener("click",async()=>{
+  const [instrument,providerSymbol]=document.getElementById("instrument").value.split("|");
+  approve.disabled=true;status.textContent="Submitting the audited approval…";
+  const reason="Owner-approved for initial website DEMO trading";
+  try{
+   let existing;
+   try{existing=(await api()).instruments.find(x=>x.broker==="DERIV"&&x.instrument===instrument&&x.provider_symbol===providerSymbol);}catch{}
+   if(!existing){
+    await api("POST",{action:"register",broker:"DERIV",provider:"DERIV",instrument,providerSymbol,reason});
+   }
+   const result=await api("POST",{action:"approve",broker:"DERIV",provider:"DERIV",instrument,providerSymbol,reason});
+   status.textContent=result.message||instrument+" approved.";
+   await loadRegistry();
+  }catch(e){status.textContent=e.message;}
+  finally{approve.disabled=false;}
+ });
+ refresh.addEventListener("click",loadRegistry);
+})();
+</script>
+</body>
+</html>

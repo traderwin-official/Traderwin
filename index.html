@@ -4,9 +4,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YOUNG TIGER FX | AI Trading Technology</title>
-<meta name="keywords" content="Young Tiger FX, Tiger AI, forex analysis, automated trading tools, trading education, risk management">
-<meta name="description" content="Young Tiger FX — AI-assisted market analysis, trading education, automated strategy tools and risk management.">
+<title>YOUNG TIGER FX | Forex Platform</title>
+<meta name="description" content="Young Tiger FX — forex analysis, trading education, automated strategy tools and risk management.">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://s3.tradingview.com/tv.js"></script>
@@ -21,7 +20,6 @@ header{background:#101a29;border-bottom:1px solid #26364b;padding:16px 5%;displa
 nav{display:flex;gap:15px;flex-wrap:wrap}
 nav a{color:#dbe3ef;text-decoration:none;font-size:13px}
 nav a:hover{color:var(--gold)}
-.tiger-hero{background:radial-gradient(circle at 20% 35%,#49300b 0,#172238 38%,#090f1b 78%);border:1px solid #77571e;border-radius:18px;padding:24px;display:grid;grid-template-columns: minmax(0,1.15fr) minmax(220px,.85fr);gap:20px;align-items:center;overflow:hidden}.tiger-mark{font-size:clamp(90px,18vw,170px);text-align:center;filter:drop-shadow(0 0 22px #f5bd45)}.tiger-chip{display:inline-block;border:1px solid #8b6826;color:#ffd46b;background:#261d10;border-radius:30px;padding:7px 12px;font-size:12px;font-weight:bold}.tiger-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:14px}.tiger-card{background:linear-gradient(145deg,#182337,#101722);border:1px solid #5b4825;border-radius:12px;padding:16px}.tiger-card .symbol{font-size:25px}.tiger-card h3{color:#ffd36a}.tiger-status{color:#ffd36a;font-size:12px;font-weight:bold}@media(max-width:650px){.tiger-hero{grid-template-columns:1fr}.tiger-mark{font-size:100px}}
 .hero{padding:55px 6%;background:linear-gradient(120deg,#101b2d,#17243a)}
 .hero h1{font-size:clamp(30px,6vw,48px);margin:0 0 12px}
 .hero h1 span{color:var(--gold)}
@@ -54,6 +52,23 @@ section{margin:28px 0}
 footer{text-align:center;padding:30px 15px;background:#101a29;color:var(--muted);font-size:13px}
 ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 @media(max-width:600px){header{padding:14px}nav{gap:10px}.hero{padding:38px 5%}main{padding:18px 4%}.chart{height:420px}}
+
+.dashboard-hub{max-width:1500px;margin:18px auto 0;padding:0 5%}.dashboard-panel{background:linear-gradient(135deg,#101d31,#151d2b 60%,#28200f);border:1px solid #3a4b63;border-radius:18px;padding:20px;box-shadow:0 12px 36px #0005}.dashboard-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}.dashboard-head h2{margin:0;font-size:22px}.dashboard-head h2 span{color:var(--gold)}.dashboard-mode{font-size:12px;padding:7px 11px;border-radius:20px;background:#123d36;color:#72e2bd;border:1px solid #267b68}.dashboard-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.dashboard-action{display:flex;min-height:112px;flex-direction:column;justify-content:space-between;gap:8px;padding:15px;text-decoration:none;color:#f4f6fa;background:linear-gradient(145deg,#14243a,#0c1524);border:1px solid #304967;border-radius:14px;transition:transform .18s,border-color .18s,box-shadow .18s}.dashboard-action:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:0 8px 24px #0006}.dashboard-icon{font-size:25px}.dashboard-action strong{font-size:14px}.dashboard-action small{font-size:12px;line-height:1.4;color:var(--muted)}.dashboard-foot{margin:14px 2px 0;color:var(--muted);font-size:12px;line-height:1.5}@media(max-width:700px){.dashboard-hub{padding:0 4%}.dashboard-panel{padding:15px}.dashboard-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-action{min-height:104px;padding:12px}}@media(max-width:360px){.dashboard-actions{grid-template-columns:1fr 1fr}.dashboard-action{min-height:96px}}
+.live-feed{margin-top:18px;padding:16px;border:1px solid #26364b;border-radius:12px;background:#0c1727}.live-feed-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.live-feed-status{font-size:12px;color:#9fb0c6}.live-feed-price{font-size:25px;font-weight:800;color:#e5bd59;margin:10px 0}.live-feed canvas{display:block;width:100%;height:220px;background:#08111e;border-radius:8px}.live-feed select{width:100%;padding:10px;background:#101e30;color:#fff;border:1px solid #33465e;border-radius:8px;margin-top:8px}
+
+.live-positions{margin-top:15px;padding:16px;border:1px solid #36506d;border-radius:13px;background:linear-gradient(145deg,#0d1b2d,#0a1422)}
+.live-positions-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.live-position-filters{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.live-position-filters button{background:#25364b;color:#fff;padding:8px 12px;font-size:12px}
+.live-position-filters button.active{background:var(--gold);color:#111}
+.live-position-table{width:100%;border-collapse:collapse;min-width:900px;font-size:12px}
+.live-position-table th,.live-position-table td{padding:10px 8px;border-bottom:1px solid #26364b;text-align:left;white-space:nowrap}
+.live-position-table th{color:#9eabc0;font-weight:600}
+.position-origin{display:inline-block;padding:5px 8px;border-radius:14px;font-size:10px;font-weight:800;letter-spacing:.4px}
+.position-origin.manual{background:#123d36;color:#72e2bd}
+.position-origin.automatic{background:#302716;color:#f5bd45}
+@media(max-width:600px){.live-positions{padding:12px}.live-position-table th,.live-position-table td{padding:9px 7px}}
+
 </style>
 </head>
 
@@ -64,8 +79,10 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <nav>
   <a href="#markets">Markets</a>
   <a href="#analysis">Analysis</a>
-  <a href="#tiger-ai">Tiger AI</a>
-  <a href="#bots">Bots</a>
+  <a href="#smart-analyst">Smart Analyst</a>
+  <a href="#demoSimulator">Trade DEMO</a>
+  <a href="/bot-shop.html">Standalone Bot</a>
+  <a href="#payments">Payments</a>
   <a href="#risk">Risk</a>
   <a href="#academy">Academy</a>
  </nav>
@@ -79,22 +96,23 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  <a href="#analysis"><button class="secondary">Open Dashboard</button></a>
 </div>
 
-<main>
-
-<section id="verifiedMarketWatch">
- <h2 class="section-title">Verified <span>Live Market Watch</span></h2>
- <div class="card">
-  <p class="muted">Live prices are streamed directly from Deriv's public market-data WebSocket. This feed is independent of broker execution. Only symbols confirmed by Deriv are offered.</p>
-  <div class="field">
-   <label for="derivLiveSymbol">Deriv market instrument</label>
-   <select id="derivLiveSymbol" disabled><option>Connecting to Deriv market data…</option></select>
+<section class="dashboard-hub" id="dashboardHub" aria-label="Trading dashboard quick actions">
+ <div class="dashboard-panel">
+  <div class="dashboard-head">
+   <h2>Young Tiger <span>Trading Dashboard</span></h2>
+   <span class="dashboard-mode">DEMO PRACTICE · REAL LOCKED</span>
   </div>
-  <p class="status" id="derivLiveStatus" aria-live="polite">Status: Connecting</p>
-  <div class="price" id="derivLivePrice">—</div>
-  <p class="muted" id="derivLiveMeta">Source: Deriv public market data · Waiting for verified symbol feed</p>
-  <button type="button" id="derivLiveReconnect">Reconnect market data</button>
+  <div class="dashboard-actions">
+   <a class="dashboard-action" href="#demoSimulator"><span class="dashboard-icon">📊</span><strong>Trade DEMO</strong><small>Open the virtual trading terminal</small></a>
+   <a class="dashboard-action" href="#botSetupForm"><span class="dashboard-icon">🤖</span><strong>Bot &amp; Strategy</strong><small>Choose auto-select or your own strategy</small></a>
+   <a class="dashboard-action" href="/bot-shop.html"><span class="dashboard-icon">⚡</span><strong>Standalone Bot</strong><small>View independent bot products</small></a>
+   <a class="dashboard-action" href="#analysis"><span class="dashboard-icon">📈</span><strong>Market Analysis</strong><small>Charts, timeframes and market tools</small></a>
+  </div>
+  <p class="dashboard-foot">Your key trading tools are gathered here. DEMO uses virtual funds; live broker execution remains locked and requires separate approval.</p>
  </div>
 </section>
+
+<main>
 
 <section id="markets">
  <h2 class="section-title">Market <span>Overview</span></h2>
@@ -129,6 +147,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    </select>
   </div>
   <div class="tabs" id="timeTabs">
+   <button data-time="5">M5</button>
    <button data-time="15" class="active">M15</button>
    <button data-time="60">H1</button>
    <button data-time="240">H4</button>
@@ -137,6 +156,16 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <div id="tradingview_chart" class="chart"></div>
   <p class="muted">Chart supplied by TradingView. Confirm prices, spreads and execution on your broker platform before trading.</p>
+  <div class="live-feed" id="derivLiveFeed">
+   <div class="live-feed-head"><h3>Young Tiger FX Live Market Feed</h3><span class="live-feed-status" id="derivFeedStatus">Connecting to Deriv public market data…</span></div>
+   <label for="derivLiveSymbol">Choose a market available on Deriv</label>
+   <select id="derivLiveSymbol"><option value="">Loading available markets…</option></select>
+   <div class="live-feed-price" id="derivLivePrice">Waiting for live price</div>
+   <canvas id="derivLiveCanvas" width="1000" height="300" aria-label="Live market price chart"></canvas>
+   <p class="muted" id="derivFeedTimestamp">No quote received yet.</p>
+   <p class="muted">Source: Deriv public market-data stream. Availability depends on the selected instrument and market session. This chart is for market analysis; it is not an executable quote for another broker. DEMO balances and trades remain virtual.</p>
+  </div>
+
  </div>
 </section>
 
@@ -159,38 +188,128 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
  </div>
 </section>
 
-
-<section id="tiger-ai">
- <h2 class="section-title">Meet <span>Tiger AI</span></h2>
- <div class="tiger-hero">
-  <div>
-   <span class="tiger-chip">THE SIGNATURE INTELLIGENCE SYSTEM OF YOUNG TIGER FX</span>
-   <h2 style="font-size:clamp(30px,5vw,46px);margin:16px 0 10px">TIGER AI</h2>
-   <p style="font-size:18px;color:#f4d58b;font-weight:bold">The Intelligence Behind Every Move.</p>
-   <p class="muted">A planned AI-powered suite inside Young Tiger FX for market research, trade planning, automated strategy testing and disciplined risk management.</p>
-   <a href="#bots"><button>Explore Bot Centre</button></a>
+<section id="smart-analyst">
+ <h2 class="section-title">Smart Strategy <span>Analyst</span></h2>
+ <div class="card">
+  <p class="muted">Analyses completed Deriv OHLC candles using EMA, RSI, ATR, momentum and breakout confirmation. This is a rule-based research tool, not an AI guarantee and not an order-execution bot.</p>
+  <div class="grid">
+   <div class="field"><label for="smartInstrument">Instrument</label><input id="smartInstrument" value="XAUUSD" maxlength="24"></div>
+   <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
+   <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="AUTO_SELECT_V1">Auto-select strongest validated strategy</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology + Support &amp; Resistance</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
   </div>
-  <div class="tiger-mark" aria-label="Tiger AI mascot">🐅</div>
+  <p class="muted">The Tiger indicator checks H1 trend direction, confirmed swing Fibonacci 50% / 61.8% / 78.6%, psychological round numbers, support and resistance, rejection or liquidity sweep, and selected-timeframe structure. It is analysis only in both DEMO and REAL profiles.</p>
+  <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
+  <p id="smartAnalysisStatus" class="muted" role="status" aria-live="polite">Ready to analyse fresh Deriv market data.</p>
+  <div id="smartAnalysisResult" class="notice" hidden></div>
  </div>
- <div class="tiger-grid">
-  <div class="tiger-card"><div class="symbol">🤖</div><h3>Tiger Bot</h3><p class="muted">A future automated trading assistant for supported broker connections, starting with controlled demo testing.</p><span class="tiger-status">IN DEVELOPMENT</span></div>
-  <div class="tiger-card"><div class="symbol">🧠</div><h3>Tiger Analyst</h3><p class="muted">Market analysis and trade ideas with clear reasoning, entry zones, invalidation and risk context when verified data is connected.</p><span class="tiger-status">PLANNED</span></div>
-  <div class="tiger-card"><div class="symbol">🛡️</div><h3>Tiger Guard</h3><p class="muted">Risk limits, loss controls and portfolio profit-protection rules designed to help traders manage exposure.</p><span class="tiger-status">SAFETY DESIGN</span></div>
-  <div class="tiger-card"><div class="symbol">📊</div><h3>Tiger Insights</h3><p class="muted">A market watch and learning workspace covering supported forex, gold, crypto, indices and other instruments.</p><span class="tiger-status">PLANNED</span></div>
- </div>
- <p class="muted" style="margin-top:12px">Important: Tiger AI features are being built and tested. This page does not claim that an AI model is currently generating live signals or placing trades. Demo and real execution remain separate; real trading requires verified broker connectivity and explicit authorization. No profits are guaranteed.</p>
 </section>
 
 <section id="bots">
- <h2 class="section-title">Young Tiger FX <span>Automation Centre</span></h2>
+ <h2 class="section-title">Young Tiger FX <span>Trading Centre</span></h2>
 
  <div class="notice" id="botModeSafetyNotice">
-  Your selected account mode is being checked. Broker authorization is separate from order execution. Bots remain OFF until the selected broker adapter passes demo testing and the account owner enables it.
+  DEMO automation uses virtual paper trades and verified market data only. REAL broker execution remains separately locked and is never enabled by saving preferences or starting a DEMO session.
+ </div>
+
+ <div class="card" id="demoSimulator" style="margin-top:15px">
+  <h3>Website DEMO Trading</h3>
+  <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss, three target prices and their exit allocations, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
+  <p class="status" id="demoSessionStatus">Session: Not started</p>
+  <div class="field"><label for="demoExecutionMode">How should your DEMO account trade?</label><select id="demoExecutionMode"><option value="MANUAL">Manual — I choose and manage each trade</option><option value="AUTO">Automated — bot trades my saved strategy</option></select></div>
+  <p class="muted" id="demoWorkerHealth">Choose Manual or Automated DEMO. Automated mode needs saved Deriv strategy settings and a healthy scheduled worker.</p>
+  <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh DEMO status</button>
+  <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
+  <button type="button" id="startDemoSession">Start DEMO Session</button>
+  <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
+  <p id="demoSessionMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="grid">
+   <div class="field"><label for="paperDirection">Direction</label><select id="paperDirection"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
+   <div class="field"><label for="paperSymbol">Trading instrument</label><input id="paperSymbol" list="paperInstrumentOptions" maxlength="24" value="XAUUSD" placeholder="XAUUSD"><datalist id="paperInstrumentOptions"><option value="XAUUSD"><option value="XAGUSD"><option value="EURUSD"><option value="GBPUSD"><option value="USDJPY"><option value="AUDUSD"><option value="USDCAD"><option value="USDCHF"><option value="NZDUSD"><option value="BTCUSD"><option value="ETHUSD"><option value="R_10"><option value="R_25"><option value="R_50"><option value="R_75"><option value="R_100"></datalist></div>
+   <div class="field"><label for="demoTimeframe">DEMO chart / trading timeframe</label><select id="demoTimeframe"><option value="M5">M5 — 5 minutes</option><option value="M15" selected>M15 — 15 minutes</option><option value="H1">H1 — 1 hour</option><option value="H4">H4 — 4 hours</option></select></div>
+  </div>
+  <div class="grid">
+   <div class="field"><label for="paperTradeCount">Number of trades to open</label><input id="paperTradeCount" type="number" min="1" max="10" step="1" value="1" inputmode="numeric" required></div>
+   <div class="field"><label for="paperEntry">Planned entry price (pending)</label><input id="paperEntry" type="number" step="any" min="0" inputmode="decimal" required></div>
+   <div class="field"><label for="paperStop">Stop-loss (closes remaining position)</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal" required></div>
+  </div>
+  <p class="muted">The platform automatically detects LIMIT or STOP from the latest verified market quote and your BUY/SELL direction. It then waits for a later verified quote to cross your planned entry in that direction. The DEMO worker checks approximately once per minute, so a brief touch and reversal between checks can be missed; this is not instant or tick-by-tick execution. All positions share the same entry, SL and T1/T2/T3 levels.</p>
+  <h4>Take-profit targets and partial exits</h4>
+  <p class="muted">Set three target prices in order. Each target closes its allocation of the original position. Allocations must total 100%; the stop-loss closes whatever remains.</p>
+  <div class="grid">
+   <div class="field"><label for="paperTp1">T1 price</label><input id="paperTp1" type="number" step="any" min="0" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp1Percent">T1 allocation (%)</label><input id="paperTp1Percent" type="number" step="0.01" min="0.01" max="99.98" value="40" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp2">T2 price</label><input id="paperTp2" type="number" step="any" min="0" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp2Percent">T2 allocation (%)</label><input id="paperTp2Percent" type="number" step="0.01" min="0.01" max="99.98" value="30" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp3">T3 price</label><input id="paperTp3" type="number" step="any" min="0" inputmode="decimal" required></div>
+   <div class="field"><label for="paperTp3Percent">T3 allocation (%)</label><input id="paperTp3Percent" type="number" step="0.01" min="0.01" max="99.98" value="30" inputmode="decimal" required></div>
+  </div>
+  <p id="manualExitAllocationStatus" class="muted" role="status" aria-live="polite">T1 40% + T2 30% + T3 30% = 100%.</p>
+  <button type="button" id="recordPaperTrade" disabled>Save Pending DEMO Trade Setup</button>
+  <p id="paperTradeMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="card" id="pendingManualBatches"><h4>Pending manual setups</h4><p class="muted" id="pendingManualBatchesStatus">Loading pending setups…</p><div id="pendingManualBatchesList"></div></div>
+  <div class="field"><label for="paperOpenPositionSelect">Select an open DEMO position</label><select id="paperOpenPositionSelect"><option value="">No open positions</option></select></div>
+  <div class="grid">
+   <div class="field"><label for="paperTradeId">Selected paper trade ID</label><input id="paperTradeId" placeholder="Choose a position above or enter its ID"></div>
+   <div class="field"><label>Closing price</label><input value="Fetched securely from Deriv when you close" readonly></div>
+  </div>
+  <button type="button" class="secondary" id="closePaperTrade" disabled>Close at Latest Verified Quote</button>
+  <p id="paperCloseMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="card live-positions" id="livePositionsMonitor">
+   <div class="live-positions-head">
+    <div><h3 style="margin:0">Live Positions Monitor</h3><p class="muted" style="margin:6px 0 0">DEMO PAPER ONLY · Verified Deriv public quotes · No broker orders</p></div>
+    <button type="button" class="secondary" id="refreshLivePositions">Refresh Positions</button>
+   </div>
+   <div class="grid" style="margin-top:12px">
+    <div class="card"><p class="muted">Open positions</p><div class="price" id="livePositionCount">0</div></div>
+    <div class="card"><p class="muted">Floating P/L (USD)</p><div class="price" id="livePositionPnl">USD 0.00</div></div>
+    <div class="card"><p class="muted">Manual / Automatic</p><div class="price" id="livePositionOrigins">0 / 0</div></div>
+   </div>
+   <div class="live-position-filters" role="group" aria-label="Filter live positions">
+    <button type="button" class="active" data-position-filter="ALL">ALL</button>
+    <button type="button" data-position-filter="MANUAL">MANUAL</button>
+    <button type="button" data-position-filter="AUTOMATIC">AUTOMATIC</button>
+   </div>
+   <p class="muted" id="livePositionsStatus" role="status" aria-live="polite">Loading your open DEMO positions…</p>
+   <div style="overflow-x:auto">
+    <table class="live-position-table">
+     <thead><tr><th>Origin</th><th>Instrument</th><th>Side</th><th>Entry</th><th>Live price</th><th>Stop loss</th><th>Targets (T1 / T2 / T3)</th><th>Floating P/L</th><th>Duration</th><th>Action</th></tr></thead>
+     <tbody id="livePositionRows"><tr><td colspan="10" style="padding:12px">Loading positions…</td></tr></tbody>
+    </table>
+   </div>
+   <p class="muted">Quotes refresh about every 15 seconds while this page is open. If a quote is stale or unavailable, its P/L is shown as unavailable rather than guessed. REAL Deriv/MT5 positions are not included in this DEMO monitor.</p>
+  </div>
+
+  <div class="card" id="demoTradeHistory" style="margin-top:14px">
+   <div class="dashboard-head"><h4>DEMO Trade History</h4><button type="button" class="secondary" id="refreshDemoTradeHistory">Refresh History</button></div>
+   <p class="muted" id="demoHistorySummary">Loading your saved DEMO trades…</p>
+   <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:680px;font-size:13px">
+     <thead><tr><th style="text-align:left;padding:9px">Closed / Opened</th><th style="text-align:left;padding:9px">Instrument</th><th style="text-align:left;padding:9px">Side</th><th style="text-align:left;padding:9px">Entry</th><th style="text-align:left;padding:9px">Exit</th><th style="text-align:left;padding:9px">Status</th><th style="text-align:right;padding:9px">Realised P/L</th></tr></thead>
+     <tbody id="demoHistoryRows"><tr><td colspan="7" style="padding:10px">Loading…</td></tr></tbody>
+    </table>
+   </div>
+   <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss.</p>
+  </div>
+  <div class="grid">
+   <p class="muted">The optional combined DEMO portfolio guard activates at USD 20 peak unrealised profit and protects 80% of the peak. It is separate from manual entries and requires its own tested server-side monitoring setup. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
+  </div>
+  <button type="button" class="secondary" id="markPaperTrade" disabled>Check Live Quote &amp; SL/TP</button>
+  <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
+  <div class="card" style="margin-top:12px">
+   <h4>Manual position portfolio protection</h4>
+   <p class="muted">Automatic BOT positions are included in the combined DEMO profit guard by default. Manual positions are excluded unless you opt in below. Monitoring and permission to automatically close manual positions are separate choices.</p>
+   <label class="field"><input id="monitorManualTrades" type="checkbox"> Include my manual DEMO positions in combined portfolio monitoring</label>
+   <label class="field"><input id="closeManualTrades" type="checkbox" disabled> Allow the portfolio guard to automatically close my manual DEMO positions after the 20% giveback trigger</label>
+   <label class="field"><input id="autoExitManualBrackets" type="checkbox"> Automatically close my manual DEMO positions when their own stop-loss or take-profit is reached</label>
+   <p class="muted">This SL/TP permission is separate from the 20% portfolio giveback permission. It applies only to virtual DEMO positions and never sends broker orders.</p>
+   <button type="button" class="secondary" id="saveDemoPortfolioPermissions">Save manual-position permissions</button>
+   <p id="demoPortfolioPermissionMessage" class="muted" role="status" aria-live="polite"></p>
+  </div>
  </div>
 
  <div class="card" style="margin-top:15px">
-  <h3>⚙️ Personal Bot Setup</h3>
-  <p class="muted">Choose your preferred broker and trading instrument. These settings belong to your signed-in account.</p>
+  <h3>⚙️ Personal Trading Preferences</h3>
+  <p class="muted">Set your DEMO market, timeframe and strategy. You can trade manually on the website or let the DEMO paper bot execute your saved strategy automatically. The standalone MT5 bot is a separate product.</p>
 
   <form id="botSetupForm">
    <div class="field">
@@ -229,9 +348,14 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
      <input id="botAccountMode" value="DEMO" readonly>
     </div>
     <div class="field">
-     <label>Automation status</label>
-     <input value="OFF" readonly>
+     <label for="botTimeframe">Analysis timeframe</label>
+     <select id="botTimeframe"><option value="M15">M15</option><option value="M5">M5</option><option value="H1">H1</option><option value="H4">H4</option></select>
     </div>
+   </div>
+   <div class="field">
+    <label for="botStrategy">Automated strategy</label>
+    <select id="botStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation (EMA + RSI + ATR + Breakout)</option><option value="AUTO_SELECT_V1">Auto-select best validated strategy (waits if signals conflict)</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology (H1 trend + Fibonacci + S/R + liquidity)</option><option value="MANUAL_REVIEW">Manual review only (no auto entries)</option></select>
+    <p class="muted">Auto-select compares both validated strategies. If they disagree or neither has enough confirmation, the bot waits. Selecting either named strategy makes the DEMO bot trade that strategy automatically. Manual review means no automatic entries.</p>
    </div>
 
    <button type="submit" id="saveBotSettings">Save My Bot Settings</button>
@@ -239,26 +363,47 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </form>
  </div>
 
+ <div class="card" id="dualModeProfiles" style="margin-top:15px">
+  <h3>DEMO + REAL Bot Profiles</h3>
+  <p class="muted">Keep separate preferences for both account modes. REAL settings are saved as preferences only; live execution remains locked until broker verification, server authorization and full safety testing are complete.</p>
+  <div class="grid">
+   <div class="field"><label for="profileMode">Profile to edit</label><select id="profileMode"><option value="DEMO">DEMO profile</option><option value="REAL">REAL profile (locked)</option></select></div>
+   <div class="field"><label for="profileStrategy">Strategy for this mode</label><select id="profileStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="AUTO_SELECT_V1">Auto-select best validated strategy</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
+   <div class="field"><label for="profileBroker">Broker</label><select id="profileBroker"><option value="DERIV">Deriv</option><option value="MT5">MetaTrader 5</option></select></div>
+   <div class="field"><label for="profileInstrument">Instrument</label><input id="profileInstrument" value="XAUUSD" maxlength="80"></div>
+  </div>
+  <div class="grid">
+   <div class="field"><label for="profileRisk">Risk per trade (%)</label><input id="profileRisk" type="number" min="0.1" max="2" step="0.1" value="0.5"></div>
+   <div class="field"><label for="profileDailyLoss">Daily loss limit (%)</label><input id="profileDailyLoss" type="number" min="0.5" max="10" step="0.5" value="2"></div>
+   <div class="field"><label for="profileGiveback">Profit giveback limit (%)</label><input id="profileGiveback" type="number" min="1" max="50" step="1" value="20"></div>
+  </div>
+  <p class="muted">Profit protection default: once a trade has been profitable, the protective level follows its peak profit. A 20% giveback means the bot aims to retain 80% of the highest unrealised profit, subject to spread, slippage, gaps and broker stop rules.</p>
+  <button type="button" id="saveModeProfile">Save This Mode's Settings</button>
+  <p id="modeProfileMessage" class="muted" role="status" aria-live="polite"></p>
+  <p class="notice">REAL EXECUTION: LOCKED. This screen cannot enable live orders. A verified broker connection and a separate server-side approval are required.</p>
+ </div>
+
+
+
  <div class="grid" style="margin-top:15px">
 
   <div class="card" id="derivCard">
    <h3>Deriv Account Connection</h3>
    <p class="muted">Securely authorize your own Deriv account. Each signed-in user connects their own account.</p>
-   <p class="muted">New to Deriv? <a href="https://t.deriv.link?t=QTK8G8M92TF2" target="_blank" rel="noopener noreferrer">Create your Deriv account using Young Tiger’s referral link</a>.</p>
    <p class="status" id="derivConnectionStatus">Connection: Not connected</p>
    <button id="connectDerivButton" type="button">Connect Deriv Account</button>
-   <div id="derivAccountPicker" style="margin-top:12px;display:none">
+   <div id="derivAccountPicker" style="display:none;margin-top:12px">
     <label for="derivDemoAccountSelect">Verified DEMO account</label>
-    <select id="derivDemoAccountSelect" style="width:100%;margin-top:6px"></select>
+    <select id="derivDemoAccountSelect" style="width:100%;margin-top:6px"><option value="">Load verified DEMO accounts</option></select>
     <button id="saveDerivDemoAccount" type="button" style="margin-top:8px">Save DEMO Account</button>
     <p class="muted" id="derivAccountPickerMessage" aria-live="polite"></p>
    </div>
-   <p class="muted">Connecting does not enable automation. REAL accounts remain locked; DEMO selection only.</p>
+   <p class="muted">Authorization is separate from bot activation. Choose a verified DEMO account before starting a session. Connecting alone never places trades; REAL accounts remain locked.</p>
   </div>
 
   <div class="card">
    <h3>MT5 Demo Bot</h3>
-   <p class="muted">MetaTrader 5 bridge is not yet connected. Use only a broker-authorized terminal bridge or official API.</p>
+   <p class="muted">Future integration for MetaTrader 5 through a secure trading service.</p>
    <p class="status">Connection: Not connected</p>
    <button class="secondary" disabled>MT5 integration pending</button>
   </div>
@@ -314,11 +459,31 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 <section id="membership">
  <h2 class="section-title">Young Tiger FX <span>Membership</span></h2>
  <div class="grid">
-  <div class="card"><h3>Free Member</h3><p class="muted">Explore the public dashboard and educational resources.</p></div>
-  <div class="card"><h3>Premium Member</h3><p class="muted">Premium education, advanced tools and other services can be introduced after secure membership and payment integration.</p></div>
-  <div class="card"><h3>Young Tiger FX Course</h3><p class="muted">A planned learning programme for beginner traders. Course purchasing and delivery are not yet connected.</p></div>
+  <div class="card"><h3>Free Member</h3><p class="muted">Explore the dashboard, market information and education. DEMO practice remains free.</p></div>
+  <div class="card"><h3>REAL Trading Subscription</h3><p class="muted">USD 75 for the first month, then USD 175 per month. Payment is only one eligibility step; broker verification, risk checks and explicit REAL-trading authorization are still required. Payment never starts live trading automatically.</p></div>
+  <div class="card"><h3>Young Tiger FX Course</h3><p class="muted">Education is a separate service with its own price and delivery. Course pricing will be published before checkout is enabled.</p></div>
  </div>
- <p class="muted">No payments are collected by this page at present. M-Pesa integration must be completed securely before accepting payments.</p>
+ <p class="muted">Renewal is manual by default. Automatic renewal will only be enabled after explicit consent and a supported recurring-payment arrangement are configured. M-Pesa checkout also requires verified merchant credentials.</p>
+ <p class="status" id="realSubscriptionStatus">Checking your REAL subscription status...</p>
+</section>
+
+<section id="payments">
+ <h2 class="section-title">Secure <span>M-Pesa Checkout</span></h2>
+ <div class="card">
+  <p class="muted">Choose a published Young Tiger FX service. The amount is loaded from the protected service catalogue; you cannot change it here.</p>
+  <div class="field">
+   <label for="paymentService">Service</label>
+   <select id="paymentService"><option value="">Loading services...</option></select>
+  </div>
+  <p class="result" id="paymentAmount">Price not loaded</p>
+  <div class="field">
+   <label for="paymentPhone">M-Pesa phone number</label>
+   <input id="paymentPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="07XXXXXXXX" required>
+  </div>
+  <button id="startMpesaPayment" type="button" disabled>Pay with M-Pesa</button>
+  <button id="checkMpesaPayment" type="button" class="secondary" disabled>Check payment status</button>
+  <p id="mpesaPaymentMessage" class="muted" role="status" aria-live="polite">Payment services are loading.</p>
+ </div>
 </section>
 
 <section id="about">
@@ -339,96 +504,6 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 </footer>
 
 <script>
-// VERIFIED DERIV PUBLIC MARKET DATA — READ-ONLY STREAM
-(function(){
- const select=document.getElementById("derivLiveSymbol");
- const status=document.getElementById("derivLiveStatus");
- const price=document.getElementById("derivLivePrice");
- const meta=document.getElementById("derivLiveMeta");
- const reconnect=document.getElementById("derivLiveReconnect");
- const wsUrl="wss://api.derivws.com/trading/v1/options/ws/public";
- let socket=null,activeSymbols=[],currentSubscription=null,feedReady=false;
- function setStatus(text){status.textContent="Status: "+text;}
- function clearPrice(){price.textContent="—";meta.textContent="Source: Deriv public market data · Waiting for price";}
- function unsubscribe(){
-  if(socket&&socket.readyState===WebSocket.OPEN&&currentSubscription){
-   socket.send(JSON.stringify({forget:currentSubscription}));
-  }
-  currentSubscription=null;
- }
- function subscribeSelected(){
-  if(!socket||socket.readyState!==WebSocket.OPEN||!feedReady)return;
-  unsubscribe();
-  const symbol=select.value;
-  if(!symbol)return;
-  clearPrice();
-  setStatus("Subscribing to "+symbol);
-  socket.send(JSON.stringify({ticks:symbol,subscribe:1,req_id:2}));
- }
- function populateSymbols(items){
-  activeSymbols=Array.isArray(items)?items.map(item=>({
-   ...item,
-   symbol:item?.symbol||item?.underlying_symbol,
-   display_name:item?.display_name||item?.underlying_symbol_name,
-   market_display_name:item?.market_display_name||item?.market||item?.submarket||"Market"
-  })).filter(item=>item&&typeof item.symbol==="string"&&typeof item.display_name==="string"):[];
-  const sorted=activeSymbols.slice().sort((a,b)=>(a.market||"").localeCompare(b.market||"")||a.display_name.localeCompare(b.display_name));
-  select.replaceChildren();
-  sorted.forEach(item=>{
-   const option=document.createElement("option");
-   option.value=item.symbol;
-   option.textContent=item.display_name+" ("+item.symbol+") · "+(item.market_display_name||item.market||"Market");
-   select.appendChild(option);
-  });
-  select.disabled=sorted.length===0;
-  if(sorted.length){
-   setStatus("Connected · "+sorted.length+" Deriv instruments available");
-   subscribeSelected();
-  }else{
-   setStatus("Connected, but no active symbols returned");
-  }
- }
- function connect(){
-  if(socket){try{socket.close();}catch(e){}}
-  feedReady=false;currentSubscription=null;select.disabled=true;select.replaceChildren();
-  const waiting=document.createElement("option");waiting.textContent="Connecting to Deriv market data…";select.appendChild(waiting);
-  clearPrice();setStatus("Connecting");
-  try{socket=new WebSocket(wsUrl);}catch(e){setStatus("WebSocket could not start");return;}
-  const connection=socket;
-  connection.onopen=()=>{
-   if(socket!==connection)return;
-   setStatus("Connected · loading active instruments");
-   socket.send(JSON.stringify({active_symbols:"brief",req_id:1}));
-  };
-  connection.onmessage=(event)=>{
-   if(socket!==connection)return;
-   let data;try{data=JSON.parse(event.data);}catch(e){return;}
-   if(data.subscription?.id)currentSubscription=data.subscription.id;
-   if(data.error){setStatus("Feed error: "+(data.error.message||"Request rejected"));return;}
-   if(data.msg_type==="active_symbols"){
-    feedReady=true;populateSymbols(data.active_symbols);return;
-   }
-   if(data.msg_type==="tick"&&data.tick){
-    const tick=data.tick;
-    const symbol=tick.symbol||data.echo_req?.ticks;
-    if(symbol!==select.value)return;
-    const quote=Number(tick.quote);
-    if(!Number.isFinite(quote))return;
-    price.textContent=quote.toLocaleString(undefined,{maximumFractionDigits:8});
-    const time=tick.epoch?new Date(tick.epoch*1000):new Date();
-    meta.textContent="Source: Deriv · "+symbol+" · Last update: "+time.toLocaleString()+" · Live stream";
-    setStatus("Live");
-    if(data.subscription?.id)currentSubscription=data.subscription.id;
-   }
-  };
-  connection.onerror=()=>{if(socket===connection)setStatus("Connection error · retry");};
-  connection.onclose=()=>{if(socket!==connection)return;feedReady=false;currentSubscription=null;select.disabled=true;setStatus("Disconnected · reconnect to resume");};
- }
- select.addEventListener("change",subscribeSelected);
- reconnect.addEventListener("click",connect);
- connect();
-})();
-
 const marketData={
  "Forex":[["EUR/USD","Euro / US Dollar"],["GBP/USD","British Pound / US Dollar"],["USD/JPY","US Dollar / Japanese Yen"],["AUD/USD","Australian Dollar / US Dollar"]],
  "Gold":[["XAU/USD","Gold / US Dollar"],["XAG/USD","Silver / US Dollar"]],
@@ -492,6 +567,16 @@ function loadChart(){
 }
 
 document.getElementById("symbol").addEventListener("change",loadChart);
+document.getElementById("demoTimeframe").addEventListener("change",event=>{
+ const intervalByTimeframe={M5:"5",M15:"15",H1:"60",H4:"240"};
+ const next=intervalByTimeframe[event.target.value];
+ if(!next)return;
+ selectedTime=next;
+ document.querySelectorAll("#timeTabs button").forEach(button=>{
+  button.classList.toggle("active",button.dataset.time===next);
+ });
+ loadChart();
+});
 
 document.querySelectorAll("#timeTabs button").forEach(button=>{
  button.addEventListener("click",()=>{
@@ -501,6 +586,109 @@ document.querySelectorAll("#timeTabs button").forEach(button=>{
   loadChart();
  });
 });
+
+const smartButton=document.getElementById("runSmartAnalysis");
+smartButton.addEventListener("click",async()=>{
+ smartButton.disabled=true;
+ const status=document.getElementById("smartAnalysisStatus");
+ const output=document.getElementById("smartAnalysisResult");
+ output.hidden=true;
+ status.textContent="Fetching completed candles and analysing...";
+ try{
+  const {data:sessionData,error:sessionError}=await client.auth.getSession();
+  if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+  const response=await fetch("/api/analysis/market",{
+   method:"POST",
+   headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+   body:JSON.stringify({
+    instrument:document.getElementById("smartInstrument").value.trim(),
+    timeframe:document.getElementById("smartTimeframe").value,
+    strategy:document.getElementById("smartStrategy").value,
+    accountMode:document.getElementById("profileMode").value
+   }),
+   credentials:"same-origin",cache:"no-store"
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(result.error||"Market analysis failed.");
+  const r=result.result,ind=r.indicators||{};
+  const fmt=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):"Unavailable";
+  const sr="Support: "+fmt(ind.support?.price)+" ("+(ind.support?.strength||"n/a")+") · Resistance: "+fmt(ind.resistance?.price)+" ("+(ind.resistance?.strength||"n/a")+")"+(typeof ind.nearSupport==="boolean"?" · Near support: "+(ind.nearSupport?"YES":"NO")+" · Near resistance: "+(ind.nearResistance?"YES":"NO")+" · S/R confluence: "+(ind.supportResistanceConfluence?"YES":"NO"):"");
+  const fib=ind.fibonacci? " · Fib 50% "+fmt(ind.fibonacci["50"])+", 61.8% "+fmt(ind.fibonacci["61.8"])+", 78.6% "+fmt(ind.fibonacci["78.6"]):"";
+  const extra=r.strategy==="TIGER_FIBONACCI_PSYCHOLOGY_V1"
+   ?" · H1 trend "+(ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+" · SL "+fmt(ind.stopLoss)+" · TP "+fmt(ind.takeProfit)+fib
+   :"";
+  output.hidden=false;
+  output.textContent="Profile: "+document.getElementById("profileMode").value+" · "+r.direction+" · Confidence "+r.confidence+"/95 · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Analysis only; no trade was executed.";
+  status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
+ }catch(error){status.textContent=error.message||"Could not analyse the market.";}
+ finally{smartButton.disabled=false;}
+});
+
+// DERIV PUBLIC LIVE MARKET FEED: real quotes for charting; no account token or order permission required.
+(function initDerivLiveMarketFeed(){
+ const select=document.getElementById("derivLiveSymbol");
+ const status=document.getElementById("derivFeedStatus");
+ const priceLabel=document.getElementById("derivLivePrice");
+ const timeLabel=document.getElementById("derivFeedTimestamp");
+ const canvas=document.getElementById("derivLiveCanvas");
+ if(!select||!status||!priceLabel||!timeLabel||!canvas||!window.WebSocket)return;
+ const endpoint="wss://api.derivws.com/trading/v1/options/ws/public";
+ let socket=null,selectedSymbol="",subscriptionId=null,prices=[],epochs=[],reconnectDelay=3000;
+ const ctx=canvas.getContext("2d");
+ function send(payload){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload));}
+ function draw(){
+  const ratio=Math.min(window.devicePixelRatio||1,2),width=Math.max(320,canvas.clientWidth||600),height=220;
+  canvas.width=width*ratio;canvas.height=height*ratio;ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);
+  if(prices.length<2)return;
+  const min=Math.min(...prices),max=Math.max(...prices),range=max-min||Math.max(Math.abs(max)*.0001,.00000001),pad=12;
+  ctx.beginPath();prices.forEach((v,i)=>{const x=pad+(width-2*pad)*i/(prices.length-1),y=height-pad-(v-min)/(range)*(height-2*pad);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.strokeStyle="#e5bd59";ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle="#9fb0c6";ctx.font="11px sans-serif";ctx.fillText(max.toPrecision(7),pad,14);ctx.fillText(min.toPrecision(7),pad,height-4);
+ }
+ function setStatus(message){status.textContent=message;}
+ function subscribeSelected(){
+  const symbol=select.value;if(!symbol||!socket||socket.readyState!==WebSocket.OPEN)return;
+  if(subscriptionId)send({forget:subscriptionId});subscriptionId=null;selectedSymbol=symbol;prices=[];epochs=[];draw();priceLabel.textContent="Loading "+symbol+"…";timeLabel.textContent="Requesting recent tick history…";
+  send({ticks_history:symbol,count:120,end:"latest",style:"ticks"});
+  send({ticks:symbol,subscribe:1});
+ }
+ function populateSymbols(list){
+  const valid=(list||[]).filter(x=>x&&typeof x.symbol==="string"&&typeof x.display_name==="string");
+  if(!valid.length){setStatus("Deriv did not return available symbols.");return;}
+  const previous=select.value;select.replaceChildren();
+  valid.sort((a,b)=>(a.market_display_name||a.market||"").localeCompare(b.market_display_name||b.market||"")||a.display_name.localeCompare(b.display_name));
+  valid.forEach(item=>{const groupName=item.market_display_name||item.market||"Other";let group=Array.from(select.children).find(x=>x.tagName==="OPTGROUP"&&x.label===groupName);if(!group){group=document.createElement("optgroup");group.label=groupName;select.appendChild(group);}group.appendChild(new Option(item.display_name+" ("+item.symbol+")",item.symbol));});
+  const gold=valid.find(x=>/gold/i.test(x.display_name)||/XAU/i.test(x.symbol));
+  if(previous&&valid.some(x=>x.symbol===previous))select.value=previous;else if(gold)select.value=gold.symbol;else select.selectedIndex=0;
+  setStatus(valid.length+" Deriv markets available. Selecting a symbol streams its public ticks.");subscribeSelected();
+ }
+ function connect(){
+  try{socket=new WebSocket(endpoint);}catch(e){setStatus("Could not open Deriv market feed.");return;}
+  setStatus("Connecting to Deriv public feed…");
+  socket.onopen=()=>{reconnectDelay=3000;setStatus("Connected. Loading available markets…");send({active_symbols:"full"});};
+  socket.onmessage=event=>{
+   let data;try{data=JSON.parse(event.data);}catch{return;}
+   if(data.error){setStatus("Feed notice: "+(data.error.message||"Market data unavailable."));return;}
+   if(data.msg_type==="active_symbols"){populateSymbols(data.active_symbols);return;}
+   if(data.msg_type==="history"&&data.history&&data.history.prices){prices=data.history.prices.map(Number).filter(Number.isFinite).slice(-180);epochs=(data.history.times||[]).slice(-180);draw();return;}
+   if(data.msg_type==="tick"&&data.tick){
+    const q=Number(data.tick.quote);if(!Number.isFinite(q))return;
+    if(data.tick.symbol&&selectedSymbol&&data.tick.symbol!==selectedSymbol)return;
+    prices.push(q);epochs.push(data.tick.epoch);if(prices.length>180){prices.shift();epochs.shift();}draw();
+    priceLabel.textContent=q.toLocaleString(undefined,{maximumFractionDigits:8});
+    timeLabel.textContent="Last Deriv tick: "+new Date(Number(data.tick.epoch)*1000).toLocaleString()+" · "+(data.tick.symbol||selectedSymbol);
+    if(data.subscription&&data.subscription.id)subscriptionId=data.subscription.id;
+    setStatus("LIVE · Deriv public tick stream");
+   }
+  };
+  socket.onerror=()=>setStatus("Deriv feed connection error. Retrying…");
+  socket.onclose=()=>{setStatus("Market feed disconnected. Reconnecting…");setTimeout(()=>{if(!socket||socket.readyState===WebSocket.CLOSED)connect();},reconnectDelay);reconnectDelay=Math.min(reconnectDelay*2,30000);};
+ }
+ select.addEventListener("change",subscribeSelected);
+ window.addEventListener("resize",draw);
+ setInterval(()=>send({ping:1}),30000);
+ connect();
+})();
 
 function calculateRisk(){
  const balance=Number(document.getElementById("balance").value);
@@ -594,83 +782,243 @@ calculateRisk();
   // DERIV SECURE ACCOUNT CONNECTION
   const connectButton=document.getElementById("connectDerivButton");
   const derivStatus=document.getElementById("derivConnectionStatus");
+  const derivAccountPicker=document.getElementById("derivAccountPicker");
+  const derivDemoAccountSelect=document.getElementById("derivDemoAccountSelect");
+  const saveDerivDemoAccount=document.getElementById("saveDerivDemoAccount");
+  const derivAccountPickerMessage=document.getElementById("derivAccountPickerMessage");
 
-  // Surface the OAuth callback result instead of silently returning to the dashboard.
-  const derivResult = new URLSearchParams(window.location.search).get("deriv");
-  if (derivResult === "connected") {
-   derivStatus.textContent = "Deriv connection verified. Choose a DEMO account below; account selection does not enable trading.";
-   connectButton.textContent = "Deriv Authorized";
-   connectButton.disabled = true;
-  } else if (derivResult === "error") {
-   derivStatus.textContent = "Deriv connection failed during authorization or account verification. Check Vercel Function Logs for the exact server-side reason, then retry.";
-  } else if (derivResult === "cancelled") {
-   derivStatus.textContent = "Deriv authorization was cancelled. You can try again.";
+  async function refreshDerivAccounts(accessToken){
+   const response=await fetch("/api/deriv/accounts",{
+    headers:{"Authorization":"Bearer "+accessToken},
+    credentials:"same-origin",cache:"no-store"
+   });
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok) throw new Error(result.error||"Could not load verified Deriv accounts.");
+   const demos=(Array.isArray(result.accounts)?result.accounts:[]).filter(a=>
+    a&&String(a.account_type||"").toLowerCase()==="demo"&&String(a.status||"active").toLowerCase()==="active"
+   );
+   derivDemoAccountSelect.replaceChildren();
+   if(!demos.length){
+    derivDemoAccountSelect.add(new Option("No verified active DEMO account found",""));
+    derivAccountPickerMessage.textContent="Reconnect Deriv or contact support if your active DEMO account is missing.";
+    derivAccountPicker.style.display="block";
+    return;
+   }
+   derivDemoAccountSelect.add(new Option("Choose a verified DEMO account",""));
+   demos.forEach(a=>derivDemoAccountSelect.add(new Option("DEMO · "+a.account_id+(a.currency?" · "+a.currency:""),a.account_id)));
+   if(result.selected_account_id&&demos.some(a=>a.account_id===result.selected_account_id)){
+    derivDemoAccountSelect.value=result.selected_account_id;
+    derivAccountPickerMessage.textContent="Your verified DEMO account is selected. You can change it here.";
+   }else derivAccountPickerMessage.textContent="Select and save the DEMO account to use. REAL accounts cannot be selected here.";
+   derivAccountPicker.style.display="block";
   }
 
-  const accountPicker=document.getElementById("derivAccountPicker");
-  const demoSelect=document.getElementById("derivDemoAccountSelect");
-  const saveAccountButton=document.getElementById("saveDerivDemoAccount");
-  const accountPickerMessage=document.getElementById("derivAccountPickerMessage");
-
-  async function loadDerivAccounts(sessionToken){
+  saveDerivDemoAccount.addEventListener("click",async()=>{
+   const accountId=derivDemoAccountSelect.value;
+   if(!accountId){derivAccountPickerMessage.textContent="Choose a verified DEMO account first.";return;}
+   saveDerivDemoAccount.disabled=true;
+   derivAccountPickerMessage.textContent="Saving your verified DEMO account...";
    try{
-    const response=await fetch("/api/deriv/accounts",{
-     headers:{"Authorization":"Bearer "+sessionToken},
+    const {data:session,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!session.session)throw new Error("Please sign in again.");
+    const response=await fetch("/api/deriv/select-account",{
+     method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.session.access_token},
+     credentials:"same-origin",cache:"no-store",body:JSON.stringify({account_id:accountId})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||"Could not save the selected DEMO account.");
+    derivAccountPickerMessage.textContent=result.message||"Verified DEMO account saved.";
+    await refreshDerivStatus();
+   }catch(error){derivAccountPickerMessage.textContent=error.message||"Could not save the selected DEMO account.";}
+   finally{saveDerivDemoAccount.disabled=false;}
+  });
+
+  const disconnectButton=document.createElement("button");
+  disconnectButton.type="button";
+  disconnectButton.textContent="Disconnect Deriv";
+  disconnectButton.style.cssText="display:none;margin:8px 0;padding:10px 16px;background:#5b2630;color:#fff;border:1px solid #b85c69;border-radius:8px;font-weight:bold;cursor:pointer";
+  connectButton.insertAdjacentElement("afterend",disconnectButton);
+
+  async function refreshDerivStatus(){
+   try{
+    const {data:session,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!session.session) return;
+    const response=await fetch("/api/deriv/status",{
+     method:"GET",
+     headers:{"Authorization":"Bearer "+session.session.access_token},
      credentials:"same-origin",
      cache:"no-store"
     });
     const result=await response.json().catch(()=>({}));
-    if(!response.ok){
-     if(response.status===404) return;
-     throw new Error(result.error||"Could not load Deriv accounts.");
+    if(!response.ok) throw new Error(result.error||"Status unavailable");
+    if(result.connected){
+     derivStatus.textContent="Deriv connected · DEMO account "+String(result.demoAccountId||"not selected").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". REAL account "+(result.realAccountId?"found but still locked":"not detected")+". Token storage is encrypted server-side.";
+     connectButton.disabled=true;connectButton.textContent="Deriv Connected";disconnectButton.style.display="inline-block";
+     await refreshDerivAccounts(session.session.access_token);
+    }else{
+     derivStatus.textContent="Deriv is not connected yet.";connectButton.disabled=false;connectButton.textContent="Connect Deriv";
+     disconnectButton.style.display="none";derivAccountPicker.style.display="none";
     }
-    const demoAccounts=(Array.isArray(result.accounts)?result.accounts:[])
-     .filter(account=>String(account.account_type||"").toLowerCase()==="demo");
-    if(demoAccounts.length===0) return;
-    demoSelect.replaceChildren();
-    demoAccounts.forEach(account=>{
-     const option=document.createElement("option");
-     option.value=account.account_id;
-     option.textContent=account.account_id+" • "+(account.currency||"currency unknown")+" • DEMO";
-     demoSelect.appendChild(option);
-    });
-    if(result.selected_account_id && demoAccounts.some(a=>a.account_id===result.selected_account_id)){
-     demoSelect.value=result.selected_account_id;
-    }
-    accountPicker.style.display="block";
-    accountPickerMessage.textContent="DEMO accounts only. Selecting an account does not start a bot or place trades.";
    }catch(error){
-    accountPickerMessage.textContent=error.message||"Account list unavailable.";
+    console.warn("Deriv status could not be loaded:",error.message);
+    derivStatus.textContent="Could not verify Deriv connection status. You can retry later.";
    }
   }
 
-  saveAccountButton.addEventListener("click",async function(){
-   saveAccountButton.disabled=true;
-   accountPickerMessage.textContent="Saving your DEMO account selection...";
+  disconnectButton.addEventListener("click",async function(){
+   disconnectButton.disabled=true;
+   derivStatus.textContent="Disconnecting Deriv...";
    try{
-    const {data:sessionData,error:sessionError}=await client.auth.getSession();
-    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
-    const response=await fetch("/api/deriv/select-account",{
+    const {data:session,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!session.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/deriv/disconnect",{
      method:"POST",
-     headers:{
-      "Authorization":"Bearer "+sessionData.session.access_token,
-      "Content-Type":"application/json"
-     },
+     headers:{"Authorization":"Bearer "+session.session.access_token},
      credentials:"same-origin",
-     cache:"no-store",
-     body:JSON.stringify({account_id:demoSelect.value})
+     cache:"no-store"
     });
     const result=await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(result.error||"Could not save selection.");
-    accountPickerMessage.textContent=result.message||"DEMO account selected. Bots remain OFF.";
+    if(!response.ok) throw new Error(result.error||"Disconnect failed.");
+    derivStatus.textContent="Deriv has been disconnected from Young Tiger FX.";
+    await refreshDerivStatus();
    }catch(error){
-    accountPickerMessage.textContent=error.message||"Could not save account selection.";
+    derivStatus.textContent=error.message||"Could not disconnect Deriv.";
    }finally{
-    saveAccountButton.disabled=false;
+    disconnectButton.disabled=false;
    }
   });
 
-  loadDerivAccounts(data.session.access_token);
+  refreshDerivStatus();
+
+  // SECURE M-PESA CHECKOUT: amount always comes from the server-side catalogue.
+  const paymentService=document.getElementById("paymentService");
+  const paymentAmount=document.getElementById("paymentAmount");
+  const paymentPhone=document.getElementById("paymentPhone");
+  const startPayment=document.getElementById("startMpesaPayment");
+  const checkPayment=document.getElementById("checkMpesaPayment");
+  const paymentMessage=document.getElementById("mpesaPaymentMessage");
+  const subscriptionStatusLabel=document.getElementById("realSubscriptionStatus");
+  async function refreshRealSubscriptionStatus(){
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session){subscriptionStatusLabel.textContent="Sign in to check REAL subscription status.";return;}
+    const response=await fetch("/api/subscriptions/status",{
+     headers:{"Authorization":"Bearer "+sessionData.session.access_token},
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Subscription status unavailable.");
+    subscriptionStatusLabel.textContent=result.active
+     ?"REAL subscription active until "+new Date(result.endsAt).toLocaleDateString()+". Live trading remains locked pending separate broker and safety authorization."
+     :"REAL subscription: "+result.status+". DEMO remains free.";
+   }catch(error){subscriptionStatusLabel.textContent=error.message||"Could not load subscription status.";}
+  }
+  refreshRealSubscriptionStatus();
+
+  let paymentServices=[];
+  let activePaymentOrderId=null;
+
+  function selectedPaymentService(){
+   return paymentServices.find(item=>item.service_code===paymentService.value)||null;
+  }
+  function renderPaymentPrice(){
+   const service=selectedPaymentService();
+   if(!service){
+    paymentAmount.textContent="Select a service";
+    startPayment.disabled=true;
+    return;
+   }
+   const usd=Number(service.price_usd);
+   if(Number.isFinite(usd)&&usd>0){
+    const renewal=Number(service.renewal_price_usd);
+    paymentAmount.textContent="USD "+usd.toFixed(2)+" first purchase · USD "+(Number.isFinite(renewal)?renewal.toFixed(2):usd.toFixed(2))+" renewal. KES amount confirmed at checkout.";
+    startPayment.disabled=false;
+    if(!activePaymentOrderId) paymentMessage.textContent="Young Tiger FX calculates the live KES equivalent on the server immediately before requesting your M-Pesa prompt.";
+    return;
+   }
+   const price=Number(service.price_kes);
+   paymentAmount.textContent=Number.isFinite(price)?"KES "+price.toLocaleString("en-KE"):"Price unavailable";
+   startPayment.disabled=!Number.isSafeInteger(price)||price<1;
+   if(!activePaymentOrderId) paymentMessage.textContent=price<1
+    ?"Pricing for this service has not been published yet."
+    :"The final amount will be confirmed by Young Tiger FX's server before the M-Pesa prompt is sent.";
+  }
+  try{
+   const {data:services,error:catalogError}=await client.from("service_catalog")
+    .select("service_code,service_name,description,price_kes,price_usd,renewal_price_usd,billing_period")
+    .eq("active",true).order("service_name");
+   if(catalogError) throw catalogError;
+   paymentServices=services||[];
+   paymentService.replaceChildren();
+   if(!paymentServices.length){
+    paymentService.add(new Option("No services available",""));
+   }else{
+    paymentService.add(new Option("Choose a service",""));
+    paymentServices.forEach(item=>paymentService.add(new Option(item.service_name,item.service_code)));
+   }
+   renderPaymentPrice();
+   if(!paymentServices.length) paymentMessage.textContent="No services are currently published.";
+  }catch(error){
+   console.warn("Service catalogue unavailable:",error.message);
+   paymentService.replaceChildren(new Option("Catalogue unavailable",""));
+   paymentAmount.textContent="Price unavailable";
+   paymentMessage.textContent="Could not load the service catalogue. Please try again later.";
+  }
+  paymentService.addEventListener("change",renderPaymentPrice);
+
+  startPayment.addEventListener("click",async()=>{
+   const service=selectedPaymentService();
+   if(!service) return;
+   startPayment.disabled=true;
+   paymentMessage.textContent="Creating a secure M-Pesa payment request...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/payments/mpesa/stk-push",{
+     method:"POST",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+sessionData.session.access_token},
+     body:JSON.stringify({serviceCode:service.service_code,phoneNumber:paymentPhone.value.trim()}),
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"M-Pesa checkout could not start.");
+    activePaymentOrderId=result.orderId;
+    checkPayment.disabled=false;
+    if(result.amountKes) paymentAmount.textContent="Checkout amount: KES "+Number(result.amountKes).toLocaleString("en-KE")+(result.amountUsd?" (USD "+Number(result.amountUsd).toFixed(2)+")":"");
+    paymentMessage.textContent=(result.customerMessage||"Check your phone and enter your M-Pesa PIN.")+" The M-Pesa prompt shows the exact KES amount to approve.";
+   }catch(error){
+    paymentMessage.textContent=error.message||"Payment request failed.";
+   }finally{
+    renderPaymentPrice();
+   }
+  });
+
+  checkPayment.addEventListener("click",async()=>{
+   if(!activePaymentOrderId) return;
+   checkPayment.disabled=true;
+   paymentMessage.textContent="Checking payment status...";
+   try{
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
+    const response=await fetch("/api/payments/mpesa/status?orderId="+encodeURIComponent(activePaymentOrderId),{
+     headers:{"Authorization":"Bearer "+sessionData.session.access_token},
+     credentials:"same-origin",cache:"no-store"
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"Could not check payment status.");
+    const status=result.order.status;
+    paymentMessage.textContent=status==="PAID"
+     ?"Payment confirmed. Your service access is being activated."
+     :status==="FAILED"?"Payment was not completed. You can start a new request."
+     :"Payment is still pending. Complete the M-Pesa prompt, then check again.";
+    if(status==="PAID") await refreshRealSubscriptionStatus();
+    if(status!=="PENDING") activePaymentOrderId=null;
+   }catch(error){
+    paymentMessage.textContent=error.message||"Could not check payment status.";
+   }finally{
+    checkPayment.disabled=!activePaymentOrderId;
+   }
+  });
 
   connectButton.addEventListener("click",async function(){
 
@@ -724,11 +1072,17 @@ calculateRisk();
 
    event.preventDefault();
 
-   const broker=document.getElementById("botBroker").value.trim();
+   const brokerInput=document.getElementById("botBroker").value.trim();
+   const brokerAliases={"deriv":"DERIV","mt5":"MT5","meta trader 5":"MT5","metatrader 5":"MT5"};
+   const broker=brokerAliases[brokerInput.toLowerCase()];
    const instrument=document.getElementById("botInstrument").value.trim();
 
-   if(!broker||!instrument){
-    botMessage.textContent="Please enter both your broker and instrument.";
+   if(!broker){
+    botMessage.textContent="Unsupported broker. Choose Deriv or MetaTrader 5 only.";
+    return;
+   }
+   if(!instrument){
+    botMessage.textContent="Please enter your instrument.";
     return;
    }
 
@@ -751,28 +1105,20 @@ calculateRisk();
 
     const user=authData.user;
 
-    // Store preferences in the canonical per-user bot profile table.
-    // Client-side profiles are deliberately DEMO-only and cannot enable automation.
     const {error:saveError}=await client
-     .from("bot_mode_profiles")
+     .from("bot_settings")
      .upsert({
       user_id:user.id,
       broker:broker,
       instrument:instrument,
-      account_mode:"DEMO",
-      risk_per_trade:0.5,
-      max_daily_loss:2,
-      max_open_positions:1,
-      enabled:false
-     }, {
-      onConflict:"user_id,broker,instrument,account_mode"
-     });
+      account_mode:selectedAccountMode,
+      timeframe:document.getElementById("botTimeframe").value,
+      strategy:document.getElementById("botStrategy").value
+     },{onConflict:"user_id"});
 
     if(saveError){
 
-     if(saveError.code==="23505"){
-      botMessage.textContent="You already have bot settings saved. Editing existing settings will be enabled after the update policy is verified.";
-     }else if(saveError.code==="42501"){
+     if(saveError.code==="42501"){
       botMessage.textContent="Supabase denied this save under its security policies. Your settings were not changed. We need to check the INSERT policy.";
      }else{
       console.error("Bot settings save error:",saveError);
@@ -782,7 +1128,7 @@ calculateRisk();
      return;
     }
 
-    botMessage.textContent="Success! Your DEMO bot preferences have been saved. Automation remains OFF. This form cannot enable REAL trading or start a bot.";
+    botMessage.textContent="Saved. "+selectedAccountMode+" preferences updated with "+document.getElementById("botTimeframe").value+" and "+document.getElementById("botStrategy").selectedOptions[0].text+". Start Smart Auto only in Deriv DEMO; REAL execution remains locked.";
     botForm.reset();
 
    }catch(error){
@@ -795,7 +1141,412 @@ calculateRisk();
 
   });
 
-  // SIGN OUT BUTTON
+  // Save and load independent DEMO and REAL configuration profiles.
+  const profileMode=document.getElementById("profileMode");
+  const profileBroker=document.getElementById("profileBroker");
+  const profileInstrument=document.getElementById("profileInstrument");
+  const profileStrategy=document.getElementById("profileStrategy");
+  const profileRisk=document.getElementById("profileRisk");
+  const profileDaily=document.getElementById("profileDailyLoss");
+  const profileGiveback=document.getElementById("profileGiveback");
+  const profileMessage=document.getElementById("modeProfileMessage");
+  async function loadModeProfile(){
+   profileMessage.textContent="Loading "+profileMode.value+" profile...";
+   try{
+    const {data:p,error}=await client.from("bot_mode_profiles").select("broker,instrument,strategy,max_risk_per_trade_pct,max_daily_loss_pct,profit_giveback_pct").eq("account_mode",profileMode.value).maybeSingle();
+    if(error)throw error;
+    if(p){profileBroker.value=({"DERIV":"DERIV","Deriv":"DERIV","MT5":"MT5","MetaTrader 5":"MT5"})[p.broker]||"DERIV";profileInstrument.value=p.instrument;profileStrategy.value=p.strategy||"MULTI_CONFIRMATION_V1";profileRisk.value=p.max_risk_per_trade_pct;profileDaily.value=p.max_daily_loss_pct;profileGiveback.value=p.profit_giveback_pct;}
+    profileMessage.textContent=profileMode.value+" preferences loaded. Real execution remains locked.";
+   }catch(e){profileMessage.textContent="Mode profiles will be available after the dual-mode database migration is applied. "+e.message;}
+  }
+  profileMode.addEventListener("change",loadModeProfile);
+  document.getElementById("saveModeProfile").addEventListener("click",async()=>{
+   const risk=Number(profileRisk.value),daily=Number(profileDaily.value),giveback=Number(profileGiveback.value),instrument=profileInstrument.value.trim();
+   if(!instrument||!Number.isFinite(risk)||risk<.1||risk>2||!Number.isFinite(daily)||daily<.5||daily>10||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk (0.1–2%), daily loss (0.5–10%) and giveback (1–50%).";return;}
+   const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user){profileMessage.textContent="Please sign in again.";return;}
+   const button=document.getElementById("saveModeProfile");button.disabled=true;
+   try{
+    const profileValues={broker:profileBroker.value,instrument,strategy:profileStrategy.value,max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,profit_giveback_pct:giveback};
+    const {data:existing,error:lookupError}=await client.from("bot_mode_profiles").select("id").eq("user_id",auth.user.id).eq("account_mode",profileMode.value).maybeSingle();
+    if(lookupError)throw lookupError;
+    const result=existing
+     ? await client.from("bot_mode_profiles").update(profileValues).eq("user_id",auth.user.id).eq("account_mode",profileMode.value)
+     : await client.from("bot_mode_profiles").insert({user_id:auth.user.id,account_mode:profileMode.value,...profileValues});
+    if(result.error)throw result.error;
+    if(profileMode.value==="DEMO"){
+     const {error:botSettingsError}=await client.from("bot_settings").upsert({
+      user_id:auth.user.id,broker:profileBroker.value,instrument,strategy:profileStrategy.value,
+      account_mode:"DEMO",max_risk_per_trade_pct:risk
+     },{onConflict:"user_id"});
+     if(botSettingsError)throw botSettingsError;
+    }
+    profileMessage.textContent=profileMode.value+" profile saved with "+profileStrategy.selectedOptions[0].text+". "+(profileMode.value==="REAL"?"Live execution is still locked; this saves preferences only.":"The DEMO bot setting now uses this strategy, subject to existing safety controls.");
+   }catch(e){profileMessage.textContent="Could not save profile: "+e.message;}
+   finally{button.disabled=false;}
+  });
+  loadModeProfile();
+
+  // DEMO-ONLY PAPER SIMULATOR CONTROLS
+   const demoStatus=document.getElementById("demoSessionStatus");
+   const demoBalance=document.getElementById("demoVirtualBalance");
+   const demoMessage=document.getElementById("demoSessionMessage");
+   const demoWorkerHealth=document.getElementById("demoWorkerHealth");
+   function showDemoWorkerHealth(heartbeat){
+    if(!heartbeat){demoWorkerHealth.textContent="Worker status: waiting for its first scheduled run. Check CRON_SECRET and Supabase Cron/Vault setup.";return;}
+    const when=heartbeat.last_tick_at?new Date(heartbeat.last_tick_at).toLocaleString():"unknown";
+    demoWorkerHealth.textContent="Worker last checked: "+when+" · "+heartbeat.last_action+(heartbeat.last_reason?" · "+heartbeat.last_reason:"")+(heartbeat.last_error?" · "+heartbeat.last_error:"");
+   }
+   const startDemo=document.getElementById("startDemoSession");
+   const stopDemo=document.getElementById("stopDemoSession");
+   const recordPaper=document.getElementById("recordPaperTrade");
+   const closePaper=document.getElementById("closePaperTrade");
+   let activeDemoSession=null;
+   async function callDemoApi(path,payload){
+    const {data:s,error:e}=await client.auth.getSession();
+    if(e||!s.session)throw new Error("Please sign in again.");
+    const response=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+s.session.access_token},body:JSON.stringify(payload),credentials:"same-origin",cache:"no-store"});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||"Demo request failed.");
+    return result;
+   }
+   async function loadDemoTradeHistory(){
+    const summary=document.getElementById("demoHistorySummary");
+    const rows=document.getElementById("demoHistoryRows");
+    const refresh=document.getElementById("refreshDemoTradeHistory");
+    if(refresh)refresh.disabled=true;
+    summary.textContent="Loading saved DEMO trades…";
+    try{
+     const {data:s,error:e}=await client.auth.getSession();
+     if(e||!s.session)throw new Error("Please sign in again.");
+     const response=await fetch("/api/bots/demo/history",{method:"GET",headers:{"Authorization":"Bearer "+s.session.access_token},credentials:"same-origin",cache:"no-store"});
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(result.error||"Could not load DEMO history.");
+     const money=n=>"USD "+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+     demoBalance.textContent="Virtual balance: "+money(result.accountBalance);
+     summary.textContent="Account realised P/L: "+money(result.realizedPnl)+" · "+(result.trades||[]).length+" recorded trades · Balance carries across sessions.";
+     rows.replaceChildren();
+     const trades=result.trades||[];
+     if(!trades.length){
+      const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="No DEMO trades have been recorded yet.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
+     }else{
+      trades.forEach(t=>{
+       const tr=document.createElement("tr");
+       const values=[t.closed_at||t.opened_at||"—",t.instrument||"—",t.side||"—",Number(t.entry_price||0).toFixed(5),t.status==="CLOSED"&&t.last_mark_price?Number(t.last_mark_price).toFixed(5):(t.status==="CLOSED"?"—":"Open"),t.status||"—",money(t.realized_pnl_usd)];
+       values.forEach((value,i)=>{const td=document.createElement("td");td.textContent=String(value);td.style.padding="9px";td.style.borderTop="1px solid #26364b";if(i===6){td.style.textAlign="right";td.style.color=Number(t.realized_pnl_usd)>=0?"#25c58a":"#f16c75";}tr.appendChild(td);});
+       rows.appendChild(tr);
+      });
+     }
+    }catch(error){
+     summary.textContent="History unavailable: "+error.message;
+     rows.replaceChildren();
+     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="Please refresh after the account-balance database upgrade is applied.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
+    }finally{if(refresh)refresh.disabled=false;}
+   }
+   document.getElementById("refreshDemoTradeHistory").addEventListener("click",loadDemoTradeHistory);
+
+   // Read-only DEMO live positions monitor. It never sends, edits or closes orders.
+   const livePositionRows=document.getElementById("livePositionRows");
+   const livePositionsStatus=document.getElementById("livePositionsStatus");
+   const livePositionsRefresh=document.getElementById("refreshLivePositions");
+   let livePositionFilter="ALL",livePositionsCache=[],livePositionsBusy=false;
+   const liveMoney=value=>Number.isFinite(Number(value))?"USD "+Number(value).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"Unavailable";
+   const livePrice=value=>Number.isFinite(Number(value))?Number(value).toLocaleString("en-US",{maximumFractionDigits:8}):"—";
+   function liveDuration(openedAt){
+    const start=Date.parse(openedAt||"");if(!Number.isFinite(start))return "—";
+    const minutes=Math.max(0,Math.floor((Date.now()-start)/60000));
+    if(minutes<60)return minutes+"m";
+    const hours=Math.floor(minutes/60),days=Math.floor(hours/24);
+    return days?days+"d "+(hours%24)+"h":hours+"h "+(minutes%60)+"m";
+   }
+   function renderLivePositions(){
+    const filtered=livePositionFilter==="ALL"?livePositionsCache:livePositionsCache.filter(p=>p.trade_origin===livePositionFilter);
+    livePositionRows.replaceChildren();
+    if(!filtered.length){
+     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=10;td.textContent=livePositionsCache.length?"No "+livePositionFilter.toLowerCase()+" positions are currently open.":"No open DEMO positions. Your next manual or automatic paper position will appear here.";td.style.padding="12px";tr.appendChild(td);livePositionRows.appendChild(tr);return;
+    }
+    filtered.forEach(position=>{
+     const tr=document.createElement("tr");
+     const origin=document.createElement("td"),originBadge=document.createElement("span");
+     originBadge.className="position-origin "+(position.trade_origin==="MANUAL"?"manual":"automatic");
+     originBadge.textContent=position.trade_origin;origin.appendChild(originBadge);tr.appendChild(origin);
+     const values=[
+      position.instrument||"—",position.side||"—",livePrice(position.entry_price),
+      position.quote_status==="LIVE"?livePrice(position.current_price):"Quote unavailable",
+      livePrice(position.stop_loss),(position.targets||[]).map((target,i)=>"T"+(i+1)+" "+livePrice(target.price)+" ("+target.percent+"%)"+(target.done?" ✓":"")).join(" · "),
+      position.quote_status==="LIVE"?liveMoney(position.unrealized_pnl_usd):"Unavailable",
+      liveDuration(position.opened_at)
+     ];
+     values.forEach((value,index)=>{
+      const td=document.createElement("td");td.textContent=String(value);
+      if(index===6){td.style.color=position.quote_status!=="LIVE"?"#9eabc0":Number(position.unrealized_pnl_usd)>=0?"#25c58a":"#f16c75";td.style.fontWeight="700";}
+      tr.appendChild(td);
+     });
+     const action=document.createElement("td"),selectButton=document.createElement("button");
+     selectButton.type="button";selectButton.className="secondary";selectButton.textContent="Select";
+     selectButton.addEventListener("click",()=>{
+      const selector=document.getElementById("paperOpenPositionSelect");
+      const existing=Array.from(selector.options).find(option=>option.value===position.id);
+      if(existing)selector.value=position.id;
+      else{const option=new Option((position.instrument||"")+" "+(position.side||"")+" · "+position.trade_origin+" · "+position.id.slice(0,8),position.id);selector.add(option);selector.value=position.id;}
+      document.getElementById("paperTradeId").value=position.id;
+      document.getElementById("paperSymbol").value=position.instrument||"";
+      closePaper.disabled=false;markPaper.disabled=false;
+      document.getElementById("paperTradeMessage").textContent="Selected "+position.trade_origin.toLowerCase()+" DEMO position. Use the existing close controls only when you choose to close it.";
+     });
+     action.appendChild(selectButton);tr.appendChild(action);livePositionRows.appendChild(tr);
+    });
+   }
+   async function loadLivePositions(){
+    if(livePositionsBusy)return;
+    livePositionsBusy=true;if(livePositionsRefresh)livePositionsRefresh.disabled=true;
+    try{
+     const {data:s,error:e}=await client.auth.getSession();
+     if(e||!s.session)throw new Error("Please sign in again.");
+     const response=await fetch("/api/bots/demo/positions",{method:"GET",headers:{"Authorization":"Bearer "+s.session.access_token},credentials:"same-origin",cache:"no-store"});
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(result.error||"Could not load open DEMO positions.");
+     livePositionsCache=Array.isArray(result.positions)?result.positions:[];
+     document.getElementById("livePositionCount").textContent=String(result.openCount||0);
+     document.getElementById("livePositionOrigins").textContent=String(result.manualCount||0)+" / "+String(result.automaticCount||0);
+     const pnlLabel=document.getElementById("livePositionPnl");
+     pnlLabel.textContent=result.floatingPnlUsd===null?"Partial / unavailable":liveMoney(result.floatingPnlUsd);
+     pnlLabel.style.color=result.floatingPnlUsd===null?"#9eabc0":Number(result.floatingPnlUsd)>=0?"#25c58a":"#f16c75";
+     const unavailable=livePositionsCache.filter(p=>p.quote_status!=="LIVE").length;
+     livePositionsStatus.textContent="Updated "+new Date(result.generatedAt||Date.now()).toLocaleTimeString()+" · Deriv public market data · "+unavailable+" quote(s) unavailable or stale.";
+     renderLivePositions();
+    }catch(error){
+     livePositionsStatus.textContent="Live positions unavailable: "+error.message;
+    }finally{
+     livePositionsBusy=false;if(livePositionsRefresh)livePositionsRefresh.disabled=false;
+    }
+   }
+   document.querySelectorAll("[data-position-filter]").forEach(button=>button.addEventListener("click",()=>{
+    livePositionFilter=button.dataset.positionFilter;
+    document.querySelectorAll("[data-position-filter]").forEach(item=>item.classList.toggle("active",item===button));
+    renderLivePositions();
+   }));
+   livePositionsRefresh.addEventListener("click",loadLivePositions);
+   loadLivePositions();
+   const livePositionsTimer=setInterval(()=>{if(!document.hidden)loadLivePositions();},15000);
+   document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadLivePositions();});
+
+   document.getElementById("refreshDemoWorkerStatus").addEventListener("click",async()=>{
+    const refresh=document.getElementById("refreshDemoWorkerStatus");
+    refresh.disabled=true;
+    try{
+     const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
+     showDemoWorkerHealth(status.workerHeartbeat);
+     if(status.session)demoStatus.textContent="Session: "+status.session.status;
+    }catch(error){demoWorkerHealth.textContent="Worker status unavailable: "+error.message;}
+    finally{refresh.disabled=false;}
+   });
+   if(selectedAccountMode!=="DEMO"){
+    [startDemo,stopDemo,recordPaper,closePaper].forEach(x=>x.disabled=true);
+    demoMessage.textContent="Paper simulator is locked in REAL mode. Switch to DEMO to practise.";
+   }
+   startDemo.addEventListener("click",async()=>{
+    startDemo.disabled=true;demoMessage.textContent="Starting your website DEMO trading session...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim(),timeframe:document.getElementById("demoTimeframe").value,executionMode:document.getElementById("demoExecutionMode").value});
+     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     showDemoWorkerHealth(null);
+     demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+     stopDemo.disabled=false;recordPaper.disabled=false;document.getElementById("demoExecutionMode").disabled=true;document.getElementById("demoTimeframe").disabled=true;demoMessage.textContent=r.message;
+    }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
+   });
+   stopDemo.addEventListener("click",async()=>{
+    stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
+     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
+    }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
+   });
+   const allocationInputs=["paperTp1Percent","paperTp2Percent","paperTp3Percent"].map(id=>document.getElementById(id));
+   const allocationStatus=document.getElementById("manualExitAllocationStatus");
+   const updateAllocationStatus=()=>{
+    const values=allocationInputs.map(input=>Number(input.value));
+    const total=values.reduce((sum,value)=>sum+(Number.isFinite(value)?value:0),0);
+    const valid=values.every(value=>Number.isFinite(value)&&value>0)&&Math.round(total*100)===10000;
+    allocationStatus.textContent="T1 "+(values[0]||0)+"% + T2 "+(values[1]||0)+"% + T3 "+(values[2]||0)+"% = "+total.toFixed(2)+"%"+(valid?" · Valid allocation":" · Must total exactly 100%");
+    allocationStatus.style.color=valid?"var(--success, #72e2bd)":"var(--danger, #ff9b9b)";
+    return valid;
+   };
+   allocationInputs.forEach(input=>input.addEventListener("input",updateAllocationStatus));
+   updateAllocationStatus();
+   async function loadPendingManualBatches(){
+    const status=document.getElementById("pendingManualBatchesStatus");
+    const list=document.getElementById("pendingManualBatchesList");
+    if(!status||!list)return;
+    try{
+     const {data:s,error:e}=await client.auth.getSession();
+     if(e||!s.session)throw new Error("Please sign in again.");
+     const response=await fetch("/api/bots/demo/pending-batches",{headers:{Authorization:"Bearer "+s.session.access_token},credentials:"same-origin",cache:"no-store"});
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(result.error||"Could not load pending setups.");
+     const batches=Array.isArray(result.batches)?result.batches:[];
+     status.textContent=batches.length?batches.length+" recent setup(s). Pending setups reserve account risk until activated, cancelled or expired.":"No recent pending setups.";
+     list.replaceChildren();
+     batches.forEach(batch=>{
+      const row=document.createElement("div");row.className="card";row.style.marginTop="8px";
+      const title=document.createElement("strong");title.textContent=batch.instrument+" "+batch.side+" "+(batch.entry_type||"LIMIT")+" · "+batch.requested_trade_count+" position(s)";
+      const detail=document.createElement("p");detail.className="muted";
+      detail.textContent="Entry "+batch.entry_price+" · SL "+batch.stop_loss+" · T1/T2/T3 "+batch.tp1_price+" / "+batch.tp2_price+" / "+batch.tp3_price+" · Reserved risk USD "+Number(batch.total_risk_usd).toFixed(2)+" · "+batch.status;
+      row.append(title,detail);
+      if(batch.status==="PENDING"){
+       const cancel=document.createElement("button");cancel.type="button";cancel.className="secondary";cancel.textContent="Cancel pending setup";
+       cancel.addEventListener("click",async()=>{
+        cancel.disabled=true;
+        try{const r=await callDemoApi("/api/bots/demo/pending-batches",{action:"CANCEL",batchId:batch.id});status.textContent=r.message||"Pending setup cancelled.";await loadPendingManualBatches();}
+        catch(error){status.textContent=error.message;cancel.disabled=false;}
+       });
+       row.append(cancel);
+      }
+      list.append(row);
+     });
+    }catch(error){status.textContent=error.message;}
+   }
+   recordPaper.addEventListener("click",async()=>{
+    recordPaper.disabled=true;const msg=document.getElementById("paperTradeMessage");
+    if(!updateAllocationStatus()){msg.textContent="T1, T2 and T3 allocation percentages must total exactly 100%.";recordPaper.disabled=!activeDemoSession;return;}
+    const count=Number(document.getElementById("paperTradeCount").value);
+    if(!Number.isInteger(count)||count<1||count>10){msg.textContent="Number of trades must be a whole number from 1 to 10.";recordPaper.disabled=!activeDemoSession;return;}
+    msg.textContent="Checking risk and saving pending DEMO setup...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/pending-batches",{
+      action:"CREATE",
+      symbol:document.getElementById("paperSymbol").value.trim(),
+      direction:document.getElementById("paperDirection").value,
+      tradeCount:count,
+      entryPrice:document.getElementById("paperEntry").value,
+      stopLoss:document.getElementById("paperStop").value,
+      tp1:document.getElementById("paperTp1").value,
+      tp2:document.getElementById("paperTp2").value,
+      tp3:document.getElementById("paperTp3").value,
+      tp1Percent:document.getElementById("paperTp1Percent").value,
+      tp2Percent:document.getElementById("paperTp2Percent").value,
+      tp3Percent:document.getElementById("paperTp3Percent").value
+     });
+     msg.textContent=r.message+" Detected: "+r.batch.entryType+". Aggregate reserved risk: USD "+Number(r.batch.aggregateRiskUsd).toFixed(2)+".";
+     await loadPendingManualBatches();
+    }catch(e){msg.textContent=e.message;}
+    finally{recordPaper.disabled=!activeDemoSession;}
+   });
+   loadPendingManualBatches();
+   const markPaper=document.getElementById("markPaperTrade");
+   markPaper.addEventListener("click",async()=>{
+    markPaper.disabled=true;const msg=document.getElementById("paperProtectionMessage");msg.textContent="Updating profit protection...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/mark",{tradeId:document.getElementById("paperTradeId").value.trim()});
+     if(r.closed){msg.textContent=r.message+" Simulated exit P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);document.getElementById("paperTradeId").value="";closePaper.disabled=true;}
+     else{msg.textContent=r.message+" Latest verified price: "+Number(r.currentPrice).toFixed(5)+" · unrealised P/L: USD "+Number(r.currentUnrealizedPnl).toFixed(2)+". "+r.protection.reason;}
+     await refreshOpenPaperPositions();
+    }catch(e){msg.textContent=e.message;}
+    finally{markPaper.disabled=!document.getElementById("paperTradeId").value.trim();}
+   });
+      closePaper.addEventListener("click",async()=>{
+    closePaper.disabled=true;const msg=document.getElementById("paperCloseMessage");msg.textContent="Closing paper trade...";
+    try{
+     const r=await callDemoApi("/api/bots/demo/close",{
+      tradeId:document.getElementById("paperTradeId").value.trim(),
+     });
+     msg.textContent=r.message+" Simulated P/L: USD "+Number(r.trade.realized_pnl).toFixed(2);
+     document.getElementById("paperTradeId").value="";markPaper.disabled=true;
+     await refreshOpenPaperPositions();
+     await loadDemoTradeHistory();
+    }catch(e){msg.textContent=e.message;closePaper.disabled=false;}
+   });
+
+   const openPositionSelect=document.getElementById("paperOpenPositionSelect");
+   function renderOpenPaperPositions(trades){
+    const list=Array.isArray(trades)?trades:[];
+    const previous=document.getElementById("paperTradeId").value.trim();
+    openPositionSelect.innerHTML="";
+    if(!list.length){
+     const option=document.createElement("option");option.value="";option.textContent="No open positions";openPositionSelect.appendChild(option);
+     document.getElementById("paperTradeId").value="";
+     closePaper.disabled=true;markPaper.disabled=true;return;
+    }
+    list.forEach(t=>{
+     const option=document.createElement("option");option.value=t.id;
+     option.textContent=(t.instrument||t.symbol)+" "+(t.side||t.direction)+" · "+t.trade_origin+" · "+String(t.id).slice(0,8);
+     openPositionSelect.appendChild(option);
+    });
+    const chosen=list.find(t=>t.id===previous)||list.find(t=>t.trade_origin==="BOT")||list[0];
+    openPositionSelect.value=chosen.id;
+    document.getElementById("paperTradeId").value=chosen.id;
+    document.getElementById("paperSymbol").value=chosen.instrument||chosen.symbol;
+    closePaper.disabled=false;markPaper.disabled=false;
+   }
+   openPositionSelect.addEventListener("change",()=>{
+    const id=openPositionSelect.value;
+    document.getElementById("paperTradeId").value=id;
+    closePaper.disabled=!id;markPaper.disabled=!id;
+   });
+   async function refreshOpenPaperPositions(){
+    const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
+    renderOpenPaperPositions(status.openTrades||(status.openTrade?[status.openTrade]:[]));
+   }
+   const monitorManualInput=document.getElementById("monitorManualTrades");
+   const closeManualInput=document.getElementById("closeManualTrades");
+   const autoExitManualInput=document.getElementById("autoExitManualBrackets");
+   const savePortfolioPermissions=document.getElementById("saveDemoPortfolioPermissions");
+   const portfolioPermissionMessage=document.getElementById("demoPortfolioPermissionMessage");
+   monitorManualInput.addEventListener("change",()=>{
+    closeManualInput.disabled=!monitorManualInput.checked;
+    if(!monitorManualInput.checked)closeManualInput.checked=false;
+   });
+   savePortfolioPermissions.addEventListener("click",async()=>{
+    savePortfolioPermissions.disabled=true;portfolioPermissionMessage.textContent="Saving permissions...";
+    try{
+     const result=await callDemoApi("/api/bots/demo/portfolio-permissions",{
+      action:"UPDATE",monitorManualTrades:monitorManualInput.checked,closeManualTrades:closeManualInput.checked,
+      autoExitManualBrackets:autoExitManualInput.checked
+     });
+     portfolioPermissionMessage.textContent=result.message;
+    }catch(error){portfolioPermissionMessage.textContent=error.message;}
+    finally{savePortfolioPermissions.disabled=false;}
+   });
+
+   {
+    callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
+     if(r.session){
+      activeDemoSession=r.session.status==="RUNNING"?r.session:null;
+      showDemoWorkerHealth(r.workerHeartbeat);
+      demoStatus.textContent="Session: "+r.session.status;
+      if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
+      if(["M5","M15","H1","H4"].includes(String(r.session.timeframe||"").toUpperCase()))document.getElementById("demoTimeframe").value=String(r.session.timeframe).toUpperCase();
+      const running=r.session.status==="RUNNING";
+      const savedDemoConfig=r.session.config_snapshot&&typeof r.session.config_snapshot==="object"?r.session.config_snapshot:{};
+      const autoDemoEnabled=r.session.strategy!=="MANUAL"||(savedDemoConfig.account_mode==="DEMO"&&savedDemoConfig.execution==="WEBSITE_PAPER_ONLY"&&savedDemoConfig.auto_trading_enabled===true&&["AUTO_SELECT_V1","MULTI_CONFIRMATION_V1","TIGER_FIBONACCI_PSYCHOLOGY_V1"].includes(String(savedDemoConfig.auto_strategy||"").toUpperCase()));
+      document.getElementById("demoExecutionMode").value=autoDemoEnabled?"AUTO":"MANUAL";
+      document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
+      document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
+      startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
+      stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
+      demoMessage.textContent="Your existing DEMO session has been restored. The scheduled worker manages BOT trades and checks manual SL/TP only when you separately enable that permission.";
+     }else{
+      demoStatus.textContent="Session: Not started";
+      showDemoWorkerHealth(null);
+      const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
+      if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
+      startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
+     }
+     renderOpenPaperPositions(r.openTrades||(r.openTrade?[r.openTrade]:[]));
+     if(r.session){
+      try{
+       const permission=await callDemoApi("/api/bots/demo/portfolio-permissions",{action:"STATUS"});
+       monitorManualInput.checked=permission.manualTradeManagement;
+       closeManualInput.checked=permission.closeManualTrades;
+       closeManualInput.disabled=!monitorManualInput.checked;
+       autoExitManualInput.checked=permission.autoExitManualBrackets===true;
+      }catch(error){portfolioPermissionMessage.textContent=error.message;}
+     }
+    }).catch(e=>{demoMessage.textContent=e.message;});
+   }
+
+   loadDemoTradeHistory();
+   
+   // SIGN OUT BUTTON
   const logout=document.createElement("button");
   logout.textContent="Sign Out";
   logout.style.cssText="position:fixed;top:12px;right:12px;z-index:99999;padding:10px 16px;background:#d7a83c;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer";

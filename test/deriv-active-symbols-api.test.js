@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import handler from "../api/deriv/active-symbols.js";
+import handler from "../handlers/deriv/active-symbols.js";
 
 function makeResponse() {
   let resolveJson;
