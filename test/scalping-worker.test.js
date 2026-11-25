@@ -34,6 +34,9 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/async function manageOpenTrades\(instrument,tick\)\{\s*let healthy=true/);
  assert.match(s,/catch\(e\)\{healthy=false;logError\(e\);\}/);
  assert.match(s,/if\(!managementHealthy\)return;/);
+ assert.match(s,/const ws=new WebSocket\(ENDPOINT\);socket=ws;/);
+ assert.match(s,/if\(socket!==ws\)return;/);
+ assert.match(s,/old\.onmessage=null;old\.onerror=null;old\.onclose=null/);
  assert.match(s,/trade\.side==="BUY"\?tick\.bid:tick\.ask/);
  assert.match(s,/p_price:markPrice/);
  assert.match(s,/catch\(e\) \{ closeSocket\(\);logError\(e\);scheduleReconnect\(\); \}/);
