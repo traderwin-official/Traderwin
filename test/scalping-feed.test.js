@@ -7,6 +7,8 @@ test("scalping feed endpoint is authenticated and only returns data for an enabl
  assert.match(s,/auth\.getUser/);
  assert.match(s,/profile\.account_mode!==\"DEMO\"/);
  assert.match(s,/broker_account_ref.*accountRef/);
+ assert.match(s,/session\\.config_snapshot/);
+ assert.match(s,/WEBSITE_DEMO_AUTO_PAPER_ONLY/);
  assert.match(s,/session\.status!==\"RUNNING\"/);
  assert.match(s,/preference\.enabled!==true/);
  assert.match(s,/preference\.account_mode!==\"DEMO\"/);
