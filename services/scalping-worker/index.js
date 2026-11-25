@@ -5,13 +5,13 @@ import { analyseScalping } from "./lib/scalping-engine.js";
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\\s/.-]/g,"");
-const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastError:null,subscribed:[],ticks:0,signals:0};
+const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const channels=new Map(),lastPersisted=new Map(),history=new Map(),lastSignal=new Map();
 let socket=null,stopping=false,retry=1000,reconnectTimer=null,reconcileTimer=null;
 const server=http.createServer((req,res)=>{
- if(req.url==="/healthz"){const healthy=["CONNECTED","IDLE_NO_OPTED_IN_DEMO_SESSIONS"].includes(state.socket);res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"SIGNAL_ONLY_NO_ORDERS"}));}
+ if(req.url==="/healthz"){const healthy=state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0);res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"SIGNAL_ONLY_NO_ORDERS"}));}
  res.writeHead(404);res.end();
 });
 function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.error("scalping-worker:",state.lastError);}
@@ -72,7 +72,7 @@ function closeSocket(){if(socket){try{socket.onclose=null;socket.close();}catch{
 async function subscribeSet(desired){
  const list=desired.map(x=>x.providerSymbol).sort();
  if(JSON.stringify(list)===JSON.stringify(state.subscribed.slice().sort())&&["CONNECTED","CONNECTING"].includes(state.socket))return;
- closeSocket();for(const c of channels.values())await db.removeChannel(c).catch(()=>{});channels.clear();history.clear();state.subscribed=list;
+ closeSocket();for(const c of channels.values())await db.removeChannel(c).catch(()=>{});channels.clear();history.clear();state.readySymbols=[];state.subscribed=list;
  if(!list.length){state.socket="IDLE_NO_OPTED_IN_DEMO_SESSIONS";return;}
  socket=new WebSocket(ENDPOINT);state.socket="CONNECTING";
  const requestMap=new Map();let nextId=100;
@@ -85,7 +85,7 @@ async function subscribeSet(desired){
   if(msg.msg_type==="active_symbols"){
    const active=Array.isArray(msg.active_symbols)?msg.active_symbols:[];
    for(const wanted of desired){
-    const found=active.find(a=>String(a.underlying_symbol||a.symbol||"")===wanted.providerSymbol);if(!found)continue;
+    const found=active.find(a=>String(a.underlying_symbol||a.symbol||"")===wanted.providerSymbol);if(!found){logError(new Error("Approved provider symbol is not currently active on Deriv."));closeSocket();scheduleReconnect();return;}
     const ch=db.channel("scalping-market:"+wanted.instrument);channels.set(wanted.instrument,ch);await ch.subscribe();
     const m1Id=nextId++,m5Id=nextId++;requestMap.set(m1Id,{instrument:wanted.instrument,kind:"M1"});requestMap.set(m5Id,{instrument:wanted.instrument,kind:"M5"});
     socket.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:180,end:"latest",style:"candles",granularity:60,req_id:m1Id}));
@@ -94,8 +94,12 @@ async function subscribeSet(desired){
   }
   if(msg.msg_type==="candles"&&requestMap.has(Number(msg.req_id))){
    const req=requestMap.get(Number(msg.req_id));const candles=(msg.candles||[]).map(c=>({epoch:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(validCandle).filter(c=>(c.epoch+(req.kind==="M1"?60:300))*1000<=Date.now());
-   const h=history.get(req.instrument)||{m1:[],m5:[],current:null};h[req.kind.toLowerCase()]=candles.slice(-240);history.set(req.instrument,h);
-   if(h.m1.length>=35&&h.m5.length>=25&&!h.subscribed){h.subscribed=true;const wanted=desired.find(x=>x.instrument===req.instrument);socket.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));}
+   const h=history.get(req.instrument)||{m1:[],m5:[],current:null,loadedM1:false,loadedM5:false};
+   h[req.kind.toLowerCase()]=candles.slice(-240);h[req.kind.toLowerCase()==="m1"?"loadedM1":"loadedM5"]=true;history.set(req.instrument,h);
+   if(h.loadedM1&&h.loadedM5){
+    if(h.m1.length<35||h.m5.length<25){logError(new Error("Deriv did not provide enough completed M1/M5 history to warm up the scalping engine."));closeSocket();scheduleReconnect();return;}
+    if(!h.subscribed){h.subscribed=true;const wanted=desired.find(x=>x.instrument===req.instrument);socket.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);}
+   }
   }
   if(msg.msg_type==="tick"&&msg.tick){const instrument=desired.find(x=>x.providerSymbol===String(msg.tick.symbol||""))?.instrument;if(instrument)await publishTick(instrument,msg.tick);}
  };
