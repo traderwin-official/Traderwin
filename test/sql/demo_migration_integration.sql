@@ -1,8 +1,12 @@
 -- Runs only in the disposable PostgreSQL CI database after migrations 001-004.
 -- Exercises the actual atomic RPCs; no production Supabase data is used.
-do $$
+create table if not exists public.trader_profiles(user_id uuid primary key,account_mode text not null);
+do $
 declare
   v_user uuid;
+  v_scalping_user uuid;
+  v_scalping_session uuid;
+  v_scalping_trade uuid;
   v_session_risk uuid;
   v_session_count uuid;
   v_bot_trade_id uuid;
@@ -16,6 +20,8 @@ declare
 begin
   perform set_config('request.jwt.claim.role','service_role',true);
   insert into auth.users default values returning id into v_user;
+  insert into auth.users default values returning id into v_scalping_user;
+  insert into public.trader_profiles(user_id,account_mode) values(v_scalping_user,'DEMO');
 
   insert into public.demo_paper_sessions(
     user_id,broker,broker_account_ref,instrument,strategy,timeframe,status,
@@ -180,6 +186,87 @@ begin
   ) into v_result;
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected explicitly authorized manual portfolio close: %',v_result;
+  end if;
+
+
+  -- Quantum Scalping must require a second, explicit paper-execution consent.
+  insert into public.demo_paper_sessions(
+    user_id,broker,broker_account_ref,instrument,strategy,timeframe,status,
+    starting_balance,current_balance,risk_per_trade_pct,max_daily_loss_pct,
+    max_open_positions,max_total_open_risk_pct,config_snapshot
+  ) values (
+    v_scalping_user,'DERIV','DEMO:'||v_scalping_user,'EURUSD','TIGER_SCHEME_QUANTUM_SCALPING','M1','RUNNING',
+    10000,10000,0.50,2.00,3,5.00,
+    jsonb_build_object('account_mode','DEMO','execution','WEBSITE_PAPER_ONLY')
+  ) returning id into v_scalping_session;
+
+  insert into public.demo_scalping_preferences(
+    session_id,user_id,enabled,paper_execution_enabled,account_mode,execution,
+    max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions
+  ) values (
+    v_scalping_session,v_scalping_user,true,true,'DEMO','WEBSITE_PAPER_ONLY',0.25,1.00,1
+  );
+
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    2500,25,0.25,1,now(),now()-interval '1 minute'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected guarded scalping DEMO paper entry: %',v_result;
+  end if;
+  v_scalping_trade := (v_result->>'trade_id')::uuid;
+
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    2500,25,0.25,1,now(),now()-interval '1 minute'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_CANDLE_ALREADY_PROCESSED' then
+    raise exception 'Expected scalping candle idempotency: %',v_result;
+  end if;
+
+  update public.trader_profiles set account_mode='REAL' where user_id=v_scalping_user;
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    2500,25,0.25,1,now(),now()-interval '30 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'CURRENT_ACCOUNT_MODE_NOT_DEMO' then
+    raise exception 'Expected current REAL mode to block new DEMO scalping entries: %',v_result;
+  end if;
+
+  update public.trader_profiles set account_mode='DEMO' where user_id=v_scalping_user;
+  update public.demo_scalping_preferences set paper_execution_enabled=false
+   where session_id=v_scalping_session;
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    2500,25,0.25,1,now(),now()-interval '20 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_DEMO_OPT_IN_REQUIRED' then
+    raise exception 'Expected missing paper execution consent to block entries: %',v_result;
+  end if;
+
+  -- The trigger must prevent a manual paper entry from bypassing the cap
+  -- while the already-open scalping position remains active.
+  begin
+    select public.open_demo_paper_trade(
+      v_scalping_user,v_scalping_session,'EURUSD','SELL',1.10000,1.11000,1.07000,
+      10000,10,0.10,1,'DERIV',now(),'MANUAL'
+    ) into v_result;
+    raise exception 'Expected the single-open-position trigger to reject a manual entry';
+  exception when others then
+    if position('Scalping DEMO enforces one open position' in sqlerrm)=0 then
+      raise;
+    end if;
+  end;
+
+  select public.close_demo_paper_trade(
+    v_scalping_user,v_scalping_trade,1.10000,1,'DERIV',now(),'CI_SCALPING_CLOSE'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected scalping DEMO paper position to close: %',v_result;
   end if;
 
   -- A retry with the same request key must be idempotent and not realize P&L twice.
