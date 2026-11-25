@@ -1,5 +1,4 @@
--- Private, server-written latest-tick cache for the continuous DEMO scalping feed.
--- This table stores market data only; it never stores user credentials or orders.
+-- Private server-only cache for latest verified Deriv ticks and scalping signal candidates.
 create table if not exists public.scalping_market_ticks (
   instrument text primary key,
   provider_symbol text not null,
@@ -16,3 +15,25 @@ create table if not exists public.scalping_market_ticks (
 alter table public.scalping_market_ticks enable row level security;
 revoke all on public.scalping_market_ticks from anon, authenticated;
 grant select, insert, update, delete on public.scalping_market_ticks to service_role;
+
+create table if not exists public.scalping_signal_events (
+  id uuid primary key default gen_random_uuid(),
+  instrument text not null,
+  direction text not null check (direction in ('BUY','SELL')),
+  confidence integer not null check (confidence between 0 and 100),
+  entry numeric(24,10) not null check (entry > 0),
+  stop_loss numeric(24,10) not null check (stop_loss > 0),
+  take_profit numeric(24,10) not null check (take_profit > 0),
+  risk_reward numeric(8,3) not null,
+  reason text not null,
+  indicators jsonb not null default '{}'::jsonb,
+  source text not null check (source = 'DERIV'),
+  signal_as_of timestamptz not null,
+  candle_epoch bigint not null,
+  status text not null default 'CANDIDATE' check (status in ('CANDIDATE','EXPIRED','REVIEWED')),
+  created_at timestamptz not null default now(),
+  unique (instrument,candle_epoch,direction)
+);
+alter table public.scalping_signal_events enable row level security;
+revoke all on public.scalping_signal_events from anon, authenticated;
+grant select, insert, update, delete on public.scalping_signal_events to service_role;
