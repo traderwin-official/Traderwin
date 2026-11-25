@@ -32,3 +32,19 @@ test("scalping engine returns WAIT when no momentum breakout is confirmed",()=>{
 test("scalping engine rejects malformed candle history",()=>{
  assert.throws(()=>analyseScalping({instrument:"XAUUSD",candles:[],tick:tick(),now}),/35 completed M1 candles/);
 });
+
+test("scalping engine confirms a BUY only on M1 breakout with aligned M5 trend",()=>{
+ const rows=[];let price=2000;
+ for(let i=0;i<60;i++){
+  const open=price;price+=i===59?0.05:(i%2===0?0.05:-0.03);
+  rows.push({epoch:Math.floor(now/1000)-((60-i)*60),open,high:Math.max(open,price)+0.01,low:Math.min(open,price)-0.01,close:price});
+ }
+ const last=rows.at(-1);
+ const quote=last.high+0.02;
+ const t={source:"DERIV",instrument:"XAUUSD",providerSymbol:"frxXAUUSD",quote,bid:quote-0.002,ask:quote+0.002,quoteAsOf:new Date(now).toISOString(),receivedAt:new Date(now).toISOString()};
+ const trend=Array.from({length:30},(_,i)=>({close:1900+i*0.5}));
+ const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:t,now});
+ assert.equal(result.direction,"BUY");
+ assert.ok(result.stopLoss<result.entry);
+ assert.ok(result.takeProfit>result.entry);
+});
