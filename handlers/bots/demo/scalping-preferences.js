@@ -58,12 +58,12 @@ export default async function handler(req,res){
   const now=new Date().toISOString();
   const {error:saveError}=await db.from("demo_scalping_preferences").upsert({
    session_id:session.id,user_id:userId,enabled:true,paper_execution_enabled:action==="ENABLE_PAPER_EXECUTION"?true:current?.paper_execution_enabled===true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",
-   max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:1,updated_at:now
+   max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:15,updated_at:now
   },{onConflict:"session_id"});
   if(saveError){console.error("DEMO scalping preference save:",saveError.message);return res.status(503).json({error:"Could not enable DEMO scalping safely."});}
   return res.status(200).json({ok:true,enabled:true,accountMode:"DEMO",execution:"WEBSITE_PAPER_ONLY",instrument:session.instrument,
-   limits:{riskPerTradePct:risk,dailyLossPct:daily,maxOpenPositions:1},
+   limits:{riskPerTradePct:risk,dailyLossPct:daily,maxOpenPositions:15},
    paperExecutionEnabled:action==="ENABLE_PAPER_EXECUTION"||current?.paper_execution_enabled===true,
-   message:action==="ENABLE_PAPER_EXECUTION"?"Automatic DEMO paper trading is enabled for this session. Orders remain virtual in Traderwin; no Deriv broker order or REAL trade is sent. Risk is capped at 0.25% per trade and 1% daily loss, with one open position.":"DEMO scalping signal feed enabled. This setting does not authorize automatic paper entries or any broker order."});
+   message:action==="ENABLE_PAPER_EXECUTION"?"Automatic DEMO paper trading is enabled for this session. Orders remain virtual in Traderwin; no Deriv broker order or REAL trade is sent. Up to 15 DEMO paper positions can be open at once, with each trade capped at 0.25% and combined open stop-risk capped at 1% of starting equity; the daily-loss limit remains 1%.":"DEMO scalping signal feed enabled. This setting does not authorize automatic paper entries or any broker order."});
  }catch(error){console.error("DEMO scalping preference:",error?.message||"Unknown error");return res.status(500).json({error:"Could not update DEMO scalping preference safely."});}
 }
