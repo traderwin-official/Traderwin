@@ -34,10 +34,10 @@ function aggregateM5(m1){
 async function saveSignal(instrument,result,candleEpoch){
  const key=instrument+":"+candleEpoch+":"+result.direction;
  if(lastSignal.get(instrument)===key)return;
- lastSignal.set(instrument,key);
  const signal={instrument,direction:result.direction,confidence:result.confidence,entry:result.entry,stop_loss:result.stopLoss,take_profit:result.takeProfit,risk_reward:result.riskReward,reason:result.reason,indicators:result.indicators,source:"DERIV",signal_as_of:result.signalAsOf,candle_epoch:candleEpoch,status:"CANDIDATE"};
  const {error}=await db.from("scalping_signal_events").upsert(signal,{onConflict:"instrument,candle_epoch,direction",ignoreDuplicates:true});
  if(error){logError(error);return;}
+ lastSignal.set(instrument,key);
  state.signals++;state.lastSignalAt=new Date().toISOString();
  const ch=channels.get(instrument);if(ch)await ch.send({type:"broadcast",event:"signal",payload:signal});
 }
