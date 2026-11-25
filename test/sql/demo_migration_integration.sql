@@ -195,7 +195,7 @@ begin
     starting_balance,current_balance,risk_per_trade_pct,max_daily_loss_pct,
     max_open_positions,max_total_open_risk_pct,config_snapshot
   ) values (
-    v_scalping_user,'DERIV','DEMO:'||v_scalping_user,'EURUSD','TIGER_SCHEME_QUANTUM_SCALPING','M1','RUNNING',
+    v_scalping_user,'DERIV','DEMO:'||v_scalping_user,'EURUSD','TIGER_SCHEME_QUANTUM_SCALPING','M15','RUNNING',
     10000,10000,0.50,2.00,3,5.00,
     jsonb_build_object('account_mode','DEMO','execution','WEBSITE_PAPER_ONLY')
   ) returning id into v_scalping_session;
