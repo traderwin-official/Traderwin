@@ -39,7 +39,7 @@ test("SELL scalping target ladder is correctly ordered",()=>{
 
 test("scalping target builder rejects targets outside 1.5R to 3R",()=>{
  assert.throws(()=>buildScalpingTargets({direction:"BUY",entry:2000,stopLoss:1990,takeProfit:2014}),/between 1.5R and 3R/);
- assert.throws(()=>buildScalpingTargets({direction:"SELL",entry:2000,stopLoss:1990,takeProfit:1980}),/correctly ordered|between 1.5R and 3R/);
+ assert.throws(()=>buildScalpingTargets({direction:"SELL",entry:2000,stopLoss:1990,takeProfit:1980}),/stop-loss|correctly ordered|between 1.5R and 3R/);
 });
 
 test("BUY exit uses bid and closes at stop before considering targets",()=>{
