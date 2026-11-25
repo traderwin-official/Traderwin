@@ -202,6 +202,10 @@ begin
     return new;
   end if;
 
+  -- Serialize all entry paths for this user before checking the account-wide cap.
+  -- This closes the concurrent-insert race across different DEMO sessions.
+  perform pg_advisory_xact_lock(hashtextextended(new.user_id::text, 0));
+
   select
     exists (
       select 1 from public.demo_scalping_preferences p
