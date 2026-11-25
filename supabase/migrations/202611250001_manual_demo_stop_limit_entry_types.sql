@@ -18,7 +18,7 @@ create or replace function public.create_demo_manual_entry_batch(
  p_total_quantity numeric,p_total_risk_usd numeric,p_total_risk_pct numeric,
  p_quote_to_usd numeric,p_quote_source text,p_quote numeric,p_quote_as_of timestamptz
 ) returns jsonb
-language plpgsql security definer set search_path=public,pg_temp as $$
+language plpgsql security definer set search_path=public,pg_temp as $create_batch$
 declare
  v_session public.demo_paper_sessions%rowtype;
  v_open_count integer;
@@ -126,14 +126,14 @@ begin
   'trade_count',p_trade_count,'aggregate_risk_usd',p_total_risk_usd,
   'aggregate_risk_pct',p_total_risk_pct,'planned_entry',p_entry,'expires_at',now()+interval '7 days');
 end;
-$$;
+$create_batch$;
 revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz) from public,anon,authenticated;
 grant execute on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz) to service_role;
 
 create or replace function public.activate_demo_manual_entry_batch(
  p_batch_id uuid,p_quote numeric,p_quote_source text,p_provider_symbol text,p_quote_as_of timestamptz,p_quote_to_usd numeric
 ) returns jsonb
-language plpgsql security definer set search_path=public,pg_temp as $
+language plpgsql security definer set search_path=public,pg_temp as $activate_batch$
 declare
  v_batch public.demo_manual_entry_batches%rowtype;
  v_session public.demo_paper_sessions%rowtype;
@@ -284,6 +284,6 @@ begin
   'planned_entry',v_batch.entry_price,'trigger_quote',p_quote,
   'aggregate_risk_usd',v_batch.total_risk_usd);
 end;
-$;
+$activate_batch$;
 revoke all on function public.activate_demo_manual_entry_batch(uuid,numeric,text,text,timestamptz,numeric) from public,anon,authenticated;
 grant execute on function public.activate_demo_manual_entry_batch(uuid,numeric,text,text,timestamptz,numeric) to service_role;
