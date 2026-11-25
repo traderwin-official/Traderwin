@@ -145,10 +145,11 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   lastSignal.set(wanted.instrument,key);state.signals++;state.lastSignalAt=new Date().toISOString();
  }
  const ready=wanted.sessions.filter(x=>x.entryEnabled&&lastEntryAttempt.get(x.session.id)!==candleEpoch);
+ if(!ready.length)return;
+ const conversion=await getDerivQuoteToUsd(wanted.instrument,tick);
  await Promise.all(ready.map(async item=>{
   lastEntryAttempt.set(item.session.id,candleEpoch);
   try{
-   const conversion=await getDerivQuoteToUsd(wanted.instrument,tick);
    const opened=await openScalpingPaperPosition({db,session:item.session,preference:item.preference,signal:{...result,instrument:wanted.instrument},tick,candleEpoch,quoteToUsd:conversion.rate,now:Date.now()});
    if(opened?.ok===true){
     state.paperEntries++;state.lastPaperEntryAt=new Date().toISOString();state.lastEntryReason=null;
@@ -172,8 +173,8 @@ async function publishTick(wanted,tick){
  const managementHealthy=await manageOpenTrades(wanted.instrument,payload);
  if(Date.now()-(lastPersisted.get(wanted.instrument)||0)>=1000){
   lastPersisted.set(wanted.instrument,Date.now());
-  const {error}=await db.from("scalping_market_ticks").upsert({instrument:wanted.instrument,provider_symbol:providerSymbol,quote,bid:payload.bid,ask:payload.ask,quote_as_of:quoteAsOf,received_at:receivedAt,source:"DERIV",updated_at:receivedAt},{onConflict:"instrument"});
-  if(error)logError(error);
+  db.from("scalping_market_ticks").upsert({instrument:wanted.instrument,provider_symbol:providerSymbol,quote,bid:payload.bid,ask:payload.ask,quote_as_of:quoteAsOf,received_at:receivedAt,source:"DERIV",updated_at:receivedAt},{onConflict:"instrument"})
+   .then(({error})=>{if(error)logError(error);}).catch(logError);
  }
  if(!managementHealthy)return;
  const h=history.get(wanted.instrument);if(!h||h.m1.length<35)return;
