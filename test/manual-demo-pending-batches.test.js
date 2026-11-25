@@ -11,7 +11,10 @@ test("pending batch API validates count, planned levels, percentages, DEMO mode 
  assert.match(api,/profile\.account_mode!=="DEMO"/);
  assert.match(api,/loadApprovedInstrument/);
  assert.match(api,/freshQuote\(quote,symbol\)/);
- assert.match(api,/direction==="BUY"\?Number\(quote\.quote\)>entry:Number\(quote\.quote\)<entry/);
+ assert.match(api,/const detectEntryType=currentQuote=>/);
+ assert.match(api,/p_entry_type:entryType/);
+ assert.match(api,/Market is exactly at your planned entry/);
+ assert.match(api,/entryType,tradeCount/);
  assert.match(api,/create_demo_manual_entry_batch/);
  assert.match(api,/p_total_risk_usd:sizing\.riskAmount/);
  assert.match(api,/No position is open yet/);
@@ -39,8 +42,10 @@ test("pending batch migration reserves aggregate risk and position slots, activa
  assert.match(sql,/v_open_count\+v_pending_count\+p_trade_count>v_session\.max_open_positions/);
  assert.match(sql,/v_open_risk\+v_pending_risk\+p_total_risk_usd/);
  assert.match(sql,/create or replace function public\.activate_demo_manual_entry_batch/);
- assert.match(sql,/v_batch\.last_quote>v_batch\.entry_price and p_quote<=v_batch\.entry_price/);
- assert.match(sql,/v_batch\.last_quote<v_batch\.entry_price and p_quote>=v_batch\.entry_price/);
+ assert.match(sql,/entry_type text not null/);
+ assert.match(sql,/p_entry_type text/);
+ assert.match(sql,/v_batch\.side=\x27BUY\x27 and v_batch\.entry_type=\x27STOP\x27 and v_batch\.last_quote<v_batch\.entry_price and p_quote>=v_batch\.entry_price/);
+ assert.match(sql,/v_batch\.side=\x27SELL\x27 and v_batch\.entry_type=\x27STOP\x27 and v_batch\.last_quote>v_batch\.entry_price and p_quote<=v_batch\.entry_price/);
  assert.match(sql,/for update/);
  assert.match(sql,/manual_entry_batch_id/);
  assert.match(sql,/create or replace function public\.cancel_demo_manual_entry_batch/);
@@ -57,6 +62,7 @@ test("manual dashboard asks for trade count and planned entry and allows cancell
  assert.match(page,/Save Pending DEMO Trade Setup/);
  assert.match(page,/\/api\/bots\/demo\/pending-batches/);
  assert.match(page,/Cancel pending setup/);
+ assert.ok(page.includes("automatically detects LIMIT or STOP"));
  assert.ok(page.includes("same entry, SL and T1/T2/T3 levels."));
  assert.ok(page.includes("A brief touch and reversal between checks can be missed"));
  assert.ok(page.includes("approximately once per minute"));
