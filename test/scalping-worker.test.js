@@ -34,8 +34,9 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/if\(profileError\)throw profileError;/);
  assert.match(s,/TIGER_SCHEME_QUANTUM_SCALPING/);
  assert.match(s,/latestContiguousCandles\(candles,req\.kind==="M1"\?60:300,240\)/);
- assert.match(s,/async function manageOpenTrades\(instrument,tick\)\{\s*let healthy=true/);
- assert.match(s,/catch\(e\)\{healthy=false;logError\(e\);\}/);
+ assert.match(s,/async function manageOpenTrades\(instrument,tick\)\{\s*const trades=/);
+ assert.match(s,/Promise\.all\(trades\.map\(async trade/);
+ assert.match(s,/catch\(e\)\{logError\(e\);return false;\}/);
  assert.match(s,/if\(!managementHealthy\)return;/);
  assert.match(s,/const ws=new WebSocket\(ENDPOINT\);socket=ws;/);
  assert.match(s,/if\(socket!==ws\)return;/);
@@ -60,7 +61,7 @@ test("scalping portfolio migration allows up to 15 positions with a 1 percent ag
 });
 
 test("scalping execution guard keeps DEMO risk, daily loss, position and candle limits server-side",async()=>{
- const sql=await readFile(new URL("../supabase/migrations/202611260001_scalping_demo_execution_guard.sql",import.meta.url),"utf8");
+ const sql=await readFile(new URL("../supabase/migrations/202611260002_scalping_multi_position_portfolio.sql",import.meta.url),"utf8");
  assert.match(sql,/open_demo_scalping_paper_trade/);
  assert.match(sql,/p_risk_pct > 0\.25/);
  assert.match(sql,/max_daily_loss_pct,1\.00/);
