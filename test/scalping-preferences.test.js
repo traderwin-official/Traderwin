@@ -13,6 +13,8 @@ test("scalping preference endpoint is authenticated, verified DEMO-only and boun
  assert.match(s,/account_type.*demo/);
  assert.match(s,/status.*active/);
  assert.match(s,/trading_instrument_approvals/);
+ assert.match(s,/session\.config_snapshot/);
+ assert.match(s,/WEBSITE_DEMO_AUTO_PAPER_ONLY/);
  assert.match(s,/action===\"DISABLE\"/);
  assert.doesNotMatch(s,/real_trading_enabled:\s*true|account_mode:\s*\"REAL\"/);
 });
