@@ -232,7 +232,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field"><label for="paperEntry">Planned entry price (pending)</label><input id="paperEntry" type="number" step="any" min="0" inputmode="decimal" required></div>
    <div class="field"><label for="paperStop">Stop-loss (closes remaining position)</label><input id="paperStop" type="number" step="any" min="0" inputmode="decimal" required></div>
   </div>
-  <p class="muted">Your setup waits while price is away from entry. The DEMO worker checks approximately once per minute and activates only when a scheduled fresh quote observes price crossing your planned entry. A brief touch and reversal between checks can be missed; this is not instant or tick-by-tick execution. All positions share the same entry, SL and T1/T2/T3 levels.</p>
+  <p class="muted">The platform automatically detects LIMIT or STOP from the latest verified market quote and your BUY/SELL direction. It then waits for a later verified quote to cross your planned entry in that direction. The DEMO worker checks approximately once per minute, so a brief touch and reversal between checks can be missed; this is not instant or tick-by-tick execution. All positions share the same entry, SL and T1/T2/T3 levels.</p>
   <h4>Take-profit targets and partial exits</h4>
   <p class="muted">Set three target prices in order. Each target closes its allocation of the original position. Allocations must total 100%; the stop-loss closes whatever remains.</p>
   <div class="grid">
@@ -1335,7 +1335,7 @@ calculateRisk();
      list.replaceChildren();
      batches.forEach(batch=>{
       const row=document.createElement("div");row.className="card";row.style.marginTop="8px";
-      const title=document.createElement("strong");title.textContent=batch.instrument+" "+batch.side+" · "+batch.requested_trade_count+" position(s)";
+      const title=document.createElement("strong");title.textContent=batch.instrument+" "+batch.side+" "+(batch.entry_type||"LIMIT")+" · "+batch.requested_trade_count+" position(s)";
       const detail=document.createElement("p");detail.className="muted";
       detail.textContent="Entry "+batch.entry_price+" · SL "+batch.stop_loss+" · T1/T2/T3 "+batch.tp1_price+" / "+batch.tp2_price+" / "+batch.tp3_price+" · Reserved risk USD "+Number(batch.total_risk_usd).toFixed(2)+" · "+batch.status;
       row.append(title,detail);
@@ -1373,7 +1373,7 @@ calculateRisk();
       tp2Percent:document.getElementById("paperTp2Percent").value,
       tp3Percent:document.getElementById("paperTp3Percent").value
      });
-     msg.textContent=r.message+" Aggregate reserved risk: USD "+Number(r.batch.aggregateRiskUsd).toFixed(2)+".";
+     msg.textContent=r.message+" Detected: "+r.batch.entryType+". Aggregate reserved risk: USD "+Number(r.batch.aggregateRiskUsd).toFixed(2)+".";
      await loadPendingManualBatches();
     }catch(e){msg.textContent=e.message;}
     finally{recordPaper.disabled=!activeDemoSession;}
