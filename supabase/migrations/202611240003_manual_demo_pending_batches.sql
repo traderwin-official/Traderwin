@@ -81,7 +81,7 @@ declare
 begin
  if auth.role() is distinct from 'service_role' then raise exception 'Service role required'; end if;
  if p_user_id is null or p_session_id is null or nullif(trim(p_instrument),'') is null
-   or nullif(trim(p_provider_symbol),'') is null or p_side not in ('BUY','SELL') or p_entry_type not in ('LIMIT','STOP') or p_trade_count is null or p_trade_count not between 1 and 10
+   or nullif(trim(p_provider_symbol),'') is null or p_side not in ('BUY','SELL') or p_entry_type is null or p_entry_type not in ('LIMIT','STOP') or p_trade_count is null or p_trade_count not between 1 and 10
    or p_entry is null or p_entry<=0 or p_stop is null or p_stop<=0
    or p_tp1 is null or p_tp2 is null or p_tp3 is null
    or p_tp1<=0 or p_tp2<=0 or p_tp3<=0
