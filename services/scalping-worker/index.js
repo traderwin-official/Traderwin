@@ -23,7 +23,7 @@ function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.
 
 async function eligibleSymbols(){
  const {data:runningSessions,error:sessionError}=await db.from("demo_paper_sessions")
-  .select("id,user_id,instrument,broker,status,current_balance,config_snapshot")
+  .select("id,user_id,instrument,broker,status,current_balance,risk_per_trade_pct,config_snapshot")
   .eq("broker","DERIV").eq("status","RUNNING").limit(200);
  if(sessionError)throw sessionError;
  const {data:openRows,error:tradeError}=await db.from("demo_paper_trades")
@@ -36,7 +36,7 @@ async function eligibleSymbols(){
  let openSessions=[];
  if(openSessionIds.length){
   const {data,error}=await db.from("demo_paper_sessions")
-   .select("id,user_id,instrument,broker,status,current_balance,config_snapshot")
+   .select("id,user_id,instrument,broker,status,current_balance,risk_per_trade_pct,config_snapshot")
    .eq("broker","DERIV").in("id",openSessionIds);
   if(error)throw error;
   openSessions=data||[];
