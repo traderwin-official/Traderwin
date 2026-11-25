@@ -44,7 +44,7 @@ async function eligibleSymbols(){
  const allSessions=[...new Map([...(runningSessions||[]),...openSessions].map(s=>[s.id,s])).values()];
  if(!allSessions.length)return [];
  const {data:preferences,error:preferenceError}=await db.from("demo_scalping_preferences")
-  .select("session_id,user_id,enabled,account_mode,execution,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions")
+  .select("session_id,user_id,enabled,paper_execution_enabled,account_mode,execution,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions")
   .in("session_id",allSessions.map(s=>s.id));
  if(preferenceError)throw preferenceError;
  const preferenceBySession=new Map((preferences||[]).filter(p=>allSessions.some(s=>s.id===p.session_id&&s.user_id===p.user_id)).map(p=>[p.session_id,p]));
@@ -54,7 +54,7 @@ async function eligibleSymbols(){
   const config=session.config_snapshot&&typeof session.config_snapshot==="object"?session.config_snapshot:{};
   if(session.broker!=="DERIV"||!session.instrument||config.account_mode!=="DEMO")continue;
   const preference=preferenceBySession.get(session.id)||null;
-  const entryEnabled=session.status==="RUNNING"&&preference?.enabled===true&&preference.account_mode==="DEMO"&&preference.execution==="WEBSITE_PAPER_ONLY";
+  const entryEnabled=session.status==="RUNNING"&&preference?.enabled===true&&preference.paper_execution_enabled===true&&preference.account_mode==="DEMO"&&preference.execution==="WEBSITE_PAPER_ONLY";
   const manageOpen=openSessionSet.has(session.id);
   if(!entryEnabled&&!manageOpen)continue;
   const instrument=norm(session.instrument);
