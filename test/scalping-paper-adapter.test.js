@@ -2,16 +2,22 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {openScalpingPaperPosition,manageScalpingPaperPosition} from "../lib/scalping-paper-adapter.js";
 
-const session={id:"session-1",user_id:"user-1",broker:"DERIV",status:"RUNNING",instrument:"XAUUSD",current_balance:10000,risk_per_trade_pct:0.5,
+const session={id:"session-1",user_id:"user-1",broker:"DERIV",status:"RUNNING",instrument:"XAUUSD",starting_balance:10000,current_balance:10000,risk_per_trade_pct:0.5,
  config_snapshot:{account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY"}};
-const preference={enabled:true,paper_execution_enabled:true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",max_risk_per_trade_pct:0.25,max_daily_loss_pct:1,max_open_positions:1};
+const preference={enabled:true,paper_execution_enabled:true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",max_risk_per_trade_pct:0.25,max_daily_loss_pct:1,max_open_positions:15};
 const now=Date.now();
+const paperDb=(rpc,rows=[])=>({
+ rpc,
+ from:table=>({
+  select:()=>({eq:()=>({eq:()=>Promise.resolve({data:rows,error:null})})})
+ })
+});
 const tick={source:"DERIV",instrument:"XAUUSD",bid:2000,ask:2000.1,quoteAsOf:new Date(now).toISOString(),receivedAt:new Date(now).toISOString()};
 const signal={instrument:"XAUUSD",direction:"BUY",entry:2000.1,stopLoss:1990,takeProfit:2016};
 
 test("paper adapter opens only through the strict server-side DEMO RPC and sizes at 0.25 percent",async()=>{
  let call;
- const db={rpc:async(name,args)=>{call={name,args};return {data:{ok:true,trade_id:"trade-1"},error:null};}};
+ const db=paperDb(async(name,args)=>{call={name,args};return {data:{ok:true,trade_id:"trade-1"},error:null};});
  const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
  assert.equal(result.ok,true);
  assert.equal(call.name,"open_demo_scalping_paper_trade");
@@ -24,7 +30,7 @@ test("paper adapter opens only through the strict server-side DEMO RPC and sizes
 
 test("paper adapter refuses a non-opted-in or REAL session without calling the database",async()=>{
  let called=false;
- const db={rpc:async()=>{called=true;return {data:{ok:true},error:null};}};
+ const db=paperDb(async()=>{called=true;return {data:{ok:true},error:null};});
  const disabled=await openScalpingPaperPosition({db,session,preference:{...preference,enabled:false},signal,tick,candleEpoch:Math.floor(now/60000)*60});
  const realSession={...session,config_snapshot:{account_mode:"REAL",execution:"BROKER_ORDER"}};
  const real=await openScalpingPaperPosition({db,session:realSession,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60});
@@ -46,7 +52,7 @@ test("paper adapter refuses unsupported quote conversion and stale entry quotes"
 
 test("paper adapter closes only tagged scalping BOT positions through the existing staged-exit RPC",async()=>{
  let call;
- const db={rpc:async(name,args)=>{call={name,args};return {data:{ok:true,stage:args.p_stage},error:null};}};
+ const db=paperDb(async(name,args)=>{call={name,args};return {data:{ok:true,stage:args.p_stage},error:null};});
  const trade={id:"trade-1",user_id:"user-1",status:"OPEN",trade_origin:"BOT",
   metadata:{strategy:"TIGER_SCHEME_QUANTUM_SCALPING"},side:"BUY",stop_loss:"1990",
   tp1_price:"2007.5",tp2_price:"2011",tp3_price:"2016",tp1_done:false,tp2_done:false,tp3_done:false,quote_to_usd:"1"};
@@ -58,7 +64,7 @@ test("paper adapter closes only tagged scalping BOT positions through the existi
 
 test("paper adapter leaves other bot positions and stale quotes untouched",async()=>{
  let calls=0;
- const db={rpc:async()=>{calls++;return {data:{ok:true},error:null};}};
+ const db=paperDb(async()=>{calls++;return {data:{ok:true},error:null};});
  const trade={id:"trade-2",user_id:"user-1",status:"OPEN",trade_origin:"BOT",metadata:{strategy:"OTHER"},side:"BUY"};
  const other=await manageScalpingPaperPosition({db,trade,tick,now});
  const tagged={...trade,metadata:{strategy:"TIGER_SCHEME_QUANTUM_SCALPING"},stop_loss:1990,tp1_price:2007,tp2_price:2011,tp3_price:2016,tp1_done:false,tp2_done:false,tp3_done:false,quote_to_usd:1};
@@ -70,7 +76,7 @@ test("paper adapter leaves other bot positions and stale quotes untouched",async
 
 test("paper adapter respects a stricter saved session risk ceiling",async()=>{
  let args;
- const db={rpc:async(name,value)=>{args=value;return {data:{ok:true,trade_id:"trade-2"},error:null};}};
+ const db=paperDb(async(name,value)=>{args=value;return {data:{ok:true,trade_id:"trade-2"},error:null};});
  const stricter={...session,risk_per_trade_pct:0.1};
  const result=await openScalpingPaperPosition({db,session:stricter,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
  assert.equal(result.ok,true);
