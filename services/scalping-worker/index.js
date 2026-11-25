@@ -1,6 +1,6 @@
 import http from "node:http";
 import { createClient } from "@supabase/supabase-js";
-import { analyseScalping } from "./lib/scalping-engine.js";
+import { analyseScalping, mergeCompletedM5 } from "./lib/scalping-engine.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
@@ -30,11 +30,6 @@ async function eligibleSymbols(){
  return (approved||[]).filter(a=>wanted.has(norm(a.instrument))&&a.provider_symbol).map(a=>({instrument:norm(a.instrument),providerSymbol:String(a.provider_symbol)}));
 }
 function validCandle(c){return c&&[c.epoch,c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.epoch>0&&c.low>0&&c.high>=c.low&&c.open>=c.low&&c.open<=c.high&&c.close>=c.low&&c.close<=c.high;}
-function aggregateM5(m1){
- const groups=new Map();
- for(const c of m1){const epoch=Math.floor(c.epoch/300)*300;const g=groups.get(epoch)||{epoch,open:c.open,high:c.high,low:c.low,close:c.close,count:0};g.high=Math.max(g.high,c.high);g.low=Math.min(g.low,c.low);g.close=c.close;g.count++;groups.set(epoch,g);}
- return [...groups.values()].filter(g=>g.count===5).map(({count,...c})=>c).slice(-60);
-}
 async function saveSignal(instrument,result,candleEpoch){
  const key=instrument+":"+candleEpoch+":"+result.direction;
  if(lastSignal.get(instrument)===key)return;
@@ -63,7 +58,7 @@ async function publishTick(instrument,tick){
   if(h.current&&h.current.epoch+60<=minute){h.m1.push(h.current);h.m1=h.m1.slice(-240);}
   h.current={epoch:minute,open:quote,high:quote,low:quote,close:quote};
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
- const m5=aggregateM5(h.m1);
+ const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
  const result=analyseScalping({instrument,candles:h.m1.slice(-180),trendCandles:m5,tick:payload,now:Date.now()});
  if(result.direction==="BUY"||result.direction==="SELL")await saveSignal(instrument,result,h.m1.at(-1).epoch);
