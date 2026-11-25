@@ -120,3 +120,12 @@ test("manual DEMO SL/TP worker requires its dedicated opt-in and closes only at 
  assert.match(ui,/id="autoExitManualBrackets"/);
  assert.match(ui,/separate from the 20% portfolio giveback permission/);
 });
+
+
+test("worker records fresh heartbeats for MANUAL DEMO sessions after checking pending batches",async()=>{
+ const s=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
+ assert.match(s,/eq\("strategy","MANUAL"\)/);
+ assert.match(s,/PENDING_BATCHES_CHECKED/);
+ assert.match(s,/NO_PENDING_BATCHES/);
+ assert.match(s,/upsert\(manualBeats,\{onConflict:"session_id"\}\)/);
+});
