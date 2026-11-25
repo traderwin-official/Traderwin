@@ -1425,10 +1425,10 @@ calculateRisk();
      try{
       const state=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"STATUS"});
       scalpStatus.textContent=state.enabled?"Scalping feed: ENABLED · "+state.instrument+" · DEMO only":"Scalping feed: OFF";
-      scalpPaperStatus.textContent=state.paperExecutionEnabled?"Automatic DEMO paper trading: ON · virtual ledger only":"Automatic DEMO paper trading: OFF";
-      scalpEnable.disabled=selectedAccountMode!=="DEMO"||state.enabled;
+      scalpPaperStatus.textContent=state.paperExecutionEnabled?(state.entryModeEligible?"Automatic DEMO paper trading: ON · virtual ledger only":"Automatic DEMO paper trading: ON · new entries paused because account mode is not DEMO"):"Automatic DEMO paper trading: OFF";
+      scalpEnable.disabled=selectedAccountMode!=="DEMO"||state.accountMode!=="DEMO"||state.enabled;
       scalpDisable.disabled=!state.enabled;
-      scalpPaperEnable.disabled=selectedAccountMode!=="DEMO"||!state.enabled||state.paperExecutionEnabled;
+      scalpPaperEnable.disabled=selectedAccountMode!=="DEMO"||state.entryModeEligible!==true||!state.enabled||state.paperExecutionEnabled;
       scalpPaperDisable.disabled=!state.paperExecutionEnabled;
       if(state.limits)scalpMessage.textContent="Risk ceiling: "+state.limits.riskPerTradePct+"% per trade · "+state.limits.dailyLossPct+"% daily loss · "+state.limits.maxOpenPositions+" open position. Feed and automatic paper execution are controlled separately.";
       if(state.enabled&&state.sessionStatus==="RUNNING")startScalpingFeedPolling();else stopScalpingFeedPolling();
