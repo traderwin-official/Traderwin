@@ -1,7 +1,7 @@
 -- Runs only in the disposable PostgreSQL CI database after migrations 001-004.
 -- Exercises the actual atomic RPCs; no production Supabase data is used.
 create table if not exists public.trader_profiles(user_id uuid primary key,account_mode text not null);
-do $
+do $body$
 declare
   v_user uuid;
   v_scalping_user uuid;
@@ -278,4 +278,4 @@ begin
     raise exception 'Expected idempotent portfolio close retry: %',v_result;
   end if;
 end
-$$;
+$body$;
