@@ -20,7 +20,7 @@ export default async function handler(req,res){
   if(profileError||!profile)return res.status(409).json({error:"Complete your account setup first."});
   if(profile.account_mode!=="DEMO")return res.status(403).json({error:"Live scalping signals are currently restricted to the explicitly selected DEMO account mode."});
   const {data:session,error:sessionError}=await db.from("demo_paper_sessions")
-   .select("id,user_id,broker,broker_account_ref,instrument,status")
+   .select("id,user_id,broker,broker_account_ref,instrument,status,config_snapshot")
    .eq("user_id",userId).eq("broker","DERIV").eq("broker_account_ref",accountRef)
    .order("created_at",{ascending:false}).limit(1).maybeSingle();
   if(sessionError)return res.status(503).json({error:"Could not verify your DEMO scalping session."});
@@ -35,6 +35,8 @@ export default async function handler(req,res){
    return res.status(200).json({ok:true,enabled:false,accountMode:"DEMO",execution:"WEBSITE_PAPER_ONLY",message:"DEMO scalping has been disabled for this session."});
   }
   if(session.status!=="RUNNING")return res.status(409).json({error:"Start your DEMO session before enabling scalping."});
+  const sessionConfig=session.config_snapshot&&typeof session.config_snapshot==="object"?session.config_snapshot:{};
+  if(sessionConfig.account_mode!=="DEMO"||!["WEBSITE_PAPER_ONLY","WEBSITE_DEMO_AUTO_PAPER_ONLY"].includes(sessionConfig.execution))return res.status(409).json({error:"The active session is not a verified DEMO paper session. Restart DEMO and try again."});
   if(!session.instrument)return res.status(409).json({error:"Choose a DEMO instrument first."});
   const risk=Math.min(Number(profile.max_risk_per_trade_pct),0.25);
   const daily=Math.min(Number(profile.max_daily_loss_pct),1.00);
