@@ -15,3 +15,8 @@ test("continuous worker is explicitly DEMO opt-in and read-only",async()=>{
  assert.match(s,/SIGNAL_ONLY_NO_ORDERS/);
  assert.doesNotMatch(s,/open_demo_paper_trade|buy\s*\(|sell\s*\(/i);
 });
+test("scalping preference migration enforces the agreed one-position cap",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611250004_scalping_market_ticks.sql",import.meta.url),"utf8");
+ assert.match(sql,/max_open_positions smallint not null default 1 check \(max_open_positions = 1\)/);
+ assert.doesNotMatch(sql,/max_open_positions between 1 and 2/);
+});
