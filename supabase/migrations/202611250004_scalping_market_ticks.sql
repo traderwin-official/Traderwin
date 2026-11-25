@@ -47,7 +47,7 @@ create table if not exists public.demo_scalping_preferences (
   execution text not null default 'WEBSITE_PAPER_ONLY' check (execution = 'WEBSITE_PAPER_ONLY'),
   max_risk_per_trade_pct numeric(5,2) not null default 0.25 check (max_risk_per_trade_pct > 0 and max_risk_per_trade_pct <= 0.25),
   max_daily_loss_pct numeric(5,2) not null default 1.00 check (max_daily_loss_pct > 0 and max_daily_loss_pct <= 1.00),
-  max_open_positions smallint not null default 1 check (max_open_positions between 1 and 2),
+  max_open_positions smallint not null default 1 check (max_open_positions = 1),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
