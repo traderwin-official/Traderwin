@@ -20,3 +20,15 @@ test("scalping preference migration enforces the agreed one-position cap",async(
  assert.match(sql,/max_open_positions smallint not null default 1 check \(max_open_positions = 1\)/);
  assert.doesNotMatch(sql,/max_open_positions between 1 and 2/);
 });
+
+test("scalping execution guard keeps DEMO risk, daily loss, position and candle limits server-side",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611260001_scalping_demo_execution_guard.sql",import.meta.url),"utf8");
+ assert.match(sql,/open_demo_scalping_paper_trade/);
+ assert.match(sql,/p_risk_pct > 0\.25/);
+ assert.match(sql,/max_daily_loss_pct,1\.00/);
+ assert.match(sql,/max_open_positions <> 1/);
+ assert.match(sql,/last_candle_as_of/);
+ assert.match(sql,/SCALPING_ONE_OPEN_POSITION_LIMIT/);
+ assert.match(sql,/to service_role/);
+ assert.match(sql,/from public, anon, authenticated/);
+});
