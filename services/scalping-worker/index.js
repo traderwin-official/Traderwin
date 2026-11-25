@@ -11,7 +11,7 @@ const norm=v=>String(v||"").trim().toUpperCase().replace(/[\\s/.-]/g,"");
 const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
+const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
 let socket=null,stopping=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,desiredSymbols=[];
 const server=http.createServer((req,res)=>{
  if(req.url==="/healthz"){const healthy=state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0);res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
@@ -113,6 +113,8 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   lastSignal.set(wanted.instrument,key);state.signals++;state.lastSignalAt=new Date().toISOString();
  }
  for(const item of wanted.sessions.filter(x=>x.entryEnabled)){
+  if(lastEntryAttempt.get(item.session.id)===candleEpoch)continue;
+  lastEntryAttempt.set(item.session.id,candleEpoch);
   try{
    const conversion=await getDerivQuoteToUsd(wanted.instrument,tick);
    const opened=await openScalpingPaperPosition({db,session:item.session,preference:item.preference,signal:{...result,instrument:wanted.instrument},tick,candleEpoch,quoteToUsd:conversion.rate,now:Date.now()});
