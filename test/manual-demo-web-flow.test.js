@@ -74,3 +74,18 @@ test("dashboard keeps website DEMO trading separate and links to the standalone 
   assert.match(shop, /STANDALONE EXPERT ADVISOR/);
   assert.match(shop, /Purchases and M-Pesa checkout remain disabled/);
 });
+
+
+test("Deriv connection restores the verified DEMO account picker without allowing REAL selection", async () => {
+  const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const accounts = await readFile(new URL("../handlers/deriv/accounts.js", import.meta.url), "utf8");
+  const select = await readFile(new URL("../handlers/deriv/select-account.js", import.meta.url), "utf8");
+  assert.match(page, /id="derivAccountPicker"/);
+  assert.match(page, /id="derivDemoAccountSelect"/);
+  assert.match(page, /id="saveDerivDemoAccount"/);
+  assert.match(page, /fetch\("\/api\/deriv\/accounts"/);
+  assert.match(page, /fetch\("\/api\/deriv\/select-account"/);
+  assert.match(page, /account_type.*demo/);
+  assert.match(accounts, /real_trading_enabled: false/);
+  assert.match(select, /Only a verified active DEMO account can be selected/);
+});
