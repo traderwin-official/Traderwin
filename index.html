@@ -225,7 +225,10 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <button type="button" id="enableDemoScalping">Enable DEMO Scalping Feed</button>
    <button type="button" id="disableDemoScalping" class="secondary" disabled>Disable Scalping</button>
    <button type="button" id="refreshDemoScalping" class="secondary">Refresh Scalping Status</button>
-   <p class="muted" id="demoScalpingMessage" role="status" aria-live="polite">Maximum risk profile when paper execution is introduced: 0.25% per trade, 1% daily loss, one open position. These limits do not authorize execution.</p>
+   <p class="status" id="demoScalpingPaperStatus">Automatic DEMO paper trading: OFF</p>
+   <button type="button" id="enableDemoScalpingPaper" disabled>Enable Automatic DEMO Paper Trading</button>
+   <button type="button" id="disableDemoScalpingPaper" class="secondary" disabled>Pause Automatic Paper Trading</button>
+   <p class="muted" id="demoScalpingMessage" role="status" aria-live="polite">Feed access is read-only. Automatic paper trading is a separate opt-in, uses virtual DEMO balances only, and is capped at 0.25% risk per trade, 1% daily loss and one open position. No Deriv broker orders or REAL trades are sent.</p>
    <div class="live-feed" id="demoScalpingFeed" aria-live="polite">
     <div class="live-feed-head"><h4>Scalping Live Feed</h4><span class="live-feed-status" id="demoScalpingFeedStatus">Feed is off</span></div>
     <div class="live-feed-price" id="demoScalpingFeedPrice">Waiting for verified quote</div>
