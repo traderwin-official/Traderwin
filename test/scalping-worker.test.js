@@ -17,7 +17,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/openScalpingPaperPosition/);
  assert.match(s,/manageScalpingPaperPosition/);
  assert.match(s,/getDerivQuoteToUsd/);
- assert.match(s,/refreshOpenTrades/);
+ assert.match(s,/refreshOpenTrades/);\n assert.match(s,/claim_traderwin_scalping_worker/);\n assert.match(s,/release_traderwin_scalping_worker/);\n assert.match(s,/manageOpen/);
  assert.match(s,/TIGER_SCHEME_QUANTUM_SCALPING/);
  assert.doesNotMatch(s,/proposal_open_contract|buy\s*\(|sell\s*\(/i);
 });
@@ -35,7 +35,7 @@ test("scalping execution guard keeps DEMO risk, daily loss, position and candle 
  assert.match(sql,/max_daily_loss_pct,1\.00/);
  assert.match(sql,/max_open_positions <> 1/);
  assert.match(sql,/last_candle_as_of/);
- assert.match(sql,/SCALPING_ONE_OPEN_POSITION_LIMIT/);
+ assert.match(sql,/SCALPING_ONE_OPEN_POSITION_LIMIT/);\n assert.match(sql,/guard_scalping_single_open_position/);\n assert.match(sql,/scalping_worker_leases/);\n assert.match(sql,/claim_traderwin_scalping_worker/);
  assert.match(sql,/to service_role/);
  assert.match(sql,/from public, anon, authenticated/);
 });
