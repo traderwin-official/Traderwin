@@ -16,12 +16,12 @@ Expose the generated Railway domain on port 8080. Configure a health check at `/
 
 The worker opens a paper position only for a session that:
 - belongs to the user's own Deriv DEMO paper ledger;
-- is RUNNING and explicitly opted in through the private `demo_scalping_preferences` row;
+- is RUNNING and has both feed access (`enabled`) and a separate explicit automatic paper-trading opt-in (`paper_execution_enabled`) in the private `demo_scalping_preferences` row;
 - has `account_mode: "DEMO"` and a supported paper-only execution setting in its server-side `config_snapshot`;
 - uses an active, explicitly approved Deriv instrument;
 - has fresh, timestamped Deriv bid and ask values and a fresh quote-currency-to-USD conversion.
 
-A disabled preference blocks new entries. Existing scalping BOT positions remain subscribed and managed to their stop or staged targets even if the user disables new entries or pauses the session.
+Enabling the feed alone never opens a position; `paper_execution_enabled` defaults to false and must be explicitly enabled from the dashboard. Either disabled flag blocks new entries. Existing scalping BOT positions remain subscribed and managed to their stop or staged targets even if the user disables new entries or pauses the session.
 
 ## Strategy and execution
 
