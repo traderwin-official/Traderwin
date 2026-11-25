@@ -1,4 +1,5 @@
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { analyseScalping, mergeCompletedM5 } from "./lib/scalping-engine.js";
 import { getDerivQuoteToUsd } from "./lib/usd-conversion.js";
@@ -12,7 +13,8 @@ const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
-let socket=null,stopping=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,desiredSymbols=[];
+let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,desiredSymbols=[];
+const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
  if(req.url==="/healthz"){const healthy=state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0);res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
  res.writeHead(404);res.end();
@@ -191,11 +193,23 @@ async function subscribeSet(desired){
 }
 function validCandle(c){return c&&[c.epoch,c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.epoch>0&&c.low>0&&c.high>=c.low&&c.open>=c.low&&c.open<=c.high&&c.close>=c.low&&c.close<=c.high;}
 function scheduleReconnect(){if(stopping||reconnectTimer)return;reconnectTimer=setTimeout(()=>{reconnectTimer=null;reconcile().catch(logError);},retry);retry=Math.min(retry*2,30000);}
-async function reconcile(){if(stopping)return;try{const desired=await eligibleSymbols();await subscribeSet(desired);state.lastError=null;}catch(e){logError(e);scheduleReconnect();}}
+async function reconcile(){
+ if(stopping)return;
+ try{
+  const {data:claimed,error:leaseError}=await db.rpc("claim_traderwin_scalping_worker",{p_lease_token:leaseToken,p_lease_seconds:90});
+  if(leaseError)throw leaseError;
+  leaseOwned=claimed===true;
+  if(!leaseOwned){closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
+  const desired=await eligibleSymbols();await subscribeSet(desired);state.lastError=null;
+ }catch(e){logError(e);scheduleReconnect();}
+}
 server.listen(PORT,()=>console.log("Young Tiger continuous DEMO scalping paper worker listening on",PORT));
 reconcile().catch(logError);
 reconcileTimer=setInterval(()=>reconcile().catch(logError),10000);
 refreshOpenTrades().catch(logError);
 tradeRefreshTimer=setInterval(()=>refreshOpenTrades().catch(logError),1000);
-function shutdown(){stopping=true;clearInterval(reconcileTimer);clearInterval(tradeRefreshTimer);if(reconnectTimer)clearTimeout(reconnectTimer);closeSocket();server.close();}
+function shutdown(){
+ stopping=true;clearInterval(reconcileTimer);clearInterval(tradeRefreshTimer);if(reconnectTimer)clearTimeout(reconnectTimer);closeSocket();server.close();
+ if(leaseOwned)db.rpc("release_traderwin_scalping_worker",{p_lease_token:leaseToken}).catch(logError);
+}
 process.on("SIGTERM",shutdown);process.on("SIGINT",shutdown);
