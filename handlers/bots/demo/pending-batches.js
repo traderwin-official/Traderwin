@@ -3,6 +3,7 @@ import { validatePaperSetup, calculatePaperPosition } from "../../../lib/demo-ri
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
 import { getDerivQuoteToUsd } from "../../../lib/usd-conversion.js";
 import { loadApprovedInstrument } from "../../../lib/deriv/load-approved-instrument.js";
+import { detectDemoPendingEntryType } from "../../../lib/demo-pending-entry-type.js";
 
 const num = value => { const n=Number(value); return Number.isFinite(n)?n:NaN; };
 const normalise = value => String(value||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
@@ -87,13 +88,7 @@ export default async function handler(req,res){
    conversion=await getDerivQuoteToUsd(symbol,quote);
   }catch(e){return res.status(503).json({error:e.message||"Verified market quote or USD conversion unavailable."});}
 
-  const detectEntryType=currentQuote=>{
-   const price=Number(currentQuote);
-   if(!Number.isFinite(price)||price<=0||price===entry)return null;
-   if(direction==="BUY")return price>entry?"LIMIT":"STOP";
-   return price<entry?"LIMIT":"STOP";
-  };
-  let entryType=detectEntryType(quote.quote);
+  let entryType=detectDemoPendingEntryType(direction,quote.quote,entry);
   if(!entryType)return res.status(409).json({error:"Market is exactly at your planned entry or the quote is invalid. Choose a different entry price.",currentPrice:Number(quote.quote)});
 
   const riskPct=Math.min(Number(profile.max_risk_per_trade_pct),Number(session.risk_per_trade_pct));
@@ -114,7 +109,7 @@ export default async function handler(req,res){
    conversion=await getDerivQuoteToUsd(symbol,quote);
    await checkEmergency();
   }catch(e){return res.status(503).json({error:e.message||"Final entry checks could not be completed."});}
-  entryType=detectEntryType(quote.quote);
+  entryType=detectDemoPendingEntryType(direction,quote.quote,entry);
   if(!entryType)return res.status(409).json({error:"Market reached your planned entry during submission. No batch was created; review the new market price.",currentPrice:Number(quote.quote)});
 
   sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry,stop,quoteToUsd:conversion.rate});
