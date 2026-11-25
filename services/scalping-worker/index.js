@@ -8,7 +8,7 @@ import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/sc
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const SCALPING_STRATEGY="TIGER_SCHEME_QUANTUM_SCALPING";
-const norm=v=>String(v||"").trim().toUpperCase().replace(/[\\s/.-]/g,"");
+const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
