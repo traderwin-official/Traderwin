@@ -3,7 +3,8 @@
 -- changing legacy sessions, manual positions, or any REAL account path.
 
 alter table public.demo_scalping_preferences
-  add column if not exists last_candle_as_of timestamptz;
+  add column if not exists last_candle_as_of timestamptz,
+  add column if not exists paper_execution_enabled boolean not null default false;
 
 create or replace function public.open_demo_scalping_paper_trade(
   p_user_id uuid,
@@ -85,6 +86,7 @@ begin
    where session_id = p_session_id and user_id = p_user_id
    for update;
   if not found or v_preference.enabled is not true
+     or v_preference.paper_execution_enabled is not true
      or v_preference.account_mode <> 'DEMO'
      or v_preference.execution <> 'WEBSITE_PAPER_ONLY'
      or v_preference.max_risk_per_trade_pct > 0.25
