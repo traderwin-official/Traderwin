@@ -16,10 +16,14 @@ const server=http.createServer((req,res)=>{
 });
 function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.error("scalping-worker:",state.lastError);}
 async function eligibleSymbols(){
- const {data:sessions,error}=await db.from("demo_paper_sessions").select("id,user_id,instrument,broker,status,config_snapshot").eq("broker","DERIV").eq("status","RUNNING").limit(200);
+ const {data:sessions,error}=await db.from("demo_paper_sessions").select("id,user_id,instrument,broker,status").eq("broker","DERIV").eq("status","RUNNING").limit(200);
  if(error)throw error;
- const wanted=new Set();
- for(const s of sessions||[]){const c=s.config_snapshot&&typeof s.config_snapshot==="object"?s.config_snapshot:{};if(c.account_mode==="DEMO"&&c.execution==="WEBSITE_PAPER_ONLY"&&c.scalping_enabled===true&&s.instrument)wanted.add(norm(s.instrument));}
+ const candidates=(sessions||[]).filter(s=>s.instrument);
+ if(!candidates.length)return [];
+ const {data:preferences,error:preferenceError}=await db.from("demo_scalping_preferences").select("session_id,user_id,enabled,account_mode,execution").in("session_id",candidates.map(s=>s.id)).eq("enabled",true).eq("account_mode","DEMO").eq("execution","WEBSITE_PAPER_ONLY");
+ if(preferenceError)throw preferenceError;
+ const opted=new Set((preferences||[]).filter(p=>candidates.some(s=>s.id===p.session_id&&s.user_id===p.user_id)).map(p=>p.session_id));
+ const wanted=new Set(candidates.filter(s=>opted.has(s.id)).map(s=>norm(s.instrument)));
  if(!wanted.size)return [];
  const {data:approved,error:approvalError}=await db.from("trading_instrument_approvals").select("instrument,provider_symbol,status,is_active").eq("broker","DERIV").eq("status","APPROVED").eq("is_active",true).in("instrument",[...wanted]);
  if(approvalError)throw approvalError;
