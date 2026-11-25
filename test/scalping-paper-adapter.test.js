@@ -4,7 +4,7 @@ import {openScalpingPaperPosition,manageScalpingPaperPosition} from "../lib/scal
 
 const session={id:"session-1",user_id:"user-1",broker:"DERIV",status:"RUNNING",instrument:"XAUUSD",current_balance:10000,risk_per_trade_pct:0.5,
  config_snapshot:{account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY"}};
-const preference={enabled:true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",max_risk_per_trade_pct:0.25,max_daily_loss_pct:1,max_open_positions:1};
+const preference={enabled:true,paper_execution_enabled:true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",max_risk_per_trade_pct:0.25,max_daily_loss_pct:1,max_open_positions:1};
 const now=Date.now();
 const tick={source:"DERIV",instrument:"XAUUSD",bid:2000,ask:2000.1,quoteAsOf:new Date(now).toISOString(),receivedAt:new Date(now).toISOString()};
 const signal={instrument:"XAUUSD",direction:"BUY",entry:2000.1,stopLoss:1990,takeProfit:2016};
@@ -76,4 +76,12 @@ test("paper adapter respects a stricter saved session risk ceiling",async()=>{
  assert.equal(result.ok,true);
  assert.ok(args.p_risk_pct<=0.1);
  assert.ok(args.p_risk_amount<=10);
+});
+
+test("paper adapter refuses automatic entries unless the separate paper-execution switch is enabled",async()=>{
+ let called=false;
+ const db={rpc:async()=>{called=true;return {data:{ok:true},error:null};}};
+ const feedOnly=await openScalpingPaperPosition({db,session,preference:{...preference,paper_execution_enabled:false},signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
+ assert.equal(feedOnly.reason,"SCALPING_DEMO_OPT_IN_REQUIRED");
+ assert.equal(called,false);
 });
