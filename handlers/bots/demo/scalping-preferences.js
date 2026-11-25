@@ -55,6 +55,10 @@ export default async function handler(req,res){
    .eq("status","APPROVED").eq("is_active",true).limit(2);
   if(approvalError)return res.status(503).json({error:"Could not verify the instrument approval."});
   if(!approval||approval.length!==1||!approval[0].provider_symbol)return res.status(403).json({error:"This instrument is not currently approved for the DEMO scalping feed."});
+  const {error:sessionLimitError}=await db.from("demo_paper_sessions")
+   .update({max_open_positions:15,updated_at:new Date().toISOString()})
+   .eq("id",session.id).eq("user_id",userId);
+  if(sessionLimitError)return res.status(503).json({error:"Could not safely raise the DEMO session position cap."});
   const now=new Date().toISOString();
   const {error:saveError}=await db.from("demo_scalping_preferences").upsert({
    session_id:session.id,user_id:userId,enabled:true,paper_execution_enabled:action==="ENABLE_PAPER_EXECUTION"?true:current?.paper_execution_enabled===true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",
