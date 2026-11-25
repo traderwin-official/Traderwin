@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {analyseScalping} from "../lib/scalping-engine.js";
+import {analyseScalping, mergeCompletedM5} from "../lib/scalping-engine.js";
 const now=Date.now();
 function candles({trend="up",count=60}={}){
  let price=2000;const rows=[];
@@ -47,4 +47,26 @@ test("scalping engine confirms a BUY only on M1 breakout with aligned M5 trend",
  assert.equal(result.direction,"BUY");
  assert.ok(result.stopLoss<result.entry);
  assert.ok(result.takeProfit>result.entry);
+});
+
+test("M5 merger reconstructs only complete contiguous five-minute candles",()=>{
+ const base=Math.floor((now/1000)/300)*300;
+ const m1=Array.from({length:10},(_,i)=>{
+  const open=2000+i,close=open+0.5;
+  return {epoch:base+i*60,open,high:close+0.2,low:open-0.2,close};
+ });
+ const result=mergeCompletedM5([],m1);
+ assert.equal(result.length,2);
+ assert.equal(result[0].epoch,base);
+ assert.equal(result[0].open,2000);
+ assert.equal(result[0].close,2004.5);
+ assert.equal(result[1].epoch,base+300);
+});
+test("M5 merger rejects groups with a missing or duplicated M1 minute and preserves provider history",()=>{
+ const base=Math.floor((now/1000)/300)*300;
+ const provider=[{epoch:base-300,open:100,high:103,low:99,close:102}];
+ const m1=Array.from({length:5},(_,i)=>({epoch:base+i*60,open:2000+i,high:2001+i,low:1999+i,close:2000.5+i})).filter((_,i)=>i!==2);
+ m1.push({...m1[1]});
+ const result=mergeCompletedM5(provider,m1);
+ assert.deepEqual(result,[provider[0]]);
 });
