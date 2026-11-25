@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {analyseScalping, mergeCompletedM5} from "../lib/scalping-engine.js";
+import {analyseScalping, mergeCompletedM5, fibonacciBands} from "../lib/scalping-engine.js";
 const now=Date.now();
 function candles({trend="up",count=60}={}){
  let price=2000;const rows=[];
@@ -69,4 +69,23 @@ test("M5 merger rejects groups with a missing or duplicated M1 minute and preser
  m1.push({...m1[1]});
  const result=mergeCompletedM5(provider,m1);
  assert.deepEqual(result,[provider[0]]);
+});
+
+test("Fibonacci scalping bands use the completed M1 swing range",()=>{
+ const rows=Array.from({length:60},(_,i)=>({epoch:1000+i*60,open:100+i,high:100+i,low:90+i,close:95+i}));
+ const fib=fibonacciBands(rows);
+ assert.equal(fib.swingHigh,159);
+ assert.equal(fib.swingLow,90);
+ assert.equal(fib.range,69);
+ assert.ok(Math.abs(fib.retracement618-(159-69*0.618))<1e-9);
+ assert.ok(Math.abs(fib.extension1272Up-(159+69*0.272))<1e-9);
+ assert.ok(Math.abs(fib.extension1618Down-(90-69*0.618))<1e-9);
+});
+test("scalping WAIT diagnostics include Fibonacci retracement and extension bands",()=>{
+ const c=candles();
+ const t=tick("BUY",c.at(-1).close);
+ const result=analyseScalping({instrument:"XAUUSD",candles:c,tick:t,now});
+ assert.equal(result.direction,"WAIT");
+ assert.ok(result.indicators.fibonacci);
+ assert.ok(result.indicators.fibonacci.retracement618>result.indicators.fibonacci.swingLow);
 });
