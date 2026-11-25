@@ -116,3 +116,15 @@ test("scalping WAIT diagnostics expose price-action structure context",()=>{
  assert.ok(result.indicators.marketStructure);
  assert.ok(Object.hasOwn(result.indicators.marketStructure,"liquiditySweep"));
 });
+
+test("market structure identifies a bearish CHOCH after higher highs and higher lows",()=>{
+ const highs=[10,11,12,11,10,11,12,11,10,12,13,12,11,13,14,13,12,11,10];
+ const rows=highs.map((high,i)=>{
+  const low=high-2,open=high-1;
+  const close=i===17?10.5:i===18?8.5:(i%2===0?high-0.4:high-1.4);
+  return {epoch:2000+i*60,open,high,low,close};
+ });
+ const context=marketStructureContext(rows);
+ assert.equal(context.bosDirection,"SELL");
+ assert.equal(context.chochDirection,"SELL");
+});
