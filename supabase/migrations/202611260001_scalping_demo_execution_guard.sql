@@ -59,10 +59,10 @@ begin
   end if;
 
   if not (
-    (p_side = 'BUY' and p_stop < p_entry and p_entry < p_tp1 and p_tp1 < p_tp2 and p_tp2 = p_tp3
+    (p_side = 'BUY' and p_stop < p_entry and p_entry < p_tp1 and p_tp1 < p_tp2 and p_tp2 < p_tp3
       and p_target = p_tp3)
     or
-    (p_side = 'SELL' and p_stop > p_entry and p_entry > p_tp1 and p_tp1 > p_tp2 and p_tp2 = p_tp3
+    (p_side = 'SELL' and p_stop > p_entry and p_entry > p_tp1 and p_tp1 > p_tp2 and p_tp2 > p_tp3
       and p_target = p_tp3)
   ) then
     raise exception 'Invalid scalping stop or staged target order';
