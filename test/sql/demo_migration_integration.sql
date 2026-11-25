@@ -253,7 +253,7 @@ begin
   begin
     select public.open_demo_paper_trade(
       v_scalping_user,v_scalping_session,'EURUSD','SELL',1.10000,1.11000,1.07000,
-      10000,10,0.10,1,'DERIV',now(),'MANUAL'
+      1000,10,0.10,1,'DERIV',now(),'MANUAL'
     ) into v_result;
     raise exception 'Expected the single-open-position trigger to reject a manual entry';
   exception when others then
