@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {analyseScalping, mergeCompletedM5, fibonacciBands} from "../lib/scalping-engine.js";
+import {analyseScalping, mergeCompletedM5, fibonacciBands, marketStructureContext} from "../lib/scalping-engine.js";
 const now=Date.now();
 function candles({trend="up",count=60}={}){
  let price=2000;const rows=[];
@@ -93,4 +93,26 @@ test("scalping WAIT diagnostics include Fibonacci retracement and extension band
 test("scalping instrument normalization removes spaces, slashes and separators",()=>{
  const result=analyseScalping({instrument:"XAU USD",candles:candles(),tick:tick(),now});
  assert.notEqual(result.reason,"VERIFIED_TICK_REQUIRED");
+});
+
+test("market structure reports confirmed swing levels, BOS, CHOCH and order-block candidates",()=>{
+ const highs=[10,11,12,11,10,9,10,11,12,11,10,9,10,11,15,14,17];
+ const rows=highs.map((high,i)=>{
+  const low=high-2,open=high-1,close=i===16?high-0.5:(i%2===0?high-0.4:high-1.4);
+  return {epoch:1000+i*60,open,high,low,close};
+ });
+ const context=marketStructureContext(rows);
+ assert.equal(context.latestSwingHigh,15);
+ assert.equal(context.bosDirection,"BUY");
+ assert.equal(context.support,7);
+ assert.ok(context.orderBlockCandidate);
+ assert.equal(context.orderBlockCandidate.side,"BUY");
+});
+
+test("scalping WAIT diagnostics expose price-action structure context",()=>{
+ const c=candles(),t=tick("BUY",c.at(-1).close);
+ const result=analyseScalping({instrument:"XAUUSD",candles:c,tick:t,now});
+ assert.equal(result.direction,"WAIT");
+ assert.ok(result.indicators.marketStructure);
+ assert.ok(Object.hasOwn(result.indicators.marketStructure,"liquiditySweep"));
 });
