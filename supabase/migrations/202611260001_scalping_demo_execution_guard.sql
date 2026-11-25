@@ -51,7 +51,7 @@ begin
      or p_quantity is null or p_quantity <= 0
      or p_risk_amount is null or p_risk_amount <= 0
      or p_risk_pct is null or p_risk_pct <= 0 or p_risk_pct > 0.25
-     or p_quote_to_usd is null or p_quote_to_usd <= 0
+     or p_quote_to_usd is null or p_quote_to_usd <= 0 or p_quote_to_usd > 1000000
      or p_quote_as_of is null or p_quote_as_of > now()
      or p_quote_as_of < now() - interval '30 seconds'
      or p_candle_as_of is null or p_candle_as_of > now()
@@ -67,6 +67,13 @@ begin
       and p_target = p_tp3)
   ) then
     raise exception 'Invalid scalping stop or staged target order';
+  end if;
+
+  if abs(p_target-p_entry) / abs(p_entry-p_stop) < 1.5
+     or abs(p_target-p_entry) / abs(p_entry-p_stop) > 3.0
+     or abs(abs(p_tp1-p_entry) / abs(p_entry-p_stop) - 0.75) > 0.01
+     or abs(abs(p_tp2-p_entry) / abs(p_entry-p_stop) - 1.10) > 0.01 then
+    raise exception 'Scalping target ladder must follow the approved 0.75R, 1.1R and 1.5R-3R plan';
   end if;
 
   select * into v_session
@@ -107,7 +114,9 @@ begin
   end if;
 
   if p_risk_pct > v_preference.max_risk_per_trade_pct
+     or v_session.current_balance <= 0
      or p_risk_amount > v_session.current_balance * v_preference.max_risk_per_trade_pct / 100
+     or abs(p_risk_pct - (p_risk_amount / v_session.current_balance * 100)) > 0.001
      or abs(p_risk_amount - abs(p_entry - p_stop) * p_quantity * p_quote_to_usd) > 0.02 then
     raise exception 'Scalping DEMO position exceeds the approved risk budget';
   end if;
