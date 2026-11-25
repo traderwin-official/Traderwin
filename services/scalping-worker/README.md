@@ -28,7 +28,7 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - M1 is the fast entry timeframe; completed M5 candles confirm direction.
 - The strategy uses EMA9/EMA21, RSI14, ATR/spread filters, momentum breakout and Fibonacci context.
 - Conflicting or incomplete conditions return WAIT.
-- The server-side entry RPC enforces one open DEMO position per user, candle idempotency, no more than 0.25% risk per trade and a 1% daily-loss cap.
+- The server-side entry RPC permits up to 15 concurrent DEMO paper positions, blocks duplicate M1-candle entries, caps each position at 0.25%, and limits combined open stop-risk to 1% of starting equity. The daily realized-loss cap is also 1%.
 - Position size uses the verified USD value of the instrument's quote currency. Unsupported or stale conversions fail closed.
 - Paper positions use staged exits: TP1 0.75R, TP2 1.1R, TP3 at the engine's 1.5R–3R target, with the existing 40/30/30 staged-close ledger and stop-loss.
 - Exit decisions use the correct side of the spread: bid for BUY positions and ask for SELL positions. Missing bid/ask or stale quotes never trigger an exit.
@@ -39,7 +39,7 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - One persistent Deriv public WebSocket connection subscribes to approved symbols.
 - M1/M5 history is warmed up before a symbol becomes ready.
 - Latest ticks and signal candidates are persisted to private Supabase tables.
-- Open scalping positions are refreshed from the private paper ledger and managed from the same tick stream.
+- Open scalping positions are refreshed without replacing in-flight trade state and managed concurrently from the same tick stream; each position can take profit or stop out independently while the others remain open.
 - `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error.
 
 ## Safety and rollout
