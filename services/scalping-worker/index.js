@@ -56,9 +56,9 @@ async function eligibleSymbols(){
  const wantedByInstrument=new Map();
  for(const session of allSessions){
   const config=session.config_snapshot&&typeof session.config_snapshot==="object"?session.config_snapshot:{};
-  if(session.broker!=="DERIV"||!session.instrument||config.account_mode!=="DEMO")continue;
+  if(session.broker!=="DERIV"||!session.instrument)continue;
   const preference=preferenceBySession.get(session.id)||null;
-  const entryEnabled=session.status==="RUNNING"&&preference?.enabled===true&&preference.paper_execution_enabled===true&&preference.account_mode==="DEMO"&&profileByUser.get(session.user_id)?.account_mode==="DEMO"&&preference.execution==="WEBSITE_PAPER_ONLY";
+  const entryEnabled=config.account_mode==="DEMO"&&session.status==="RUNNING"&&preference?.enabled===true&&preference.paper_execution_enabled===true&&preference.account_mode==="DEMO"&&profileByUser.get(session.user_id)?.account_mode==="DEMO"&&preference.execution==="WEBSITE_PAPER_ONLY";
   const manageOpen=openSessionSet.has(session.id);
   if(!entryEnabled&&!manageOpen)continue;
   const instrument=norm(session.instrument);
@@ -131,7 +131,15 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   try{
    const conversion=await getDerivQuoteToUsd(wanted.instrument,tick);
    const opened=await openScalpingPaperPosition({db,session:item.session,preference:item.preference,signal:{...result,instrument:wanted.instrument},tick,candleEpoch,quoteToUsd:conversion.rate,now:Date.now()});
-   if(opened?.ok===true){state.paperEntries++;state.lastPaperEntryAt=new Date().toISOString();state.lastEntryReason=null;}
+   if(opened?.ok===true){
+    state.paperEntries++;state.lastPaperEntryAt=new Date().toISOString();state.lastEntryReason=null;
+    if(opened.trade_id){
+     const {data:trade,error:tradeLoadError}=await db.from("demo_paper_trades")
+      .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
+      .eq("id",opened.trade_id).maybeSingle();
+     if(tradeLoadError)logError(tradeLoadError);else if(trade?.status==="OPEN")activeTrades.set(trade.id,trade);
+    }
+   }
    else state.lastEntryReason=opened?.reason||"SCALPING_ENTRY_NOT_ACCEPTED";
   }catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);}
  }
