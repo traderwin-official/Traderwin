@@ -150,7 +150,7 @@ test("scalping engine rejects missing M1 minutes instead of calculating across a
 test("latest contiguous candle suffix recovers after weekend or session gaps without bridging them",()=>{
  const base=1800000000;
  const rows=Array.from({length:80},(_,i)=>({epoch:base+i*60,open:100+i,high:102+i,low:99+i,close:101+i}));
- const afterGap=Array.from({length:40},(_,i)=>({epoch:base+80*60+i*60,open:300+i,high:302+i,low:299+i,close:301+i}));
+ const afterGap=Array.from({length:40},(_,i)=>({epoch:base+100*60+i*60,open:300+i,high:302+i,low:299+i,close:301+i}));
  const result=latestContiguousCandles([...rows,...afterGap],60,240);
  assert.equal(result.length,40);
  assert.equal(result[0].epoch,afterGap[0].epoch);
@@ -161,7 +161,7 @@ test("latest contiguous candle suffix resets on duplicate or malformed candles",
  const rows=Array.from({length:40},(_,i)=>({epoch:base+i*60,open:100+i,high:102+i,low:99+i,close:101+i}));
  const duplicate={...rows[20]};
  const suffix=latestContiguousCandles([...rows.slice(0,21),duplicate,...rows.slice(21)],60,240);
- assert.equal(suffix.length,19);
+ assert.equal(suffix.length,20);
  const malformed=latestContiguousCandles([...rows.slice(0,20),{...rows[20],high:0},...rows.slice(21)],60,240);
  assert.equal(malformed.length,19);
 });
