@@ -25,7 +25,7 @@ async function eligibleSymbols(){
  const {data:runningSessions,error:sessionError}=await db.from("demo_paper_sessions")
   .select("id,user_id,instrument,broker,status,current_balance,risk_per_trade_pct,config_snapshot")
   .eq("broker","DERIV").eq("status","RUNNING").limit(200);
- if(sessionError)throw sessionError;
+ if(sessionError)logError(sessionError);
  const {data:openRows,error:tradeError}=await db.from("demo_paper_trades")
   .select("id,user_id,session_id,instrument,metadata")
   .eq("status","OPEN").eq("trade_origin","BOT")
@@ -46,11 +46,11 @@ async function eligibleSymbols(){
  const {data:preferences,error:preferenceError}=await db.from("demo_scalping_preferences")
   .select("session_id,user_id,enabled,paper_execution_enabled,account_mode,execution,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions")
   .in("session_id",allSessions.map(s=>s.id));
- if(preferenceError)throw preferenceError;
+ if(preferenceError)logError(preferenceError);
  const preferenceBySession=new Map((preferences||[]).filter(p=>allSessions.some(s=>s.id===p.session_id&&s.user_id===p.user_id)).map(p=>[p.session_id,p]));
  const {data:profiles,error:profileError}=await db.from("trader_profiles")
   .select("user_id,account_mode").in("user_id",[...new Set(allSessions.map(s=>s.user_id))]);
- if(profileError)throw profileError;
+ if(profileError)logError(profileError);
  const profileByUser=new Map((profiles||[]).map(p=>[p.user_id,p]));
  const openSessionSet=new Set(openSessionIds);
  const wantedByInstrument=new Map();
