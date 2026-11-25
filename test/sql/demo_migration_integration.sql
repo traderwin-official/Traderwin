@@ -198,7 +198,7 @@ begin
     max_open_positions,max_total_open_risk_pct,config_snapshot
   ) values (
     v_scalping_user,'DERIV','DEMO:'||v_scalping_user,'EURUSD','TIGER_SCHEME_QUANTUM_SCALPING','M15','RUNNING',
-    10000,10000,0.50,2.00,3,5.00,
+    10000,10000,0.50,2.00,15,5.00,
     jsonb_build_object('account_mode','DEMO','execution','WEBSITE_PAPER_ONLY')
   ) returning id into v_scalping_session;
 
