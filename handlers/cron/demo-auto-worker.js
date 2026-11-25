@@ -286,6 +286,43 @@ export default async function handler(req,res){
    portfolioProtection=await portfolioPromise;
    manualBracketExits=await processManualDemoBracketExits(db);
    pendingManualBatches=await processPendingManualEntryBatches(db);
+
+   // Manual website sessions are intentionally excluded from the single-BOT
+   // strategy loop above, but the scheduled worker still checks their pending
+   // entry batches and permission-gated manual exits. Record a heartbeat for
+   // those sessions too, so the dashboard does not report a stale worker.
+   const manualTick=new Date().toISOString();
+   const {data:manualSessions,error:manualSessionError}=await db.from("demo_paper_sessions")
+    .select("id,user_id").eq("strategy","MANUAL")
+    .in("status",["RUNNING","PAUSED","RISK_LOCKED"])
+    .order("updated_at",{ascending:true}).limit(100);
+   if(manualSessionError){
+    console.error("Manual DEMO heartbeat queue:",manualSessionError.message);
+   }else if((manualSessions||[]).length){
+    const batchIds=(pendingManualBatches.results||[]).map(r=>r.batchId).filter(Boolean);
+    let batchSessionById=new Map();
+    if(batchIds.length){
+     const {data:batchRefs,error:batchRefError}=await db.from("demo_manual_entry_batches")
+      .select("id,session_id").in("id",batchIds);
+     if(batchRefError)console.error("Manual DEMO heartbeat batch lookup:",batchRefError.message);
+     else batchSessionById=new Map((batchRefs||[]).map(b=>[b.id,b.session_id]));
+    }
+    const manualBeats=(manualSessions||[]).map(session=>{
+     const result=(pendingManualBatches.results||[]).find(r=>batchSessionById.get(r.batchId)===session.id);
+     const action=result?.action||(pendingManualBatches.error?"ERROR":"CHECK");
+     const reason=result?.reason||pendingManualBatches.error||(pendingManualBatches.processed>0?"PENDING_BATCHES_CHECKED":"NO_PENDING_BATCHES");
+     return {
+      session_id:session.id,user_id:session.user_id,last_tick_at:manualTick,
+      last_action:action,last_reason:reason,
+      last_error:["ERROR","BLOCKED"].includes(action)?(result?.reason||pendingManualBatches.error||reason):null,
+      updated_at:manualTick
+     };
+    });
+    const {error:manualBeatError}=await db.from("demo_paper_worker_heartbeats")
+     .upsert(manualBeats,{onConflict:"session_id"});
+    if(manualBeatError)console.error("Manual DEMO heartbeat write:",manualBeatError.message);
+   }
+
    const tick=new Date().toISOString();
    const beats=(sessions||[]).map(s=>{const r=results.find(x=>x.sessionId===s.id);return {session_id:s.id,user_id:s.user_id,last_tick_at:tick,last_action:r?.action||"UNKNOWN",last_reason:r?.reason||null,last_error:["ERROR","BLOCK"].includes(r?.action)?(r.detail||r.reason):null,updated_at:tick};});
    if(beats.length){const {error:e}=await db.from("demo_paper_worker_heartbeats").upsert(beats,{onConflict:"session_id"});if(e)console.error("DEMO heartbeat:",e.message);}
