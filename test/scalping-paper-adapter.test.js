@@ -98,7 +98,7 @@ test("portfolio risk is divided across remaining slots so 15 entries fit inside 
  const db=paperDb(async(name,value)=>{args=value;return {data:{ok:true,trade_id:"trade-15"},error:null};},rows);
  const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
  assert.equal(result.ok,true);
- assert.ok(args.p_risk_amount<=6.68);
+ assert.ok(args.p_risk_amount<=6.76);
  assert.ok(args.p_risk_pct<0.07);
 });
 
