@@ -262,7 +262,7 @@ begin
   select public.open_demo_scalping_paper_trade(
     v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
-    1,1,0.01,1,now(),now()-interval '15 seconds'
+    100,1,0.01,1,now(),now()-interval '15 seconds'
   ) into v_result;
   if v_result->>'reason' <> 'SCALPING_MAX_OPEN_POSITIONS' then
     raise exception 'Expected the 16th position to be blocked: %',v_result;
