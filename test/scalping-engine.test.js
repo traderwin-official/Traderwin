@@ -96,9 +96,9 @@ test("scalping instrument normalization removes spaces, slashes and separators",
 });
 
 test("market structure reports confirmed swing levels, BOS, CHOCH and order-block candidates",()=>{
- const highs=[10,11,12,11,10,9,10,11,12,11,10,9,10,11,15,14,17];
+ const highs=[10,11,12,11,10,9,10,11,12,11,10,9,10,11,15,14,13,14,16];
  const rows=highs.map((high,i)=>{
-  const low=high-2,open=high-1,close=i===16?high-0.5:(i%2===0?high-0.4:high-1.4);
+  const low=high-2,open=high-1,close=i===18?high-0.2:(i%2===0?high-0.4:high-1.4);
   return {epoch:1000+i*60,open,high,low,close};
  });
  const context=marketStructureContext(rows);
