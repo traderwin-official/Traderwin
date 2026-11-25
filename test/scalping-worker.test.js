@@ -56,6 +56,7 @@ test("scalping execution guard keeps DEMO risk, daily loss, position and candle 
  assert.match(sql,/p\.paper_execution_enabled = true/);
  assert.match(sql,/SCALPING_ONE_OPEN_POSITION_LIMIT/);
  assert.match(sql,/guard_scalping_single_open_position/);
+ assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(new\.user_id::text, 0\)\)/);
  assert.match(sql,/scalping_worker_leases/);
  assert.match(sql,/claim_traderwin_scalping_worker/);
  assert.match(sql,/to service_role/);
