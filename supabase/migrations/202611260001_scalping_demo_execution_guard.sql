@@ -209,8 +209,6 @@ begin
          and p.user_id = new.user_id
          and p.enabled = true
          and p.paper_execution_enabled = true
-         and exists (select 1 from public.trader_profiles profile
-                      where profile.user_id = p.user_id and profile.account_mode = 'DEMO')
     )
     or exists (
       select 1 from public.demo_paper_trades t
