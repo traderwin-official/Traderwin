@@ -9,6 +9,8 @@ test("scalping preference endpoint is authenticated, verified DEMO-only and boun
  assert.match(s,/broker_account_ref.*accountRef/);
  assert.match(s,/execution:\"WEBSITE_PAPER_ONLY\"/);
  assert.match(s,/max_risk_per_trade_pct:risk/);
+ assert.match(s,/max_open_positions:15/);
+ assert.match(s,/maxOpenPositions:15/);
  assert.match(s,/Math\.min\(Number\(profile\.max_risk_per_trade_pct\),0\.25\)/);
  assert.match(s,/demo_account_id/);
  assert.match(s,/account_type.*demo/);
