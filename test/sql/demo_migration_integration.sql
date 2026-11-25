@@ -290,16 +290,19 @@ begin
     raise exception 'Expected missing paper execution consent to block entries: %',v_result;
   end if;
 
-  -- The trigger must prevent a manual paper entry from bypassing the cap
-  -- while the already-open scalping position remains active.
+  -- Direct/manual inserts cannot bypass the active scalping-only entry gate.
   begin
-    select public.open_demo_paper_trade(
-      v_scalping_user,v_scalping_session,'EURUSD','SELL',1.10000,1.11000,1.07000,
-      1000,10,0.10,1,'DERIV',now(),'MANUAL'
-    ) into v_result;
-    raise exception 'Expected the single-open-position trigger to reject a manual entry';
+    insert into public.demo_paper_trades(
+      session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
+      quantity,remaining_quantity,risk_amount_usd,risk_pct,quote_to_usd,
+      quote_source,quote_as_of,trade_origin
+    ) values (
+      v_scalping_session,v_scalping_user,'EURUSD','SELL',1.10000,1.11000,1.07000,
+      1000,1000,10,0.10,1,'DERIV',now(),'MANUAL'
+    );
+    raise exception 'Expected active scalping to reject a new manual insert';
   exception when others then
-    if position('Scalping DEMO enforces one open position' in sqlerrm)=0 then
+    if position('SCALPING_ACTIVE_BOT_ONLY_NEW_ENTRIES' in sqlerrm)=0 then
       raise;
     end if;
   end;
