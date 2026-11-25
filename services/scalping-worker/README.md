@@ -17,7 +17,7 @@ Expose the generated Railway domain on port 8080. Configure a health check at `/
 The worker subscribes only to instruments belonging to a RUNNING DEMO Deriv session whose server-side `config_snapshot` contains all of:
 - `account_mode: "DEMO"`
 - `execution: "WEBSITE_PAPER_ONLY"`
-- `scalping_enabled: true`
+- a matching enabled row in the private `demo_scalping_preferences` table (session and user must match)
 
 The instrument must also be present in the active, approved Deriv instrument registry. No browser value, client quote, or unapproved symbol can activate a feed subscription.
 
