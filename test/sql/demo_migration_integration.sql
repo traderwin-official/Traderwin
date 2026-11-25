@@ -8,6 +8,7 @@ declare
   v_scalping_session uuid;
   v_scalping_trade uuid;
   v_scalping_trade_2 uuid;
+  v_trade_to_close uuid;
   v_session_risk uuid;
   v_session_count uuid;
   v_bot_trade_id uuid;
@@ -211,7 +212,7 @@ begin
   select public.open_demo_scalping_paper_trade(
     v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
-    2500,25,0.25,1,now(),now()-interval '1 minute'
+    666,6.66,0.0666,1,now(),now()-interval '1 minute'
   ) into v_result;
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected guarded scalping DEMO paper entry: %',v_result;
@@ -231,7 +232,7 @@ begin
   select public.open_demo_scalping_paper_trade(
     v_scalping_user,v_scalping_session,'EURUSD','SELL',
     1.10000,1.11000,1.08500,1.09250,1.08900,1.08500,
-    2500,25,0.25,1,now(),now()-interval '30 seconds'
+    666,6.66,0.0666,1,now(),now()-interval '30 seconds'
   ) into v_result;
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected a second concurrent scalping position: %',v_result;
@@ -241,6 +242,31 @@ begin
    where user_id=v_scalping_user and status='OPEN'
      and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING';
   if v_count <> 2 then raise exception 'Expected two simultaneous scalping positions, got %',v_count; end if;
+
+  -- Continue opening fresh M1 entries until the 15-position portfolio cap.
+  for i in 1..13 loop
+    select public.open_demo_scalping_paper_trade(
+      v_scalping_user,v_scalping_session,'EURUSD','BUY',
+      1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+      666,6.66,0.0666,1,now(),now()-interval '29 seconds'+make_interval(secs=>i)
+    ) into v_result;
+    if coalesce((v_result->>'ok')::boolean,false) is not true then
+      raise exception 'Expected scalping portfolio position % to open: %',i+2,v_result;
+    end if;
+  end loop;
+  select count(*) into v_count from public.demo_paper_trades
+   where user_id=v_scalping_user and status='OPEN'
+     and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING';
+  if v_count <> 15 then raise exception 'Expected 15 simultaneous scalping positions, got %',v_count; end if;
+
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    1,1,0.01,1,now(),now()-interval '15 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_MAX_OPEN_POSITIONS' then
+    raise exception 'Expected the 16th position to be blocked: %',v_result;
+  end if;
 
   update public.trader_profiles set account_mode='REAL' where user_id=v_scalping_user;
   select public.open_demo_scalping_paper_trade(
@@ -291,6 +317,20 @@ begin
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected second scalping DEMO paper position to close independently: %',v_result;
   end if;
+
+  -- Close every remaining trade independently; closing one must not affect peers.
+  for v_trade_to_close in
+    select id from public.demo_paper_trades
+     where user_id=v_scalping_user and status='OPEN'
+       and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING'
+  loop
+    select public.close_demo_paper_trade(
+      v_scalping_user,v_trade_to_close,1.10000,1,'DERIV',now(),'CI_SCALPING_PORTFOLIO_CLOSE'
+    ) into v_result;
+    if coalesce((v_result->>'ok')::boolean,false) is not true then
+      raise exception 'Expected concurrent scalping position % to close: %',v_trade_to_close,v_result;
+    end if;
+  end loop;
 
   -- A retry with the same request key must be idempotent and not realize P&L twice.
   select public.close_demo_portfolio_trade(
