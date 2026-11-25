@@ -166,7 +166,9 @@ begin
 
   -- Hard portfolio ceiling: all open trades combined may risk at most 1%
   -- of starting DEMO equity if every remaining stop is reached.
-  v_total_risk_limit := v_session.starting_balance * 0.01;
+  -- Reserve daily realized losses first; remaining open stop-risk plus this
+  -- entry must still fit inside the same 1% daily equity-loss budget.
+  v_total_risk_limit := greatest(0,v_session.starting_balance * 0.01 - v_daily_loss);
   if v_open_risk + p_risk_amount > v_total_risk_limit + 0.01 then
     return jsonb_build_object('ok',false,'reason','SCALPING_TOTAL_OPEN_RISK_LIMIT',
       'open_risk_usd',v_open_risk,'requested_risk_usd',p_risk_amount,
