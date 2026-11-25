@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-test("continuous worker is explicitly DEMO opt-in and read-only",async()=>{
+test("continuous worker executes only opted-in DEMO paper trades and never sends broker orders",async()=>{
  const s=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
  assert.match(s,/demo_scalping_preferences/);
  assert.match(s,/config_snapshot/);
