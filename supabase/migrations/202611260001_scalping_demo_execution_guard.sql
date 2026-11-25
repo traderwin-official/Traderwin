@@ -199,6 +199,7 @@ begin
        where p.session_id = new.session_id
          and p.user_id = new.user_id
          and p.enabled = true
+         and p.paper_execution_enabled = true
     )
     or exists (
       select 1 from public.demo_paper_trades t
