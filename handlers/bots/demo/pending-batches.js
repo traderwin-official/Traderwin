@@ -88,8 +88,9 @@ export default async function handler(req,res){
    conversion=await getDerivQuoteToUsd(symbol,quote);
   }catch(e){return res.status(503).json({error:e.message||"Verified market quote or USD conversion unavailable."});}
 
-  let entryType=detectDemoPendingEntryType(direction,quote.quote,entry);
-  if(!entryType)return res.status(409).json({error:"Market is exactly at your planned entry or the quote is invalid. Choose a different entry price.",currentPrice:Number(quote.quote)});
+  const initiallyDetectedEntryType=detectDemoPendingEntryType(direction,quote.quote,entry);
+  if(!initiallyDetectedEntryType)return res.status(409).json({error:"Market is exactly at your planned entry or the quote is invalid. Choose a different entry price.",currentPrice:Number(quote.quote)});
+  let entryType=initiallyDetectedEntryType;
 
   const riskPct=Math.min(Number(profile.max_risk_per_trade_pct),Number(session.risk_per_trade_pct));
   if(!Number.isFinite(riskPct)||riskPct<=0)return res.status(409).json({error:"Your DEMO risk setting is invalid."});
@@ -109,8 +110,10 @@ export default async function handler(req,res){
    conversion=await getDerivQuoteToUsd(symbol,quote);
    await checkEmergency();
   }catch(e){return res.status(503).json({error:e.message||"Final entry checks could not be completed."});}
-  entryType=detectDemoPendingEntryType(direction,quote.quote,entry);
-  if(!entryType)return res.status(409).json({error:"Market reached your planned entry during submission. No batch was created; review the new market price.",currentPrice:Number(quote.quote)});
+  const finalDetectedEntryType=detectDemoPendingEntryType(direction,quote.quote,entry);
+  if(!finalDetectedEntryType||finalDetectedEntryType!==initiallyDetectedEntryType)
+   return res.status(409).json({error:"Market crossed your planned entry while you were submitting. No batch was created; review the new market price and submit again.",currentPrice:Number(quote.quote)});
+  entryType=finalDetectedEntryType;
 
   sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry,stop,quoteToUsd:conversion.rate});
   const {data:result,error}=await db.rpc("create_demo_manual_entry_batch",{
