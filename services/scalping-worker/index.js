@@ -195,7 +195,7 @@ async function subscribeSet(desired){
  socket.onmessage=async event=>{
   try {
   let msg;try{msg=JSON.parse(typeof event.data==="string"?event.data:event.data.toString());}catch{return;}
-  if(msg.error){logError(new Error("Deriv rejected the public streaming request."));return;}
+  if(msg.error){logError(new Error("Deriv rejected the public streaming request."));closeSocket();scheduleReconnect();return;}
   if(msg.msg_type==="active_symbols"){
    const active=Array.isArray(msg.active_symbols)?msg.active_symbols:[];
    for(const wanted of desiredSymbols){
