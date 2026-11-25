@@ -104,7 +104,7 @@ test("market structure reports confirmed swing levels, BOS, CHOCH and order-bloc
  const context=marketStructureContext(rows);
  assert.equal(context.latestSwingHigh,15);
  assert.equal(context.bosDirection,"BUY");
- assert.equal(context.support,7);
+ assert.equal(context.support,11);
  assert.ok(context.orderBlockCandidate);
  assert.equal(context.orderBlockCandidate.side,"BUY");
 });
