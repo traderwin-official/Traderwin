@@ -75,8 +75,8 @@ begin
   if not found or v_session.broker <> 'DERIV'
      or v_session.status <> 'RUNNING'
      or upper(v_session.instrument) <> upper(p_instrument)
-     or v_session.config_snapshot->>'account_mode' <> 'DEMO'
-     or v_session.config_snapshot->>'execution' not in ('WEBSITE_PAPER_ONLY','WEBSITE_DEMO_AUTO_PAPER_ONLY') then
+     or v_session.config_snapshot->>'account_mode' is distinct from 'DEMO'
+     or coalesce(v_session.config_snapshot->>'execution','') not in ('WEBSITE_PAPER_ONLY','WEBSITE_DEMO_AUTO_PAPER_ONLY') then
     return jsonb_build_object('ok',false,'reason','ELIGIBLE_RUNNING_DERIV_DEMO_SESSION_REQUIRED');
   end if;
 
