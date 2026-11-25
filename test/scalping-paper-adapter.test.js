@@ -67,3 +67,13 @@ test("paper adapter leaves other bot positions and stale quotes untouched",async
  assert.equal(stale.reason,"EXIT_QUOTE_STALE");
  assert.equal(calls,0);
 });
+
+test("paper adapter respects a stricter saved session risk ceiling",async()=>{
+ let args;
+ const db={rpc:async(name,value)=>{args=value;return {data:{ok:true,trade_id:"trade-2"},error:null};}};
+ const stricter={...session,risk_per_trade_pct:0.1};
+ const result=await openScalpingPaperPosition({db,session:stricter,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
+ assert.equal(result.ok,true);
+ assert.ok(args.p_risk_pct<=0.1);
+ assert.ok(args.p_risk_amount<=10);
+});
