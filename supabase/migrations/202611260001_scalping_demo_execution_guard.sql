@@ -81,6 +81,13 @@ begin
     return jsonb_build_object('ok',false,'reason','ELIGIBLE_RUNNING_DERIV_DEMO_SESSION_REQUIRED');
   end if;
 
+  if not exists (
+    select 1 from public.trader_profiles
+     where user_id = p_user_id and account_mode = 'DEMO'
+  ) then
+    return jsonb_build_object('ok',false,'reason','CURRENT_ACCOUNT_MODE_NOT_DEMO');
+  end if;
+
   select * into v_preference
     from public.demo_scalping_preferences
    where session_id = p_session_id and user_id = p_user_id
