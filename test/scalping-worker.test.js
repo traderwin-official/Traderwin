@@ -5,7 +5,9 @@ import {readFile} from "node:fs/promises";
 test("continuous worker executes only opted-in DEMO paper trades and never sends broker orders",async()=>{
  const s=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
  assert.match(s,/demo_scalping_preferences/);
- assert.match(s,/config_snapshot/);\n assert.match(s,/trader_profiles/);\n assert.match(s,/profileByUser\.get\(session\.user_id\).*account_mode==="DEMO"/);
+ assert.match(s,/config_snapshot/);
+ assert.match(s,/trader_profiles/);
+ assert.match(s,/profileByUser\.get\(session\.user_id\).*account_mode==="DEMO"/);
  assert.match(s,/preference\.paper_execution_enabled===true/);
  assert.match(s,/preference\.account_mode==="DEMO"/);
  assert.match(s,/preference\.execution==="WEBSITE_PAPER_ONLY"/);
@@ -38,7 +40,9 @@ test("scalping execution guard keeps DEMO risk, daily loss, position and candle 
  assert.match(sql,/max_daily_loss_pct,1\.00/);
  assert.match(sql,/max_open_positions <> 1/);
  assert.match(sql,/last_candle_as_of/);
- assert.match(sql,/paper_execution_enabled is not true/);\n assert.match(sql,/CURRENT_ACCOUNT_MODE_NOT_DEMO/);\n assert.match(sql,/from public\.trader_profiles/);
+ assert.match(sql,/paper_execution_enabled is not true/);
+ assert.match(sql,/CURRENT_ACCOUNT_MODE_NOT_DEMO/);
+ assert.match(sql,/from public\.trader_profiles/);
  assert.match(sql,/SCALPING_ONE_OPEN_POSITION_LIMIT/);
  assert.match(sql,/guard_scalping_single_open_position/);
  assert.match(sql,/scalping_worker_leases/);
