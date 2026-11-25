@@ -11,7 +11,7 @@ test("DEMO dashboard separates the read-only scalping feed from automatic paper 
  assert.match(html,/id="disableDemoScalpingPaper"/);
  assert.match(html,/api\/bots\/demo\/scalping-preferences/);
  assert.match(html,/Feed access is read-only/);
- assert.match(html,/automatic paper trading is a separate opt-in/);
+ assert.match(html,/[Aa]utomatic paper trading is a separate opt-in/);
  assert.match(html,/This does not place any order/);
  assert.match(html,/No Deriv broker orders or REAL trades are sent/);
 });
