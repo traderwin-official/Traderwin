@@ -48,13 +48,17 @@ async function eligibleSymbols(){
   .in("session_id",allSessions.map(s=>s.id));
  if(preferenceError)throw preferenceError;
  const preferenceBySession=new Map((preferences||[]).filter(p=>allSessions.some(s=>s.id===p.session_id&&s.user_id===p.user_id)).map(p=>[p.session_id,p]));
+ const {data:profiles,error:profileError}=await db.from("trader_profiles")
+  .select("user_id,account_mode").in("user_id",[...new Set(allSessions.map(s=>s.user_id))]);
+ if(profileError)throw profileError;
+ const profileByUser=new Map((profiles||[]).map(p=>[p.user_id,p]));
  const openSessionSet=new Set(openSessionIds);
  const wantedByInstrument=new Map();
  for(const session of allSessions){
   const config=session.config_snapshot&&typeof session.config_snapshot==="object"?session.config_snapshot:{};
   if(session.broker!=="DERIV"||!session.instrument||config.account_mode!=="DEMO")continue;
   const preference=preferenceBySession.get(session.id)||null;
-  const entryEnabled=session.status==="RUNNING"&&preference?.enabled===true&&preference.paper_execution_enabled===true&&preference.account_mode==="DEMO"&&preference.execution==="WEBSITE_PAPER_ONLY";
+  const entryEnabled=session.status==="RUNNING"&&preference?.enabled===true&&preference.paper_execution_enabled===true&&preference.account_mode==="DEMO"&&profileByUser.get(session.user_id)?.account_mode==="DEMO"&&preference.execution==="WEBSITE_PAPER_ONLY";
   const manageOpen=openSessionSet.has(session.id);
   if(!entryEnabled&&!manageOpen)continue;
   const instrument=norm(session.instrument);
