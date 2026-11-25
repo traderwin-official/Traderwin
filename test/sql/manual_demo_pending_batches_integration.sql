@@ -138,7 +138,7 @@ begin
   10000,10000,1.00,2.00,3,2.00) returning id into v_session_reserve;
  for i in 1..2 loop
   select public.create_demo_manual_entry_batch(
-   v_user_reserve,v_session_reserve,'EURUSD','EURUSD','BUY',1,
+   v_user_reserve,v_session_reserve,'EURUSD','EURUSD','BUY','LIMIT',1,
    1.10000,1.09000,1.11000,1.12000,1.13000,
    40,30,30,10000,100,1.00,1,'DERIV',1.10500,now()
   ) into v_result;
