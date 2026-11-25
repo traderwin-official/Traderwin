@@ -23,6 +23,8 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/claim_traderwin_scalping_worker/);
  assert.match(s,/release_traderwin_scalping_worker/);
  assert.match(s,/manageOpen/);
+ assert.match(s,/OPEN_SCALPING_POSITION_PROVIDER_MAPPING_MISSING/);
+ assert.match(s,/!state\.lastError/);
  assert.match(s,/TIGER_SCHEME_QUANTUM_SCALPING/);
  assert.doesNotMatch(s,/proposal_open_contract|buy\s*\(|sell\s*\(/i);
 });
