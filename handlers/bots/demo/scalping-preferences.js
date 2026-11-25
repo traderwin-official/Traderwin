@@ -10,7 +10,7 @@ export default async function handler(req,res){
  try{
   const body=typeof req.body==="string"?JSON.parse(req.body):(req.body||{});
   const action=String(body.action||"").trim().toUpperCase();
-  if(!["STATUS","ENABLE","DISABLE"].includes(action))return res.status(400).json({error:"Choose STATUS, ENABLE or DISABLE."});
+  if(!["STATUS","ENABLE","DISABLE","ENABLE_PAPER_EXECUTION","DISABLE_PAPER_EXECUTION"].includes(action))return res.status(400).json({error:"Choose a supported scalping preference action."});
   const db=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:auth,error:authError}=await db.auth.getUser(authorization.slice(7).trim());
   if(authError||!auth.user)return res.status(401).json({error:"Your login session is invalid."});
@@ -26,14 +26,15 @@ export default async function handler(req,res){
   if(sessionError)return res.status(503).json({error:"Could not verify your DEMO scalping session."});
   if(!session)return res.status(409).json({error:"Start a Deriv DEMO paper session first."});
   const {data:current,error:currentError}=await db.from("demo_scalping_preferences")
-   .select("enabled,account_mode,execution,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions")
+   .select("enabled,paper_execution_enabled,account_mode,execution,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions")
    .eq("session_id",session.id).eq("user_id",userId).maybeSingle();
   if(currentError)return res.status(503).json({error:"Could not load your scalping preference."});
-  if(action==="STATUS")return res.status(200).json({ok:true,enabled:current?.enabled===true,accountMode:"DEMO",execution:"WEBSITE_PAPER_ONLY",instrument:session.instrument,sessionStatus:session.status,limits:current?{riskPerTradePct:Number(current.max_risk_per_trade_pct),dailyLossPct:Number(current.max_daily_loss_pct),maxOpenPositions:Number(current.max_open_positions)}:null});
-  if(action==="DISABLE"){
-   if(current){const {error}=await db.from("demo_scalping_preferences").update({enabled:false,updated_at:new Date().toISOString()}).eq("session_id",session.id).eq("user_id",userId);if(error)return res.status(503).json({error:"Could not disable scalping."});}
-   return res.status(200).json({ok:true,enabled:false,accountMode:"DEMO",execution:"WEBSITE_PAPER_ONLY",message:"DEMO scalping has been disabled for this session."});
+  if(action==="STATUS")return res.status(200).json({ok:true,enabled:current?.enabled===true,paperExecutionEnabled:current?.paper_execution_enabled===true,accountMode:"DEMO",execution:"WEBSITE_PAPER_ONLY",instrument:session.instrument,sessionStatus:session.status,limits:current?{riskPerTradePct:Number(current.max_risk_per_trade_pct),dailyLossPct:Number(current.max_daily_loss_pct),maxOpenPositions:Number(current.max_open_positions)}:null});
+  if(action==="DISABLE"||action==="DISABLE_PAPER_EXECUTION"){
+   if(current){const {error}=await db.from("demo_scalping_preferences").update(action==="DISABLE"?{enabled:false,paper_execution_enabled:false,updated_at:new Date().toISOString()}:{paper_execution_enabled:false,updated_at:new Date().toISOString()}).eq("session_id",session.id).eq("user_id",userId);if(error)return res.status(503).json({error:"Could not disable scalping."});}
+   return res.status(200).json({ok:true,enabled:action==="DISABLE"?false:current?.enabled===true,paperExecutionEnabled:false,accountMode:"DEMO",execution:"WEBSITE_PAPER_ONLY",message:action==="DISABLE"?"DEMO scalping feed and automatic paper entries are disabled. Existing open paper positions remain managed to their exits.":"Automatic DEMO paper entries are paused. The read-only scalping feed may remain enabled; existing open paper positions remain managed to their exits."});
   }
+  if(action==="ENABLE_PAPER_EXECUTION"&&current?.enabled!==true)return res.status(409).json({error:"Enable the DEMO scalping feed first; this separate switch controls automatic paper entries."});
   if(session.status!=="RUNNING")return res.status(409).json({error:"Start your DEMO session before enabling scalping."});
   const sessionConfig=session.config_snapshot&&typeof session.config_snapshot==="object"?session.config_snapshot:{};
   if(sessionConfig.account_mode!=="DEMO"||!["WEBSITE_PAPER_ONLY","WEBSITE_DEMO_AUTO_PAPER_ONLY"].includes(sessionConfig.execution))return res.status(409).json({error:"The active session is not a verified DEMO paper session. Restart DEMO and try again."});
@@ -56,12 +57,13 @@ export default async function handler(req,res){
   if(!approval||approval.length!==1||!approval[0].provider_symbol)return res.status(403).json({error:"This instrument is not currently approved for the DEMO scalping feed."});
   const now=new Date().toISOString();
   const {error:saveError}=await db.from("demo_scalping_preferences").upsert({
-   session_id:session.id,user_id:userId,enabled:true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",
+   session_id:session.id,user_id:userId,enabled:true,paper_execution_enabled:action==="ENABLE_PAPER_EXECUTION"?true:current?.paper_execution_enabled===true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",
    max_risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:1,updated_at:now
   },{onConflict:"session_id"});
   if(saveError){console.error("DEMO scalping preference save:",saveError.message);return res.status(503).json({error:"Could not enable DEMO scalping safely."});}
   return res.status(200).json({ok:true,enabled:true,accountMode:"DEMO",execution:"WEBSITE_PAPER_ONLY",instrument:session.instrument,
    limits:{riskPerTradePct:risk,dailyLossPct:daily,maxOpenPositions:1},
-   message:"DEMO scalping signal feed enabled. This setting does not authorize any broker order or automatic paper entry."});
+   paperExecutionEnabled:action==="ENABLE_PAPER_EXECUTION"||current?.paper_execution_enabled===true,
+   message:action==="ENABLE_PAPER_EXECUTION"?"Automatic DEMO paper trading is enabled for this session. Orders remain virtual in Traderwin; no Deriv broker order or REAL trade is sent. Risk is capped at 0.25% per trade and 1% daily loss, with one open position.":"DEMO scalping signal feed enabled. This setting does not authorize automatic paper entries or any broker order."});
  }catch(error){console.error("DEMO scalping preference:",error?.message||"Unknown error");return res.status(500).json({error:"Could not update DEMO scalping preference safely."});}
 }
