@@ -16,9 +16,9 @@ const server=http.createServer((req,res)=>{
 });
 function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.error("scalping-worker:",state.lastError);}
 async function eligibleSymbols(){
- const {data:sessions,error}=await db.from("demo_paper_sessions").select("id,user_id,instrument,broker,status").eq("broker","DERIV").eq("status","RUNNING").limit(200);
+ const {data:sessions,error}=await db.from("demo_paper_sessions").select("id,user_id,instrument,broker,status,config_snapshot").eq("broker","DERIV").eq("status","RUNNING").limit(200);
  if(error)throw error;
- const candidates=(sessions||[]).filter(s=>s.instrument);
+ const candidates=(sessions||[]).filter(s=>{const c=s.config_snapshot&&typeof s.config_snapshot==="object"?s.config_snapshot:{};return s.instrument&&c.account_mode==="DEMO"&&["WEBSITE_PAPER_ONLY","WEBSITE_DEMO_AUTO_PAPER_ONLY"].includes(c.execution);});
  if(!candidates.length)return [];
  const {data:preferences,error:preferenceError}=await db.from("demo_scalping_preferences").select("session_id,user_id,enabled,account_mode,execution").in("session_id",candidates.map(s=>s.id)).eq("enabled",true).eq("account_mode","DEMO").eq("execution","WEBSITE_PAPER_ONLY");
  if(preferenceError)throw preferenceError;
