@@ -220,7 +220,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh DEMO status</button>
   <div class="card" id="demoScalpingPanel" style="margin-top:14px">
    <h4>Young Tiger Live Scalping — DEMO</h4>
-   <p class="muted">Fast M1 momentum signals from a continuous Deriv tick stream, confirmed by M5 trend and verified bid/ask spread. This is a signal feed only during the first test phase; it does not open broker or paper orders automatically.</p>
+   <p class="muted">Fast M1 momentum signals from a continuous Deriv tick stream, confirmed by M5 trend and verified bid/ask spread. Enabling this feed only displays signals; automatic DEMO paper entries require a separate confirmation below.</p>
    <p class="status" id="demoScalpingStatus">Scalping is OFF. Start a verified Deriv DEMO session before enabling it.</p>
    <button type="button" id="enableDemoScalping">Enable DEMO Scalping Feed</button>
    <button type="button" id="disableDemoScalping" class="secondary" disabled>Disable Scalping</button>
@@ -1362,6 +1362,9 @@ calculateRisk();
    const scalpEnable=document.getElementById("enableDemoScalping");
    const scalpDisable=document.getElementById("disableDemoScalping");
    const scalpRefresh=document.getElementById("refreshDemoScalping");
+    const scalpPaperStatus=document.getElementById("demoScalpingPaperStatus");
+    const scalpPaperEnable=document.getElementById("enableDemoScalpingPaper");
+    const scalpPaperDisable=document.getElementById("disableDemoScalpingPaper");
    const scalpFeedStatus=document.getElementById("demoScalpingFeedStatus");
    const scalpFeedPrice=document.getElementById("demoScalpingFeedPrice");
    const scalpFeedDetails=document.getElementById("demoScalpingFeedDetails");
@@ -1416,27 +1419,41 @@ calculateRisk();
     const empty=document.createElement("li");empty.className="muted";empty.textContent="No signals received.";scalpSignals.appendChild(empty);
    }
    async function loadScalpingPreference(){
-    try{
-     const state=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"STATUS"});
-     scalpStatus.textContent=state.enabled?"Scalping feed: ENABLED · "+state.instrument+" · DEMO only":"Scalping feed: OFF";
-     scalpEnable.disabled=selectedAccountMode!=="DEMO"||state.enabled;
-     scalpDisable.disabled=!state.enabled;
-     if(state.limits)scalpMessage.textContent="Risk ceiling: "+state.limits.riskPerTradePct+"% per trade · "+state.limits.dailyLossPct+"% daily loss · "+state.limits.maxOpenPositions+" open position. Signal-only; no orders are placed.";
-     if(state.enabled&&state.sessionStatus==="RUNNING")startScalpingFeedPolling();else stopScalpingFeedPolling();
-    }catch(e){scalpStatus.textContent="Scalping status unavailable: "+e.message;scalpEnable.disabled=selectedAccountMode!=="DEMO";scalpDisable.disabled=true;stopScalpingFeedPolling();}
-   }
-   scalpEnable.addEventListener("click",async()=>{
-    if(!window.confirm("Enable the live Deriv scalping signal feed for this DEMO session? This does not place any order."))return;
-    scalpEnable.disabled=true;scalpMessage.textContent="Verifying your Deriv DEMO account and approved instrument...";
-    try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE"});scalpStatus.textContent="Scalping feed: ENABLED · "+r.instrument+" · DEMO only";scalpMessage.textContent=r.message;scalpDisable.disabled=false;startScalpingFeedPolling();}
-    catch(e){scalpMessage.textContent=e.message;scalpEnable.disabled=false;}
-   });
-   scalpDisable.addEventListener("click",async()=>{
-    scalpDisable.disabled=true;
-    try{await callDemoApi("/api/bots/demo/scalping-preferences",{action:"DISABLE"});scalpStatus.textContent="Scalping feed: OFF";scalpMessage.textContent="Scalping disabled for this DEMO session.";scalpEnable.disabled=selectedAccountMode!=="DEMO";stopScalpingFeedPolling();}
-    catch(e){scalpMessage.textContent=e.message;scalpDisable.disabled=false;}
-   });
-   scalpRefresh.addEventListener("click",loadScalpingPreference);
+     try{
+      const state=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"STATUS"});
+      scalpStatus.textContent=state.enabled?"Scalping feed: ENABLED · "+state.instrument+" · DEMO only":"Scalping feed: OFF";
+      scalpPaperStatus.textContent=state.paperExecutionEnabled?"Automatic DEMO paper trading: ON · virtual ledger only":"Automatic DEMO paper trading: OFF";
+      scalpEnable.disabled=selectedAccountMode!=="DEMO"||state.enabled;
+      scalpDisable.disabled=!state.enabled;
+      scalpPaperEnable.disabled=selectedAccountMode!=="DEMO"||!state.enabled||state.paperExecutionEnabled;
+      scalpPaperDisable.disabled=!state.paperExecutionEnabled;
+      if(state.limits)scalpMessage.textContent="Risk ceiling: "+state.limits.riskPerTradePct+"% per trade · "+state.limits.dailyLossPct+"% daily loss · "+state.limits.maxOpenPositions+" open position. Feed and automatic paper execution are controlled separately.";
+      if(state.enabled&&state.sessionStatus==="RUNNING")startScalpingFeedPolling();else stopScalpingFeedPolling();
+     }catch(e){scalpStatus.textContent="Scalping status unavailable: "+e.message;scalpPaperStatus.textContent="Automatic DEMO paper trading: status unavailable";scalpEnable.disabled=selectedAccountMode!=="DEMO";scalpDisable.disabled=true;scalpPaperEnable.disabled=true;scalpPaperDisable.disabled=true;stopScalpingFeedPolling();}
+    }
+    scalpEnable.addEventListener("click",async()=>{
+     if(!window.confirm("Enable the live Deriv scalping signal feed for this DEMO session? This does not place paper or broker orders."))return;
+     scalpEnable.disabled=true;scalpMessage.textContent="Verifying your Deriv DEMO account and approved instrument...";
+     try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE"});scalpStatus.textContent="Scalping feed: ENABLED · "+r.instrument+" · DEMO only";scalpMessage.textContent=r.message;scalpDisable.disabled=false;startScalpingFeedPolling();await loadScalpingPreference();}
+     catch(e){scalpMessage.textContent=e.message;scalpEnable.disabled=false;}
+    });
+    scalpDisable.addEventListener("click",async()=>{
+     scalpDisable.disabled=true;
+     try{await callDemoApi("/api/bots/demo/scalping-preferences",{action:"DISABLE"});await loadScalpingPreference();scalpMessage.textContent="Feed and new automatic paper entries are disabled. Any already-open DEMO paper position remains managed to its exit.";}
+     catch(e){scalpMessage.textContent=e.message;scalpDisable.disabled=false;}
+    });
+    scalpPaperEnable.addEventListener("click",async()=>{
+     if(!window.confirm("Enable automatic DEMO paper trading for this session? The bot may open and manage virtual positions in Traderwin's DEMO paper ledger only. No Deriv broker order or REAL trade will be sent. Maximum risk is 0.25% per trade, daily loss is capped at 1%, and only one position may be open."))return;
+     scalpPaperEnable.disabled=true;scalpMessage.textContent="Verifying the separate automatic DEMO paper-trading permission...";
+     try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE_PAPER_EXECUTION"});scalpPaperStatus.textContent="Automatic DEMO paper trading: ON · virtual ledger only";scalpMessage.textContent=r.message;await loadScalpingPreference();}
+     catch(e){scalpMessage.textContent=e.message;scalpPaperEnable.disabled=false;}
+    });
+    scalpPaperDisable.addEventListener("click",async()=>{
+     scalpPaperDisable.disabled=true;
+     try{await callDemoApi("/api/bots/demo/scalping-preferences",{action:"DISABLE_PAPER_EXECUTION"});await loadScalpingPreference();scalpMessage.textContent="Automatic paper entries are paused. Any already-open DEMO paper position remains managed to its exit.";}
+     catch(e){scalpMessage.textContent=e.message;scalpPaperDisable.disabled=false;}
+    });
+    scalpRefresh.addEventListener("click",loadScalpingPreference);
    document.addEventListener("visibilitychange",()=>{if(!document.hidden&&scalpFeedTimer)refreshScalpingFeed();});
    loadScalpingPreference();
    if(selectedAccountMode!=="DEMO"){
