@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { detectDemoPendingEntryType } from "../lib/demo-pending-entry-type.js";
 
 test("pending batch API validates count, planned levels, percentages, DEMO mode and verified quote",async()=>{
  const api=await readFile(new URL("../handlers/bots/demo/pending-batches.js",import.meta.url),"utf8");
@@ -11,11 +12,28 @@ test("pending batch API validates count, planned levels, percentages, DEMO mode 
  assert.match(api,/profile\.account_mode!=="DEMO"/);
  assert.match(api,/loadApprovedInstrument/);
  assert.match(api,/freshQuote\(quote,symbol\)/);
- assert.match(api,/direction==="BUY"\?Number\(quote\.quote\)>entry:Number\(quote\.quote\)<entry/);
+ assert.match(api,/detectDemoPendingEntryType\(direction,quote\.quote,entry\)/);
+ assert.match(api,/finalDetectedEntryType!==initiallyDetectedEntryType/);
+ assert.match(api,/Market crossed your planned entry while you were submitting/);
+ assert.match(api,/p_entry_type:entryType/);
+ assert.match(api,/Market is exactly at your planned entry/);
+ assert.match(api,/entryType,tradeCount/);
  assert.match(api,/create_demo_manual_entry_batch/);
+ assert.match(api,/Math\.floor\(\(sizing\.riskAmount\+1e-8\)\*100\)\/100/);
+ assert.match(api,/p_total_risk_pct:actualRiskPct/);
  assert.match(api,/p_total_risk_usd:sizing\.riskAmount/);
  assert.match(api,/No position is open yet/);
  assert.doesNotMatch(api,/buy\(|sell\(|placeOrder|sendBrokerOrder/i);
+});
+
+
+test("pending entry type is auto-detected for all four BUY/SELL LIMIT/STOP cases",()=>{
+ assert.equal(detectDemoPendingEntryType("BUY",2050,2040),"LIMIT");
+ assert.equal(detectDemoPendingEntryType("BUY",2030,2040),"STOP");
+ assert.equal(detectDemoPendingEntryType("SELL",2030,2040),"LIMIT");
+ assert.equal(detectDemoPendingEntryType("SELL",2050,2040),"STOP");
+ assert.equal(detectDemoPendingEntryType("SELL",2040,2040),null);
+ assert.equal(detectDemoPendingEntryType("HOLD",2050,2040),null);
 });
 
 test("pending batch worker requires a fresh verified quote and approved instrument before atomic activation",async()=>{
@@ -32,6 +50,7 @@ test("pending batch worker requires a fresh verified quote and approved instrume
 
 test("pending batch migration reserves aggregate risk and position slots, activates atomically, and serializes cancellation",async()=>{
  const sql=await readFile(new URL("../supabase/migrations/202611240003_manual_demo_pending_batches.sql",import.meta.url),"utf8");
+ const upgrade=await readFile(new URL("../supabase/migrations/202611250001_manual_demo_stop_limit_entry_types.sql",import.meta.url),"utf8");
  assert.match(sql,/create table if not exists public\.demo_manual_entry_batches/);
  assert.match(sql,/status text not null default 'PENDING'/);
  assert.match(sql,/create or replace function public\.create_demo_manual_entry_batch/);
@@ -39,8 +58,16 @@ test("pending batch migration reserves aggregate risk and position slots, activa
  assert.match(sql,/v_open_count\+v_pending_count\+p_trade_count>v_session\.max_open_positions/);
  assert.match(sql,/v_open_risk\+v_pending_risk\+p_total_risk_usd/);
  assert.match(sql,/create or replace function public\.activate_demo_manual_entry_batch/);
- assert.match(sql,/v_batch\.last_quote>v_batch\.entry_price and p_quote<=v_batch\.entry_price/);
- assert.match(sql,/v_batch\.last_quote<v_batch\.entry_price and p_quote>=v_batch\.entry_price/);
+ assert.match(sql,/entry_type text not null/);
+ assert.match(sql,/p_entry_type text/);
+ assert.match(upgrade,/add column if not exists entry_type/);
+ assert.match(upgrade,/create or replace function public\.create_demo_manual_entry_batch/);
+ assert.match(upgrade,/create or replace function public\.activate_demo_manual_entry_batch/);
+ assert.match(upgrade,/v_batch\.side=\x27SELL\x27 and v_batch\.entry_type=\x27STOP\x27 and v_batch\.last_quote>v_batch\.entry_price and p_quote<=v_batch\.entry_price/);
+ assert.match(upgrade,/\$activate_batch\$/);
+ assert.match(upgrade,/p_entry_type is null/);
+ assert.match(sql,/v_batch\.side=\x27BUY\x27 and v_batch\.entry_type=\x27STOP\x27 and v_batch\.last_quote<v_batch\.entry_price and p_quote>=v_batch\.entry_price/);
+ assert.match(sql,/v_batch\.side=\x27SELL\x27 and v_batch\.entry_type=\x27STOP\x27 and v_batch\.last_quote>v_batch\.entry_price and p_quote<=v_batch\.entry_price/);
  assert.match(sql,/for update/);
  assert.match(sql,/manual_entry_batch_id/);
  assert.match(sql,/create or replace function public\.cancel_demo_manual_entry_batch/);
@@ -57,7 +84,8 @@ test("manual dashboard asks for trade count and planned entry and allows cancell
  assert.match(page,/Save Pending DEMO Trade Setup/);
  assert.match(page,/\/api\/bots\/demo\/pending-batches/);
  assert.match(page,/Cancel pending setup/);
+ assert.ok(page.includes("automatically detects LIMIT or STOP"));
  assert.ok(page.includes("same entry, SL and T1/T2/T3 levels."));
- assert.ok(page.includes("A brief touch and reversal between checks can be missed"));
+ assert.ok(page.includes("so a brief touch and reversal between checks can be missed"));
  assert.ok(page.includes("approximately once per minute"));
 });

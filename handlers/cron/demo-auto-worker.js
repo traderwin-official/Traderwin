@@ -100,7 +100,7 @@ async function processManualDemoBracketExits(db){
  */
 async function processPendingManualEntryBatches(db){
  const {data:batches,error}=await db.from("demo_manual_entry_batches")
-  .select("id,user_id,session_id,instrument,side,entry_price,expires_at,status")
+  .select("id,user_id,session_id,instrument,side,entry_type,entry_price,expires_at,status")
   .eq("status","PENDING").order("updated_at",{ascending:true}).limit(8);
  if(error)return {processed:0,activated:0,results:[],error:"PENDING_BATCH_QUEUE_FAILED"};
  const results=[];

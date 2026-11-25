@@ -10,6 +10,7 @@ create table if not exists public.demo_manual_entry_batches (
   instrument text not null,
   provider_symbol text not null,
   side text not null check (side in ('BUY','SELL')),
+  entry_type text not null default 'LIMIT' check (entry_type in ('LIMIT','STOP')),
   requested_trade_count integer not null check (requested_trade_count between 1 and 10),
   entry_price numeric(24,10) not null check (entry_price > 0),
   stop_loss numeric(24,10) not null check (stop_loss > 0),
@@ -44,6 +45,9 @@ create table if not exists public.demo_manual_entry_batches (
   )
 );
 
+alter table public.demo_manual_entry_batches
+  add column if not exists entry_type text not null default 'LIMIT' check (entry_type in ('LIMIT','STOP'));
+
 create index if not exists demo_manual_entry_batches_pending_idx
   on public.demo_manual_entry_batches(status,created_at)
   where status='PENDING';
@@ -60,7 +64,7 @@ grant select on public.demo_manual_entry_batches to authenticated;
 grant all on public.demo_manual_entry_batches to service_role;
 
 create or replace function public.create_demo_manual_entry_batch(
- p_user_id uuid,p_session_id uuid,p_instrument text,p_provider_symbol text,p_side text,p_trade_count integer,
+ p_user_id uuid,p_session_id uuid,p_instrument text,p_provider_symbol text,p_side text,p_entry_type text,p_trade_count integer,
  p_entry numeric,p_stop numeric,p_tp1 numeric,p_tp2 numeric,p_tp3 numeric,
  p_tp1_percent numeric,p_tp2_percent numeric,p_tp3_percent numeric,
  p_total_quantity numeric,p_total_risk_usd numeric,p_total_risk_pct numeric,
@@ -77,7 +81,7 @@ declare
 begin
  if auth.role() is distinct from 'service_role' then raise exception 'Service role required'; end if;
  if p_user_id is null or p_session_id is null or nullif(trim(p_instrument),'') is null
-   or nullif(trim(p_provider_symbol),'') is null or p_side not in ('BUY','SELL') or p_trade_count is null or p_trade_count not between 1 and 10
+   or nullif(trim(p_provider_symbol),'') is null or p_side not in ('BUY','SELL') or p_entry_type is null or p_entry_type not in ('LIMIT','STOP') or p_trade_count is null or p_trade_count not between 1 and 10
    or p_entry is null or p_entry<=0 or p_stop is null or p_stop<=0
    or p_tp1 is null or p_tp2 is null or p_tp3 is null
    or p_tp1<=0 or p_tp2<=0 or p_tp3<=0
@@ -97,11 +101,13 @@ begin
    raise exception 'Invalid or stale pending DEMO batch request';
  end if;
  if not (
-   (p_side='BUY' and p_stop<p_entry and p_entry<p_tp1 and p_tp1<p_tp2 and p_tp2<p_tp3 and p_quote>p_entry)
+   (p_side='BUY' and p_stop<p_entry and p_entry<p_tp1 and p_tp1<p_tp2 and p_tp2<p_tp3
+     and ((p_entry_type='LIMIT' and p_quote>p_entry) or (p_entry_type='STOP' and p_quote<p_entry)))
    or
-   (p_side='SELL' and p_stop>p_entry and p_entry>p_tp1 and p_tp1>p_tp2 and p_tp2>p_tp3 and p_quote<p_entry)
+   (p_side='SELL' and p_stop>p_entry and p_entry>p_tp1 and p_tp1>p_tp2 and p_tp2>p_tp3
+     and ((p_entry_type='LIMIT' and p_quote<p_entry) or (p_entry_type='STOP' and p_quote>p_entry)))
  ) then
-   raise exception 'Entry must still be untouched; levels must be correctly ordered for the trade direction';
+   raise exception 'Entry type, quote side or trade levels are invalid';
  end if;
  if abs(p_total_risk_usd-abs(p_entry-p_stop)*p_total_quantity*p_quote_to_usd)>0.02 then
    raise exception 'Batch quantity and aggregate risk do not reconcile';
@@ -157,12 +163,12 @@ begin
  -- Daily account-equity protection is enforced by the later 20% guard migration.
 
  insert into public.demo_manual_entry_batches(
-  user_id,session_id,instrument,provider_symbol,side,requested_trade_count,entry_price,stop_loss,
+  user_id,session_id,instrument,provider_symbol,side,entry_type,requested_trade_count,entry_price,stop_loss,
   tp1_price,tp2_price,tp3_price,tp1_percent,tp2_percent,tp3_percent,
   total_quantity,total_risk_usd,total_risk_pct,quote_to_usd,quote_source,
   last_quote,last_quote_as_of
  ) values (
-  p_user_id,p_session_id,p_instrument,p_provider_symbol,p_side,p_trade_count,p_entry,p_stop,
+  p_user_id,p_session_id,p_instrument,p_provider_symbol,p_side,p_entry_type,p_trade_count,p_entry,p_stop,
   p_tp1,p_tp2,p_tp3,p_tp1_percent,p_tp2_percent,p_tp3_percent,
   p_total_quantity,p_total_risk_usd,p_total_risk_pct,p_quote_to_usd,p_quote_source,
   p_quote,p_quote_as_of
@@ -249,8 +255,11 @@ begin
    return jsonb_build_object('ok',false,'reason','INSTRUMENT_APPROVAL_REVOKED');
  end if;
 
- v_triggered := (v_batch.side='BUY' and v_batch.last_quote>v_batch.entry_price and p_quote<=v_batch.entry_price)
-   or (v_batch.side='SELL' and v_batch.last_quote<v_batch.entry_price and p_quote>=v_batch.entry_price);
+ v_triggered :=
+   (v_batch.side='BUY' and v_batch.entry_type='LIMIT' and v_batch.last_quote>v_batch.entry_price and p_quote<=v_batch.entry_price)
+   or (v_batch.side='SELL' and v_batch.entry_type='LIMIT' and v_batch.last_quote<v_batch.entry_price and p_quote>=v_batch.entry_price)
+   or (v_batch.side='BUY' and v_batch.entry_type='STOP' and v_batch.last_quote<v_batch.entry_price and p_quote>=v_batch.entry_price)
+   or (v_batch.side='SELL' and v_batch.entry_type='STOP' and v_batch.last_quote>v_batch.entry_price and p_quote<=v_batch.entry_price);
  if not v_triggered then
    update public.demo_manual_entry_batches
     set last_quote=p_quote,last_quote_as_of=p_quote_as_of,updated_at=now()
@@ -346,13 +355,13 @@ begin
 end;
 $$;
 
-revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)
+revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)
  from public,anon,authenticated;
 revoke all on function public.activate_demo_manual_entry_batch(uuid,numeric,text,text,timestamptz,numeric)
  from public,anon,authenticated;
 revoke all on function public.cancel_demo_manual_entry_batch(uuid,uuid,text,text)
  from public,anon,authenticated;
-grant execute on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)
+grant execute on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)
  to service_role;
 grant execute on function public.activate_demo_manual_entry_batch(uuid,numeric,text,text,timestamptz,numeric)
  to service_role;

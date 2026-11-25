@@ -30,7 +30,7 @@ begin
 
  -- Create one pending two-position batch with one shared planned entry/SL/TP plan.
  select public.create_demo_manual_entry_batch(
-  v_user,v_session,'EURUSD','EURUSD','BUY',2,
+  v_user,v_session,'EURUSD','EURUSD','BUY','LIMIT',2,
   1.10000,1.09000,1.11000,1.12000,1.13000,
   40,30,30,10000,100,1.00,1,'DERIV',1.10500,now()-interval '10 seconds'
  ) into v_result;
@@ -44,7 +44,7 @@ begin
 
  -- Pending batches reserve position slots before they activate.
  select public.create_demo_manual_entry_batch(
-  v_user,v_session,'EURUSD','EURUSD','BUY',2,
+  v_user,v_session,'EURUSD','EURUSD','BUY','LIMIT',2,
   1.10000,1.09000,1.11000,1.12000,1.13000,
   40,30,30,5000,50,0.50,1,'DERIV',1.10500,now()
  ) into v_result;
@@ -86,7 +86,7 @@ begin
 
  -- SELL pending entries activate only after a fresh quote crosses upward.
  select public.create_demo_manual_entry_batch(
-  v_user,v_session,'EURUSD','EURUSD','SELL',1,
+  v_user,v_session,'EURUSD','EURUSD','SELL','LIMIT',1,
   1.10000,1.11000,1.09000,1.08000,1.07000,
   40,30,30,5000,50,0.50,1,'DERIV',1.09500,now()-interval '5 seconds'
  ) into v_result;
@@ -114,7 +114,7 @@ begin
  ) values(v_user_cancel,'DERIV','PENDING:'||v_user_cancel,'EURUSD','MANUAL','M15','RUNNING',
   10000,10000,1.00,2.00,3,2.00) returning id into v_session_cancel;
  select public.create_demo_manual_entry_batch(
-  v_user_cancel,v_session_cancel,'EURUSD','EURUSD','SELL',1,
+  v_user_cancel,v_session_cancel,'EURUSD','EURUSD','SELL','LIMIT',1,
   1.10000,1.11000,1.09000,1.08000,1.07000,
   40,30,30,10000,100,1.00,1,'DERIV',1.09500,now()
  ) into v_result;
@@ -138,7 +138,7 @@ begin
   10000,10000,1.00,2.00,3,2.00) returning id into v_session_reserve;
  for i in 1..2 loop
   select public.create_demo_manual_entry_batch(
-   v_user_reserve,v_session_reserve,'EURUSD','EURUSD','BUY',1,
+   v_user_reserve,v_session_reserve,'EURUSD','EURUSD','BUY','LIMIT',1,
    1.10000,1.09000,1.11000,1.12000,1.13000,
    40,30,30,10000,100,1.00,1,'DERIV',1.10500,now()
   ) into v_result;
