@@ -170,19 +170,21 @@ async function publishTick(wanted,tick){
  if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(epoch)||Math.abs(Date.now()-epoch*1000)>30000)return;
  const payload={instrument:wanted.instrument,providerSymbol,quote,bid:typeof tick.bid==="number"&&Number.isFinite(tick.bid)&&tick.bid>0?tick.bid:null,ask:typeof tick.ask==="number"&&Number.isFinite(tick.ask)&&tick.ask>0?tick.ask:null,quoteAsOf,receivedAt,source:"DERIV"};
  state.lastTickAt=receivedAt;state.ticks++;
- const managementHealthy=await manageOpenTrades(wanted.instrument,payload);
+ // Start exits immediately, but do not block candle ingestion on database round-trips.
+ const managementPromise=manageOpenTrades(wanted.instrument,payload);
  if(Date.now()-(lastPersisted.get(wanted.instrument)||0)>=1000){
   lastPersisted.set(wanted.instrument,Date.now());
   db.from("scalping_market_ticks").upsert({instrument:wanted.instrument,provider_symbol:providerSymbol,quote,bid:payload.bid,ask:payload.ask,quote_as_of:quoteAsOf,received_at:receivedAt,source:"DERIV",updated_at:receivedAt},{onConflict:"instrument"})
    .then(({error})=>{if(error)logError(error);}).catch(logError);
  }
- if(!managementHealthy)return;
  const h=history.get(wanted.instrument);if(!h||h.m1.length<35)return;
  const minute=Math.floor(epoch/60)*60;
  if(!h.current||minute>h.current.epoch){
   if(h.current&&h.current.epoch+60<=minute){h.m1.push(h.current);h.m1=latestContiguousCandles(h.m1,60,240);}
   h.current={epoch:minute,open:quote,high:quote,low:quote,close:quote};
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
+ const managementHealthy=await managementPromise;
+ if(!managementHealthy)return;
  if(!wanted.sessions.some(x=>x.entryEnabled))return;
  const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
