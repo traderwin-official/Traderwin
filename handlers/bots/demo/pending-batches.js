@@ -116,11 +116,19 @@ export default async function handler(req,res){
   entryType=finalDetectedEntryType;
 
   sizing=calculatePaperPosition({balance:Number(session.current_balance),riskPct,entry,stop,quoteToUsd:conversion.rate});
+  // JSON numbers can serialize a decimal risk cap a few floating-point units above
+  // Postgres NUMERIC (for example 52.296800000000004 > 52.2968). Reserve cents
+  // rounded DOWN so the database's strict risk ceiling is never exceeded.
+  const safeRiskUsd=Math.floor((sizing.riskAmount+1e-8)*100)/100;
+  if(!Number.isFinite(safeRiskUsd)||safeRiskUsd<=0||safeRiskUsd/tradeCount<0.01)
+   return res.status(400).json({error:"The rounded DEMO risk is too small for the selected number of positions."});
+  sizing={...sizing,riskAmount:safeRiskUsd,units:safeRiskUsd/(Math.abs(entry-stop)*conversion.rate)};
+  const actualRiskPct=Number((safeRiskUsd/Number(session.current_balance)*100).toFixed(8));
   const {data:result,error}=await db.rpc("create_demo_manual_entry_batch",{
    p_user_id:userId,p_session_id:session.id,p_instrument:symbol,p_provider_symbol:quote.providerSymbol,p_side:direction,p_entry_type:entryType,p_trade_count:tradeCount,
    p_entry:entry,p_stop:stop,p_tp1:tp1,p_tp2:tp2,p_tp3:tp3,
    p_tp1_percent:allocations[0],p_tp2_percent:allocations[1],p_tp3_percent:allocations[2],
-   p_total_quantity:sizing.units,p_total_risk_usd:sizing.riskAmount,p_total_risk_pct:riskPct,
+   p_total_quantity:sizing.units,p_total_risk_usd:sizing.riskAmount,p_total_risk_pct:actualRiskPct,
    p_quote_to_usd:conversion.rate,p_quote_source:quote.source,p_quote:Number(quote.quote),p_quote_as_of:quote.quoteAsOf
   });
   if(error){console.error("Pending manual batch create:",error.message);return res.status(503).json({error:"Pending batch could not be reserved safely."});}
