@@ -23,6 +23,9 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/claim_traderwin_scalping_worker/);
  assert.match(s,/release_traderwin_scalping_worker/);
  assert.match(s,/manageOpen/);
+ assert.match(s,/Promise\.all\(trades\.map\(async trade/);
+ assert.match(s,/Promise\.all\(ready\.map\(async item/);
+ assert.match(s,/if\(!tradeLocks\.has\(trade\.id\)\)activeTrades\.set/);
  assert.match(s,/OPEN_SCALPING_POSITION_PROVIDER_MAPPING_MISSING/);
  assert.match(s,/!state\.lastError/);
  assert.match(s,/catch\(e\)\{leaseOwned=false;closeSocket\(\);logError\(e\);scheduleReconnect\(\);\}/);
@@ -46,10 +49,14 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.doesNotMatch(s,/proposal_open_contract|buy\s*\(|sell\s*\(/i);
 });
 
-test("scalping preference migration enforces the agreed one-position cap",async()=>{
- const sql=await readFile(new URL("../supabase/migrations/202611250004_scalping_market_ticks.sql",import.meta.url),"utf8");
- assert.match(sql,/max_open_positions smallint not null default 1 check \(max_open_positions = 1\)/);
- assert.doesNotMatch(sql,/max_open_positions between 1 and 2/);
+test("scalping portfolio migration allows up to 15 positions with a 1 percent aggregate open-risk cap",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611260002_scalping_multi_position_portfolio.sql",import.meta.url),"utf8");
+ assert.match(sql,/max_open_positions between 1 and 15/);
+ assert.match(sql,/least\(v_preference\.max_open_positions,15\)/);
+ assert.match(sql,/v_total_risk_limit := v_session\.starting_balance \* 0\.01/);
+ assert.match(sql,/v_open_risk \+ p_risk_amount > v_total_risk_limit/);
+ assert.match(sql,/drop index if exists public\.demo_paper_one_open_trade_per_user/);
+ assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(p_user_id::text, 0\)\)/);
 });
 
 test("scalping execution guard keeps DEMO risk, daily loss, position and candle limits server-side",async()=>{
@@ -57,14 +64,14 @@ test("scalping execution guard keeps DEMO risk, daily loss, position and candle 
  assert.match(sql,/open_demo_scalping_paper_trade/);
  assert.match(sql,/p_risk_pct > 0\.25/);
  assert.match(sql,/max_daily_loss_pct,1\.00/);
- assert.match(sql,/max_open_positions <> 1/);
+ assert.match(sql,/max_open_positions not between 1 and 15/);
  assert.match(sql,/last_candle_as_of/);
  assert.match(sql,/paper_execution_enabled boolean not null default false/);
  assert.match(sql,/paper_execution_enabled is not true/);
  assert.match(sql,/CURRENT_ACCOUNT_MODE_NOT_DEMO/);
  assert.match(sql,/from public\.trader_profiles/);
  assert.match(sql,/p\.paper_execution_enabled = true/);
- assert.match(sql,/SCALPING_ONE_OPEN_POSITION_LIMIT/);
+ assert.match(sql,/SCALPING_MAX_OPEN_POSITIONS/);
  assert.match(sql,/guard_scalping_single_open_position/);
  assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(new\.user_id::text, 0\)\)/);
  assert.match(sql,/scalping_worker_leases/);
