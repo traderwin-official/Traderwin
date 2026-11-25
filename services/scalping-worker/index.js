@@ -23,7 +23,7 @@ function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.
 
 async function eligibleSymbols(){
  const {data:runningSessions,error:sessionError}=await db.from("demo_paper_sessions")
-  .select("id,user_id,instrument,broker,status,current_balance,risk_per_trade_pct,config_snapshot")
+  .select("id,user_id,instrument,broker,status,starting_balance,current_balance,risk_per_trade_pct,config_snapshot")
   .eq("broker","DERIV").eq("status","RUNNING").limit(200);
  if(sessionError)throw sessionError;
  const {data:openRows,error:tradeError}=await db.from("demo_paper_trades")
@@ -36,7 +36,7 @@ async function eligibleSymbols(){
  let openSessions=[];
  if(openSessionIds.length){
   const {data,error}=await db.from("demo_paper_sessions")
-   .select("id,user_id,instrument,broker,status,current_balance,risk_per_trade_pct,config_snapshot")
+   .select("id,user_id,instrument,broker,status,starting_balance,current_balance,risk_per_trade_pct,config_snapshot")
    .eq("broker","DERIV").in("id",openSessionIds);
   if(error)throw error;
   openSessions=data||[];
@@ -94,14 +94,19 @@ async function refreshOpenTrades(){
   .eq("status","OPEN").eq("trade_origin","BOT")
   .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(200);
  if(error)throw error;
- activeTrades.clear();
- for(const trade of data||[])activeTrades.set(trade.id,trade);
+ const seen=new Set();
+ for(const trade of data||[]){
+  seen.add(trade.id);
+  if(!tradeLocks.has(trade.id))activeTrades.set(trade.id,trade);
+ }
+ for(const id of activeTrades.keys()){
+  if(!seen.has(id)&&!tradeLocks.has(id)){activeTrades.delete(id);lastMarked.delete(id);}
+ }
 }
 
 async function manageOpenTrades(instrument,tick){
- let healthy=true;
- for(const trade of activeTrades.values()){
-  if(norm(trade.instrument)!==norm(instrument)||tradeLocks.has(trade.id))continue;
+ const trades=[...activeTrades.values()].filter(trade=>norm(trade.instrument)===norm(instrument)&&!tradeLocks.has(trade.id));
+ const outcomes=await Promise.all(trades.map(async trade=>{
   tradeLocks.add(trade.id);
   try{
    const result=await manageScalpingPaperPosition({db,trade,tick,now:Date.now()});
@@ -109,21 +114,26 @@ async function manageOpenTrades(instrument,tick){
     state.paperExits++;state.lastPaperExitAt=new Date().toISOString();
     if(result.stage==="TP1")trade.tp1_done=true;
     if(result.stage==="TP2")trade.tp2_done=true;
-    if(result.stage==="TP3"||result.stage==="STOP_LOSS"||result.result.closed===true)activeTrades.delete(trade.id);
+    if(result.stage==="TP3"||result.stage==="STOP_LOSS"||result.result.closed===true){
+     activeTrades.delete(trade.id);lastMarked.delete(trade.id);
+    }else activeTrades.set(trade.id,trade);
    }
    if(result.action==="HOLD"){
     const markPrice=Number(trade.side==="BUY"?tick.bid:tick.ask);
-    if(!Number.isFinite(markPrice)||markPrice<=0)continue;
-    const last=lastMarked.get(trade.id)||0;
-    if(Date.now()-last>=1000){
-     lastMarked.set(trade.id,Date.now());
-     const {error}=await db.rpc("mark_demo_paper_trade",{p_user_id:trade.user_id,p_trade_id:trade.id,p_price:markPrice,p_quote_as_of:tick.quoteAsOf});
-     if(error){healthy=false;logError(error);}
+    if(Number.isFinite(markPrice)&&markPrice>0){
+     const last=lastMarked.get(trade.id)||0;
+     if(Date.now()-last>=1000){
+      lastMarked.set(trade.id,Date.now());
+      const {error}=await db.rpc("mark_demo_paper_trade",{p_user_id:trade.user_id,p_trade_id:trade.id,p_price:markPrice,p_quote_as_of:tick.quoteAsOf});
+      if(error)throw error;
+     }
     }
    }
-  }catch(e){healthy=false;logError(e);}finally{tradeLocks.delete(trade.id);}
- }
- return healthy;
+   return true;
+  }catch(e){logError(e);return false;}
+  finally{tradeLocks.delete(trade.id);}
+ }));
+ return outcomes.every(Boolean);
 }
 
 async function saveSignal(wanted,result,candleEpoch,tick){
@@ -134,8 +144,8 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   if(error){logError(error);return;}
   lastSignal.set(wanted.instrument,key);state.signals++;state.lastSignalAt=new Date().toISOString();
  }
- for(const item of wanted.sessions.filter(x=>x.entryEnabled)){
-  if(lastEntryAttempt.get(item.session.id)===candleEpoch)continue;
+ const ready=wanted.sessions.filter(x=>x.entryEnabled&&lastEntryAttempt.get(x.session.id)!==candleEpoch);
+ await Promise.all(ready.map(async item=>{
   lastEntryAttempt.set(item.session.id,candleEpoch);
   try{
    const conversion=await getDerivQuoteToUsd(wanted.instrument,tick);
@@ -148,10 +158,9 @@ async function saveSignal(wanted,result,candleEpoch,tick){
       .eq("id",opened.trade_id).maybeSingle();
      if(tradeLoadError)logError(tradeLoadError);else if(trade?.status==="OPEN")activeTrades.set(trade.id,trade);
     }
-   }
-   else state.lastEntryReason=opened?.reason||"SCALPING_ENTRY_NOT_ACCEPTED";
+   }else state.lastEntryReason=opened?.reason||"SCALPING_ENTRY_NOT_ACCEPTED";
   }catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);}
- }
+ }));
 }
 
 async function publishTick(wanted,tick){
