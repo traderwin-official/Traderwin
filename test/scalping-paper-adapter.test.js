@@ -91,3 +91,22 @@ test("paper adapter refuses automatic entries unless the separate paper-executio
  assert.equal(feedOnly.reason,"SCALPING_DEMO_OPT_IN_REQUIRED");
  assert.equal(called,false);
 });
+
+test("portfolio risk is divided across remaining slots so 15 entries fit inside the 1 percent aggregate cap",async()=>{
+ let args;
+ const rows=Array.from({length:14},()=>({risk_amount_usd:6.66,quantity:666,remaining_quantity:666}));
+ const db=paperDb(async(name,value)=>{args=value;return {data:{ok:true,trade_id:"trade-15"},error:null};},rows);
+ const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
+ assert.equal(result.ok,true);
+ assert.ok(args.p_risk_amount<=6.68);
+ assert.ok(args.p_risk_pct<0.07);
+});
+
+test("portfolio refuses a sixteenth open position before requesting an entry",async()=>{
+ let called=false;
+ const rows=Array.from({length:15},()=>({risk_amount_usd:6.66,quantity:666,remaining_quantity:666}));
+ const db=paperDb(async()=>{called=true;return {data:{ok:true},error:null};},rows);
+ const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
+ assert.equal(result.reason,"SCALPING_MAX_OPEN_POSITIONS");
+ assert.equal(called,false);
+});
