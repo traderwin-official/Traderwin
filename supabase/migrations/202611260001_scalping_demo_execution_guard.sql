@@ -204,7 +204,7 @@ begin
     select 1 from public.demo_paper_trades t
      where t.user_id = new.user_id and t.status = 'OPEN'
   ) then
-    raise exception 'Scalping DEMO enforces one open position across the user's paper account';
+    raise exception 'Scalping DEMO enforces one open position across this DEMO paper account';
   end if;
   return new;
 end;
