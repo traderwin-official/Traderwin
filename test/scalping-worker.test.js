@@ -43,6 +43,7 @@ test("scalping execution guard keeps DEMO risk, daily loss, position and candle 
  assert.match(sql,/paper_execution_enabled is not true/);
  assert.match(sql,/CURRENT_ACCOUNT_MODE_NOT_DEMO/);
  assert.match(sql,/from public\.trader_profiles/);
+ assert.match(sql,/p\.paper_execution_enabled = true/);
  assert.match(sql,/SCALPING_ONE_OPEN_POSITION_LIMIT/);
  assert.match(sql,/guard_scalping_single_open_position/);
  assert.match(sql,/scalping_worker_leases/);
