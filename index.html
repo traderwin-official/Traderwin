@@ -1431,7 +1431,7 @@ calculateRisk();
       scalpPaperEnable.disabled=selectedAccountMode!=="DEMO"||state.entryModeEligible!==true||state.sessionStatus!=="RUNNING"||!state.enabled||state.paperExecutionEnabled;
       scalpPaperDisable.disabled=!state.paperExecutionEnabled;
       if(state.limits)scalpMessage.textContent="Risk ceiling: "+state.limits.riskPerTradePct+"% per trade · "+state.limits.dailyLossPct+"% daily loss · "+state.limits.maxOpenPositions+" open position. Feed and automatic paper execution are controlled separately.";
-      if(state.enabled&&state.sessionStatus==="RUNNING")startScalpingFeedPolling();else stopScalpingFeedPolling();
+      if(state.enabled&&state.entryModeEligible===true&&state.sessionStatus==="RUNNING")startScalpingFeedPolling();else stopScalpingFeedPolling();
      }catch(e){scalpStatus.textContent="Scalping status unavailable: "+e.message;scalpPaperStatus.textContent="Automatic DEMO paper trading: status unavailable";scalpEnable.disabled=selectedAccountMode!=="DEMO";scalpDisable.disabled=true;scalpPaperEnable.disabled=true;scalpPaperDisable.disabled=true;stopScalpingFeedPolling();}
     }
     scalpEnable.addEventListener("click",async()=>{
