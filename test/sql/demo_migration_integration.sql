@@ -7,6 +7,7 @@ declare
   v_scalping_user uuid;
   v_scalping_session uuid;
   v_scalping_trade uuid;
+  v_scalping_trade_2 uuid;
   v_session_risk uuid;
   v_session_count uuid;
   v_bot_trade_id uuid;
@@ -204,7 +205,7 @@ begin
     session_id,user_id,enabled,paper_execution_enabled,account_mode,execution,
     max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions
   ) values (
-    v_scalping_session,v_scalping_user,true,true,'DEMO','WEBSITE_PAPER_ONLY',0.25,1.00,1
+    v_scalping_session,v_scalping_user,true,true,'DEMO','WEBSITE_PAPER_ONLY',0.25,1.00,15
   );
 
   select public.open_demo_scalping_paper_trade(
@@ -225,6 +226,21 @@ begin
   if v_result->>'reason' <> 'SCALPING_CANDLE_ALREADY_PROCESSED' then
     raise exception 'Expected scalping candle idempotency: %',v_result;
   end if;
+
+  -- A fresh M1 candle may open a second position while the first remains open.
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','SELL',
+    1.10000,1.11000,1.08500,1.09250,1.08900,1.08500,
+    2500,25,0.25,1,now(),now()-interval '30 seconds'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected a second concurrent scalping position: %',v_result;
+  end if;
+  v_scalping_trade_2 := (v_result->>'trade_id')::uuid;
+  select count(*) into v_count from public.demo_paper_trades
+   where user_id=v_scalping_user and status='OPEN'
+     and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING';
+  if v_count <> 2 then raise exception 'Expected two simultaneous scalping positions, got %',v_count; end if;
 
   update public.trader_profiles set account_mode='REAL' where user_id=v_scalping_user;
   select public.open_demo_scalping_paper_trade(
@@ -267,6 +283,13 @@ begin
   ) into v_result;
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected scalping DEMO paper position to close: %',v_result;
+  end if;
+
+  select public.close_demo_paper_trade(
+    v_scalping_user,v_scalping_trade_2,1.10000,1,'DERIV',now(),'CI_SCALPING_CLOSE_2'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected second scalping DEMO paper position to close independently: %',v_result;
   end if;
 
   -- A retry with the same request key must be idempotent and not realize P&L twice.
