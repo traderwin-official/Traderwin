@@ -1,6 +1,6 @@
 import {createClient} from "@supabase/supabase-js";
 
-const norm=value=>String(value||"").trim().toUpperCase().replace(/[\\s/.-]/g,"");
+const norm=value=>String(value||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 
 export default async function handler(req,res){
  res.setHeader("Cache-Control","no-store");
