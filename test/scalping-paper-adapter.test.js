@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {openScalpingPaperPosition,manageScalpingPaperPosition} from "../lib/scalping-paper-adapter.js";
 
-const session={id:"session-1",user_id:"user-1",broker:"DERIV",status:"RUNNING",instrument:"XAUUSD",current_balance:10000,
+const session={id:"session-1",user_id:"user-1",broker:"DERIV",status:"RUNNING",instrument:"XAUUSD",current_balance:10000,risk_per_trade_pct:0.5,
  config_snapshot:{account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY"}};
 const preference={enabled:true,account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY",max_risk_per_trade_pct:0.25,max_daily_loss_pct:1,max_open_positions:1};
 const now=Date.now();
