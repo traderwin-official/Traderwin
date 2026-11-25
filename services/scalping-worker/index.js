@@ -24,12 +24,12 @@ function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.
 async function eligibleSymbols(){
  const {data:runningSessions,error:sessionError}=await db.from("demo_paper_sessions")
   .select("id,user_id,instrument,broker,status,starting_balance,current_balance,risk_per_trade_pct,config_snapshot")
-  .eq("broker","DERIV").eq("status","RUNNING").limit(200);
+  .eq("broker","DERIV").eq("status","RUNNING").limit(1000);
  if(sessionError)throw sessionError;
  const {data:openRows,error:tradeError}=await db.from("demo_paper_trades")
   .select("id,user_id,session_id,instrument,metadata")
   .eq("status","OPEN").eq("trade_origin","BOT")
-  .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(200);
+  .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(1000);
  if(tradeError)throw tradeError;
  const openTrades=openRows||[];
  const openSessionIds=[...new Set(openTrades.map(t=>t.session_id).filter(Boolean))];
@@ -92,7 +92,7 @@ async function refreshOpenTrades(){
  const {data,error}=await db.from("demo_paper_trades")
   .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
   .eq("status","OPEN").eq("trade_origin","BOT")
-  .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(200);
+  .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(1000);
  if(error)throw error;
  const seen=new Set();
  for(const trade of data||[]){
