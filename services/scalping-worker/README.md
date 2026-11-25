@@ -35,3 +35,6 @@ The instrument must also be present in the active, approved Deriv instrument reg
 - Do not enable `scalping_enabled` for any account until the UI opt-in, strategy/risk controls, M1 history warm-up, paper-execution adapter, duplicate suppression, and independent end-to-end tests are released.
 - Do not add the service-role key to a browser environment or commit it to the repository.
 - Measure feed latency as `receivedAt - quoteAsOf`; do not claim a fixed millisecond execution time.
+
+
+The dashboard feed is accessed only through the authenticated `/api/bots/demo/scalping-feed` endpoint. It verifies the current user's own RUNNING Deriv DEMO session and enabled server-side preference before returning the latest quote and signal candidates. The browser polls every three seconds while the page is visible.
