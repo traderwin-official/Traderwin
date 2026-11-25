@@ -89,3 +89,8 @@ test("scalping WAIT diagnostics include Fibonacci retracement and extension band
  assert.ok(result.indicators.fibonacci);
  assert.ok(result.indicators.fibonacci.retracement618>result.indicators.fibonacci.swingLow);
 });
+
+test("scalping instrument normalization removes spaces, slashes and separators",()=>{
+ const result=analyseScalping({instrument:"XAU USD",candles:candles(),tick:tick(),now});
+ assert.notEqual(result.reason,"VERIFIED_TICK_REQUIRED");
+});
