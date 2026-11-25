@@ -60,23 +60,15 @@ test("scalping portfolio migration allows up to 15 positions with a 1 percent ag
  assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(p_user_id::text, 0\)\)/);
 });
 
-test("scalping execution guard keeps DEMO risk, daily loss, position and candle limits server-side",async()=>{
- const sql=await readFile(new URL("../supabase/migrations/202611260002_scalping_multi_position_portfolio.sql",import.meta.url),"utf8");
+test("base scalping execution guard retains DEMO-only consent and daily risk protections",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611260001_scalping_demo_execution_guard.sql",import.meta.url),"utf8");
  assert.match(sql,/open_demo_scalping_paper_trade/);
  assert.match(sql,/p_risk_pct > 0\.25/);
  assert.match(sql,/max_daily_loss_pct,1\.00/);
- assert.match(sql,/max_open_positions not between 1 and 15/);
- assert.match(sql,/last_candle_as_of/);
  assert.match(sql,/paper_execution_enabled boolean not null default false/);
  assert.match(sql,/paper_execution_enabled is not true/);
  assert.match(sql,/CURRENT_ACCOUNT_MODE_NOT_DEMO/);
  assert.match(sql,/from public\.trader_profiles/);
- assert.match(sql,/p\.paper_execution_enabled = true/);
- assert.match(sql,/SCALPING_MAX_OPEN_POSITIONS/);
- assert.match(sql,/guard_scalping_single_open_position/);
- assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(new\.user_id::text, 0\)\)/);
- assert.match(sql,/scalping_worker_leases/);
- assert.match(sql,/claim_traderwin_scalping_worker/);
  assert.match(sql,/to service_role/);
  assert.match(sql,/from public, anon, authenticated/);
 });
