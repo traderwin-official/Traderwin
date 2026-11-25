@@ -5,7 +5,11 @@ alter table public.demo_manual_entry_batches
 
 -- Retire the old RPC signature. Older application code must fail closed rather than
 -- create new batches with incomplete entry semantics during a rolling deployment.
-revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz) from public,anon,authenticated,service_role;
+do $ begin
+ if to_regprocedure('public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz)') is not null then
+  execute 'revoke all on function public.create_demo_manual_entry_batch(uuid,uuid,text,text,text,integer,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,numeric,timestamptz) from public,anon,authenticated,service_role';
+ end if;
+end $;
 
 create or replace function public.create_demo_manual_entry_batch(
  p_user_id uuid,p_session_id uuid,p_instrument text,p_provider_symbol text,p_side text,p_entry_type text,p_trade_count integer,
