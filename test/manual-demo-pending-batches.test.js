@@ -19,6 +19,8 @@ test("pending batch API validates count, planned levels, percentages, DEMO mode 
  assert.match(api,/Market is exactly at your planned entry/);
  assert.match(api,/entryType,tradeCount/);
  assert.match(api,/create_demo_manual_entry_batch/);
+ assert.match(api,/Math\.floor\(\(sizing\.riskAmount\+1e-8\)\*100\)\/100/);
+ assert.match(api,/p_total_risk_pct:actualRiskPct/);
  assert.match(api,/p_total_risk_usd:sizing\.riskAmount/);
  assert.match(api,/No position is open yet/);
  assert.doesNotMatch(api,/buy\(|sell\(|placeOrder|sendBrokerOrder/i);
