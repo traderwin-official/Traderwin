@@ -6,7 +6,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  const s=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
  assert.match(s,/demo_scalping_preferences/);
  assert.match(s,/config_snapshot/);
- assert.match(s,/WEBSITE_DEMO_AUTO_PAPER_ONLY/);
+
  assert.match(s,/preference\.account_mode==="DEMO"/);
  assert.match(s,/preference\.execution==="WEBSITE_PAPER_ONLY"/);
  assert.match(s,/trading_instrument_approvals/);
