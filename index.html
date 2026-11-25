@@ -392,7 +392,13 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <p class="muted">Securely authorize your own Deriv account. Each signed-in user connects their own account.</p>
    <p class="status" id="derivConnectionStatus">Connection: Not connected</p>
    <button id="connectDerivButton" type="button">Connect Deriv Account</button>
-   <p class="muted">Authorization is separate from bot activation. No trades will be placed by connecting.</p>
+   <div id="derivAccountPicker" style="display:none;margin-top:12px">
+    <label for="derivDemoAccountSelect">Verified DEMO account</label>
+    <select id="derivDemoAccountSelect" style="width:100%;margin-top:6px"><option value="">Load verified DEMO accounts</option></select>
+    <button id="saveDerivDemoAccount" type="button" style="margin-top:8px">Save DEMO Account</button>
+    <p class="muted" id="derivAccountPickerMessage" aria-live="polite"></p>
+   </div>
+   <p class="muted">Authorization is separate from bot activation. Choose a verified DEMO account before starting a session. Connecting alone never places trades; REAL accounts remain locked.</p>
   </div>
 
   <div class="card">
@@ -776,6 +782,56 @@ calculateRisk();
   // DERIV SECURE ACCOUNT CONNECTION
   const connectButton=document.getElementById("connectDerivButton");
   const derivStatus=document.getElementById("derivConnectionStatus");
+  const derivAccountPicker=document.getElementById("derivAccountPicker");
+  const derivDemoAccountSelect=document.getElementById("derivDemoAccountSelect");
+  const saveDerivDemoAccount=document.getElementById("saveDerivDemoAccount");
+  const derivAccountPickerMessage=document.getElementById("derivAccountPickerMessage");
+
+  async function refreshDerivAccounts(accessToken){
+   const response=await fetch("/api/deriv/accounts",{
+    headers:{"Authorization":"Bearer "+accessToken},
+    credentials:"same-origin",cache:"no-store"
+   });
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok) throw new Error(result.error||"Could not load verified Deriv accounts.");
+   const demos=(Array.isArray(result.accounts)?result.accounts:[]).filter(a=>
+    a&&String(a.account_type||"").toLowerCase()==="demo"&&String(a.status||"active").toLowerCase()==="active"
+   );
+   derivDemoAccountSelect.replaceChildren();
+   if(!demos.length){
+    derivDemoAccountSelect.add(new Option("No verified active DEMO account found",""));
+    derivAccountPickerMessage.textContent="Reconnect Deriv or contact support if your active DEMO account is missing.";
+    derivAccountPicker.style.display="block";
+    return;
+   }
+   derivDemoAccountSelect.add(new Option("Choose a verified DEMO account",""));
+   demos.forEach(a=>derivDemoAccountSelect.add(new Option("DEMO · "+a.account_id+(a.currency?" · "+a.currency:""),a.account_id)));
+   if(result.selected_account_id&&demos.some(a=>a.account_id===result.selected_account_id)){
+    derivDemoAccountSelect.value=result.selected_account_id;
+    derivAccountPickerMessage.textContent="Your verified DEMO account is selected. You can change it here.";
+   }else derivAccountPickerMessage.textContent="Select and save the DEMO account to use. REAL accounts cannot be selected here.";
+   derivAccountPicker.style.display="block";
+  }
+
+  saveDerivDemoAccount.addEventListener("click",async()=>{
+   const accountId=derivDemoAccountSelect.value;
+   if(!accountId){derivAccountPickerMessage.textContent="Choose a verified DEMO account first.";return;}
+   saveDerivDemoAccount.disabled=true;
+   derivAccountPickerMessage.textContent="Saving your verified DEMO account...";
+   try{
+    const {data:session,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!session.session)throw new Error("Please sign in again.");
+    const response=await fetch("/api/deriv/select-account",{
+     method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.session.access_token},
+     credentials:"same-origin",cache:"no-store",body:JSON.stringify({account_id:accountId})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||"Could not save the selected DEMO account.");
+    derivAccountPickerMessage.textContent=result.message||"Verified DEMO account saved.";
+    await refreshDerivStatus();
+   }catch(error){derivAccountPickerMessage.textContent=error.message||"Could not save the selected DEMO account.";}
+   finally{saveDerivDemoAccount.disabled=false;}
+  });
 
   const disconnectButton=document.createElement("button");
   disconnectButton.type="button";
@@ -796,15 +852,12 @@ calculateRisk();
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||"Status unavailable");
     if(result.connected){
-     derivStatus.textContent="Deriv connected · DEMO account "+String(result.demoAccountId||"").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". REAL account "+(result.realAccountId?"found but still locked":"not detected")+". Token storage is encrypted server-side.";
-     connectButton.disabled=true;
-     connectButton.textContent="Deriv Connected";
-     disconnectButton.style.display="inline-block";
+     derivStatus.textContent="Deriv connected · DEMO account "+String(result.demoAccountId||"not selected").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". REAL account "+(result.realAccountId?"found but still locked":"not detected")+". Token storage is encrypted server-side.";
+     connectButton.disabled=true;connectButton.textContent="Deriv Connected";disconnectButton.style.display="inline-block";
+     await refreshDerivAccounts(session.session.access_token);
     }else{
-     derivStatus.textContent="Deriv is not connected yet.";
-     connectButton.disabled=false;
-     connectButton.textContent="Connect Deriv";
-     disconnectButton.style.display="none";
+     derivStatus.textContent="Deriv is not connected yet.";connectButton.disabled=false;connectButton.textContent="Connect Deriv";
+     disconnectButton.style.display="none";derivAccountPicker.style.display="none";
     }
    }catch(error){
     console.warn("Deriv status could not be loaded:",error.message);
