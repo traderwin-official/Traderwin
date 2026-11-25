@@ -140,6 +140,17 @@ begin
     'DERIV',p_quote_as_of,'BOT',p_candle_as_of,p_tp1,p_tp2,p_tp3
   );
 
+  if coalesce((v_result->>'ok')::boolean,false) is true then
+    update public.demo_paper_trades
+       set metadata = coalesce(metadata,'{}'::jsonb) ||
+         jsonb_build_object('strategy','TIGER_SCHEME_QUANTUM_SCALPING',
+                            'scalping_candle_as_of',p_candle_as_of)
+     where id = (v_result->>'trade_id')::uuid
+       and user_id = p_user_id
+       and trade_origin = 'BOT'
+       and status = 'OPEN';
+  end if;
+
   return v_result || jsonb_build_object('execution_mode','DEMO_PAPER_ONLY');
 end;
 $$;
