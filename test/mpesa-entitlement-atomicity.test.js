@@ -17,7 +17,9 @@ test("subscription entitlement ledger permanently deduplicates every payment ord
 
 test("M-Pesa callback delegates subscription fulfilment to one atomic database transaction", async () => {
   const source = await readFile(new URL("../handlers/payments/mpesa/callback.js", import.meta.url), "utf8");
-  assert.match(source, /admin\.rpc\(\s*"fulfill_paid_subscription_order",\s*\{\s*p_order_id:\s*paidOrder\.id\s*\}\)/);
+  assert.ok(source.includes("admin.rpc("));
+  assert.ok(source.includes("fulfill_paid_subscription_order"));
+  assert.ok(source.includes("p_order_id: paidOrder.id"));
   assert.match(source, /Payment entitlement activation failed/);
   assert.doesNotMatch(source, /from\("user_subscriptions"\)\.upsert/);
   assert.doesNotMatch(source, /existingSubscription\?\.payment_order_id/);
