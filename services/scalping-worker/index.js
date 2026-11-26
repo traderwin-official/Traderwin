@@ -9,7 +9,7 @@ const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=proce
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const SCALPING_STRATEGY="TIGER_SCHEME_QUANTUM_SCALPING";
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
-const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0};
+const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{}};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
@@ -172,6 +172,12 @@ async function publishTick(wanted,tick){
  if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(epoch)||Math.abs(Date.now()-epoch*1000)>30000)return;
  const payload={instrument:wanted.instrument,providerSymbol,quote,bid:typeof tick.bid==="number"&&Number.isFinite(tick.bid)&&tick.bid>0?tick.bid:null,ask:typeof tick.ask==="number"&&Number.isFinite(tick.ask)&&tick.ask>0?tick.ask:null,quoteAsOf,receivedAt,source:"DERIV"};
  state.lastTickAt=receivedAt;state.ticks++;
+ const bidAskAvailable=payload.bid!==null&&payload.ask!==null;
+ state.marketDataQuality[wanted.instrument]={providerSymbol,quoteAsOf,bidAskAvailable,status:bidAskAvailable?"BID_ASK_READY":"SPOT_ONLY"};
+ if(!bidAskAvailable){
+  state.bidAskMissingTicks++;
+  if(wanted.sessions.some(x=>x.entryEnabled))state.lastEntryReason="DERIV_BID_ASK_UNAVAILABLE:"+wanted.instrument;
+ }
  // Start exits immediately, but do not block candle ingestion on database round-trips.
  const managementPromise=manageOpenTrades(wanted.instrument,payload);
  if(Date.now()-(lastPersisted.get(wanted.instrument)||0)>=1000){
