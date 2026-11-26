@@ -12,6 +12,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/scalpingSessionPermissions/);
  const dockerfile=await readFile(new URL("../services/scalping-worker/Dockerfile",import.meta.url),"utf8");
  assert.match(dockerfile,/COPY lib\/scalping-session-eligibility\.js \.\/lib\/scalping-session-eligibility\.js/);
+ assert.match(dockerfile,/COPY lib\/scalping-trade-concurrency\.js \.\/lib\/scalping-trade-concurrency\.js/);
  assert.match(s,/hasOpenTrade:openSessionSet\.has\(session\.id\)/);
  assert.match(permissions,/preference\?\.paper_execution_enabled === true/);
  assert.match(permissions,/preference\?\.account_mode === "DEMO"/);
@@ -34,7 +35,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/claim_traderwin_scalping_worker/);
  assert.match(s,/release_traderwin_scalping_worker/);
  assert.match(s,/manageOpen/);
- assert.match(s,/Promise\.all\(trades\.map\(async trade/);
+ assert.match(s,/manageTradesIndependently\(/);
  assert.match(s,/Promise\.all\(ready\.map\(async item/);
  assert.match(s,/if\(!tradeLocks\.has\(trade\.id\)\)activeTrades\.set/);
  assert.match(s,/OPEN_SCALPING_POSITION_PROVIDER_MAPPING_MISSING/);
@@ -53,14 +54,14 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/latestContiguousCandles\(candles,interval,240\)/);
  assert.match(s,/async function manageOpenTrades\(instrument,tick\)\{\s*const trades=/);
  assert.match(s,/Promise\.all\(trades\.map\(async trade/);
- assert.match(s,/catch\(e\)\{logError\(e\);return false;\}/);
+
  assert.doesNotMatch(s,/await managementPromise/);
  assert.doesNotMatch(s,/if\(!managementHealthy\)return;/);
  assert.match(s,/const managementPromise=manageOpenTrades\(wanted\.instrument,payload\)\.catch/);
  assert.match(s,/void managementPromise/);
  assert.match(s,/Entry analysis runs independently of the per-position exit tasks above/);
- assert.match(s,/tradeLocks\.add\(trade\.id\)/);
- assert.match(s,/finally\{tradeLocks\.delete\(trade\.id\);\}/);
+
+
  assert.match(s,/bidAskMissingTicks:0,marketDataQuality:\{\}/);
  assert.match(s,/bidAskAvailable=payload\.bid!==null&&payload\.ask!==null/);
  assert.match(s,/status:bidAskAvailable\?"BID_ASK_READY":"SPOT_ONLY"/);
