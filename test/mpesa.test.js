@@ -47,3 +47,10 @@ test("paid M-Pesa callbacks can retry atomic subscription fulfilment", () => {
   assert.match(source, /Payment entitlement already active/);
   assert.doesNotMatch(source, /from\("user_subscriptions"\)\.upsert/);
 });
+
+test("STK checkout handles a concurrent pending-order uniqueness conflict safely", () => {
+  const checkoutPath = new URL("../handlers/payments/mpesa/stk-push.js", import.meta.url);
+  const source = readFileSync(fileURLToPath(checkoutPath), "utf8");
+  assert.match(source, /orderError\?\.code === "23505"/);
+  assert.match(source, /payment request for this service is already being processed/i);
+});
