@@ -1,6 +1,6 @@
-# Young Tiger continuous DEMO scalping worker
+# Young Tiger FX — DEMO scalping strategy worker
 
-A persistent Deriv public market-data worker for **Tiger Scheme AI Bot — Quantum Scalping**. It generates M1/M5 candidates and manages virtual DEMO paper positions in Traderwin's isolated `demo_paper_*` ledger. It does not send Deriv broker orders and cannot execute REAL trades.
+This worker implements **Tiger Scheme AI Bot — Quantum Scalping**, one optional automated strategy within the wider Young Tiger FX platform. It is an additive strategy module, not a replacement for the platform or its other strategies and services. It generates M1/M5 candidates and manages virtual DEMO paper positions in the isolated `demo_paper_*` ledger. It does not send Deriv broker orders and cannot execute REAL trades.
 
 ## Runtime and deployment
 
@@ -21,7 +21,7 @@ The worker opens a paper position only for a session that:
 - uses an active, explicitly approved Deriv instrument;
 - has fresh, timestamped Deriv bid and ask values and a fresh quote-currency-to-USD conversion.
 
-Enabling the feed alone never opens a position; `paper_execution_enabled` defaults to false and must be explicitly enabled from the dashboard. Either disabled flag blocks new entries. Existing scalping BOT positions remain subscribed and managed to their stop or staged targets even if the user disables new entries or pauses the session.
+Enabling the feed alone never opens a position; `paper_execution_enabled` defaults to false and must be explicitly enabled from the dashboard. Either disabled flag blocks new entries. Existing scalping BOT positions remain subscribed and managed to their stop or single full-position target even if the user disables new entries or pauses the session.
 
 ## Strategy and execution
 
@@ -31,7 +31,7 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - The server-side entry RPC permits up to 15 concurrent DEMO paper positions, blocks duplicate M1-candle entries, caps each position at 0.25%, and limits combined open stop-risk to 1% of starting equity. The daily realized-loss cap is also 1%.
 - Manual DEMO positions may coexist with the automated portfolio and share its 15-position ceiling. The scalping worker only manages tagged BOT positions; monitoring or closing manual positions requires the account owner's separate explicit portfolio permissions.
 - Position size uses the verified USD value of the instrument's quote currency. Unsupported or stale conversions fail closed.
-- Paper positions use staged exits: TP1 0.75R, TP2 1.1R, TP3 at the engine's 1.5R–3R target, with the existing 40/30/30 staged-close ledger and stop-loss.
+- Scalping paper positions use one final take-profit target (1.5R–3R) and close the entire remaining position at that target. Stop-loss also closes the entire remaining position. There are no TP1/TP2 partial exits in this fast scalping strategy. This rule is scoped to scalping only; it does not remove or change partial-exit features used by manual trading or other strategies.
 - Exit decisions use the correct side of the spread: bid for BUY positions and ask for SELL positions. Missing bid/ask or stale quotes never trigger an exit.
 - Database RPCs are the only entry/exit path. Worker entry, mark and staged-exit writes are fenced by the current singleton lease and limited to tagged scalping BOT positions; the underlying shared DEMO ledger RPCs retain their existing callers and protections.
 
