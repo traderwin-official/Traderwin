@@ -1,3 +1,5 @@
+> **Historical checkpoint:** This document contains an earlier upgrade branch and PR reference. For the current branch, PR, integrated capabilities, validation and remaining work, use [PLATFORM_INTEGRATION_STATUS.md](PLATFORM_INTEGRATION_STATUS.md). Do not treat the old branch/PR/test references below as the current state.
+
 # Young Tiger Forex Platform — upgrade readiness
 
 This document describes the isolated integration branch `integration/young-tiger-platform` and its draft PR #33. It is not the live production deployment. No production Supabase migration or production Vercel deployment has been performed.
