@@ -195,8 +195,12 @@ async function saveSignal(wanted,result,candleEpoch,tick){
 
 async function publishTick(wanted,tick){
  const quote=Number(tick.quote),epoch=Number(tick.epoch),providerSymbol=String(tick.symbol||"");
+ if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(epoch)||epoch<=0||Math.abs(Date.now()-epoch*1000)>30000)return;
+ // Enforce per-instrument ordering before exits, persistence, or candle updates.
+ // Keep the epoch map across socket reconnects so delayed packets from an old
+ // connection cannot roll a freshly rehydrated worker backwards.
+ if(!acceptMonotonicMarketTick({instrument:wanted.instrument,epoch,latestByInstrument:latestTickEpoch}))return;
  const quoteAsOf=new Date(epoch*1000).toISOString(),receivedAt=new Date().toISOString();
- if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(epoch)||Math.abs(Date.now()-epoch*1000)>30000)return;
  const payload={instrument:wanted.instrument,providerSymbol,quote,bid:typeof tick.bid==="number"&&Number.isFinite(tick.bid)&&tick.bid>0?tick.bid:null,ask:typeof tick.ask==="number"&&Number.isFinite(tick.ask)&&tick.ask>0?tick.ask:null,quoteAsOf,receivedAt,source:"DERIV"};
  state.lastTickAt=receivedAt;state.ticks++;
  const bidAskAvailable=payload.bid!==null&&payload.ask!==null;
