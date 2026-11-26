@@ -53,7 +53,13 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/async function manageOpenTrades\(instrument,tick\)\{\s*const trades=/);
  assert.match(s,/Promise\.all\(trades\.map\(async trade/);
  assert.match(s,/catch\(e\)\{logError\(e\);return false;\}/);
- assert.match(s,/if\(!managementHealthy\)return;/);
+ assert.doesNotMatch(s,/await managementPromise/);
+ assert.doesNotMatch(s,/if\(!managementHealthy\)return;/);
+ assert.match(s,/const managementPromise=manageOpenTrades\(wanted\.instrument,payload\)\.catch/);
+ assert.match(s,/void managementPromise/);
+ assert.match(s,/Entry analysis runs independently of the per-position exit tasks above/);
+ assert.match(s,/tradeLocks\.add\(trade\.id\)/);
+ assert.match(s,/finally\{tradeLocks\.delete\(trade\.id\);\}/);
  assert.match(s,/bidAskMissingTicks:0,marketDataQuality:\{\}/);
  assert.match(s,/bidAskAvailable=payload\.bid!==null&&payload\.ask!==null/);
  assert.match(s,/status:bidAskAvailable\?"BID_ASK_READY":"SPOT_ONLY"/);
