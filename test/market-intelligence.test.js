@@ -151,3 +151,39 @@ test("invalid time or timeframe configuration fails closed", () => {
   assert.equal(evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence,market,risk,now:NaN}).direction,"WAIT");
   assert.ok(evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"TICK",evidence,market,risk,now}).reasons.includes("INVALID_TIMEFRAME"));
 });
+
+
+test("XAUUSD independent reference must pass before a market candidate can pass", () => {
+  const blocked = evaluateMarketConfluence({
+    instrument: "XAUUSD", timeframe: "M5", evidence, market, risk: {
+      ...risk, independentReferenceRequired: true, independentReferenceStatus: "BLOCK"
+    }, now
+  });
+  assert.equal(blocked.direction, "WAIT");
+  assert.ok(blocked.reasons.includes("INDEPENDENT_REFERENCE_DIVERGENCE"));
+
+  const unknown = evaluateMarketConfluence({
+    instrument: "XAUUSD", timeframe: "M5", evidence, market, risk: {
+      ...risk, independentReferenceRequired: true, independentReferenceStatus: "UNKNOWN"
+    }, now
+  });
+  assert.equal(unknown.direction, "WAIT");
+  assert.ok(unknown.reasons.includes("INDEPENDENT_REFERENCE_NOT_VERIFIED"));
+
+  const passed = evaluateMarketConfluence({
+    instrument: "XAUUSD", timeframe: "M5", evidence, market, risk: {
+      ...risk, independentReferenceRequired: true, independentReferenceStatus: "PASS"
+    }, now
+  });
+  assert.equal(passed.direction, "BUY");
+  assert.ok(!passed.reasons.includes("INDEPENDENT_REFERENCE_DIVERGENCE"));
+});
+
+test("independent gold reference is not required for non-gold instruments", () => {
+  const result = evaluateMarketConfluence({
+    instrument: "EURUSD", timeframe: "M5", evidence: evidenceFor("EURUSD"), market,
+    risk: { ...risk, independentReferenceRequired: false, independentReferenceStatus: "NOT_APPLICABLE" }, now
+  });
+  assert.equal(result.direction, "BUY");
+  assert.ok(!result.reasons.includes("INDEPENDENT_REFERENCE_NOT_VERIFIED"));
+});
