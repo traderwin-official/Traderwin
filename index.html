@@ -113,6 +113,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <a class="dashboard-action" href="#payments"><span class="dashboard-icon">💳</span><strong>Payments</strong><small>Secure service checkout</small></a>
    <a class="dashboard-action" href="/bot-shop.html"><span class="dashboard-icon">⚡</span><strong>Standalone Bot</strong><small>Explore separate bot products</small></a>
    <a class="dashboard-action" href="#derivCard"><span class="dashboard-icon">🔗</span><strong>Broker Connections</strong><small>Manage supported account links</small></a>
+   <a class="dashboard-action" href="/onboarding.html"><span class="dashboard-icon">🛡️</span><strong>Account &amp; Risk</strong><small>Review account mode and risk limits</small></a>
   </div>
   <p class="dashboard-foot">Your key trading tools are gathered here. DEMO uses virtual funds; live broker execution remains locked and requires separate approval.</p>
  </div>
@@ -1687,7 +1688,15 @@ calculateRisk();
 
    loadDemoTradeHistory();
    
-   // SIGN OUT BUTTON
+   // SIGNED-IN ACCOUNT SUMMARY AND SETTINGS SHORTCUT
+  const accountLink=document.createElement("a");
+  accountLink.href="/onboarding.html";
+  accountLink.setAttribute("aria-label","Open account mode and risk settings");
+  accountLink.style.cssText="position:fixed;top:12px;left:12px;z-index:99999;max-width:calc(100vw - 125px);padding:9px 12px;background:#172337;color:#f5bd45;border:1px solid #52627a;border-radius:8px;font-size:12px;font-weight:bold;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  accountLink.textContent=(data.session.user.email||"My Account")+" · "+selectedAccountMode+" · Account & Risk";
+  document.body.appendChild(accountLink);
+
+  // SIGN OUT BUTTON
   const logout=document.createElement("button");
   logout.textContent="Sign Out";
   logout.style.cssText="position:fixed;top:12px;right:12px;z-index:99999;padding:10px 16px;background:#d7a83c;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer";
