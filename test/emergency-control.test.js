@@ -20,3 +20,19 @@ test("DEMO start and manual entry both enforce the persisted legacy emergency la
  assert.match(start,/from\("bot_emergency_controls"\)/);assert.match(start,/kill_switch_active/);
  assert.match(entry,/from\("bot_emergency_controls"\)/);assert.match(entry,/session\.broker_account_ref/);
 });
+
+
+test("DEMO Deriv emergency stop synchronizes the worker's authoritative paper-entry latch",async()=>{
+ const s=await readFile(new URL("../handlers/bots/emergency/control.js",import.meta.url),"utf8");
+ assert.match(s,/from\("demo_paper_emergency_controls"\)/);
+ assert.match(s,/entries_blocked:\s*active/);
+ assert.match(s,/usesDemoPaperLatch\s*=\s*accountMode\s*===\s*"DEMO"\s*&&\s*broker\s*===\s*"DERIV"/);
+ assert.match(s,/if \(usesDemoPaperLatch && active\)/);
+ assert.match(s,/demoResult\.error/);
+ assert.match(s,/Could not synchronize every emergency-stop control/);
+});
+test("DEMO emergency status reports blocked if either safety latch remains active",async()=>{
+ const s=await readFile(new URL("../handlers/bots/emergency/control.js",import.meta.url),"utf8");
+ assert.match(s,/data\?\.kill_switch_active === true \|\| demoResult\.data\?\.entries_blocked === true/);
+ assert.match(s,/Could not load every emergency-stop control safely/);
+});
