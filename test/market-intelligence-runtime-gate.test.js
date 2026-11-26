@@ -100,6 +100,11 @@ test("the analyst route and DEMO scalping worker both invoke the runtime gate", 
   ]);
   assert.match(analyst, /evaluateMarketCandidate/);
   assert.match(analyst, /marketIntelligence/);
+  assert.match(analyst, /getGdeltNewsRiskStatus/);
+  assert.match(analyst, /getBiQuoteCalendarRiskStatus/);
+  assert.match(analyst, /combinedNewsStatus/);
+  assert.match(analyst, /newsStatus: combinedNewsStatus/);
+  assert.match(analyst, /calendarRisk/);
   assert.match(worker, /evaluateMarketCandidate/);
   assert.match(worker, /MARKET_INTELLIGENCE_WAIT/);
   assert.match(worker, /lastMarketIntelligence/);
