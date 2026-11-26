@@ -197,6 +197,18 @@ begin
     raise exception 'Expected manual portfolio close to be blocked: %',v_result;
   end if;
 
+  -- Monitoring-only consent must still never authorize a portfolio close.
+  update public.portfolio_trade_permissions
+     set manual_trade_management=true,close_manual_trades=false,updated_at=now()
+   where user_id=v_user and account_mode='DEMO' and broker='DERIV'
+     and broker_account_ref='DEMO:'||v_user;
+  select public.close_demo_portfolio_trade(
+    v_user,v_manual_portfolio_id,'EURUSD',1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
+  ) into v_result;
+  if v_result->>'reason' <> 'MANUAL_CLOSE_PERMISSION_NOT_GRANTED' then
+    raise exception 'Monitoring-only permission unexpectedly authorized a manual close: %',v_result;
+  end if;
+
   update public.portfolio_trade_permissions
      set manual_trade_management=true,close_manual_trades=true,updated_at=now()
    where user_id=v_user and account_mode='DEMO' and broker='DERIV'
