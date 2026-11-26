@@ -42,15 +42,15 @@ export default async function handler(req,res){
    let modeProfile=null;
    if(executionMode==="AUTO"){
     const {data:modeProfiles,error:modeError}=await db.from("bot_mode_profiles")
-     .select("risk_per_trade,max_daily_loss").eq("user_id",uid).eq("broker","DERIV")
+     .select("max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("broker","DERIV")
      .eq("instrument",requestedInstrument).eq("account_mode","DEMO").limit(2);
     if(modeError)return res.status(503).json({error:"Could not verify DEMO risk preferences."});
     if((modeProfiles||[]).length>1)return res.status(409).json({error:"More than one matching DEMO risk profile exists; resolve the duplicate before starting automation."});
     modeProfile=modeProfiles?.[0]||null;
    }
    // The DEMO paper ledger enforces these platform-wide ceilings in SQL as well.
-   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.risk_per_trade||p.max_risk_per_trade_pct),0.25);
-   const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss||p.max_daily_loss_pct),1.00);
+   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.max_risk_per_trade_pct||p.max_risk_per_trade_pct),0.25);
+   const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss_pct||p.max_daily_loss_pct),1.00);
    let selectedStrategy="MANUAL",timeframe=requestedTimeframe;
    if(executionMode==="AUTO"){
     const {data:botSettings,error:botSettingsError}=await db.from("bot_settings")
