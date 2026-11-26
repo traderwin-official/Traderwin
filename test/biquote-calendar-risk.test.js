@@ -36,6 +36,30 @@ test("exposes upcoming instrument-relevant macro events without falsely activati
   assert.equal(result.upcomingEvents[0].currency, "USD");
 });
 
+test("macro context scores USD rate and inflation events as highly relevant to gold without inferring direction", () => {
+  const result = evaluateBiQuoteCalendarRisk({
+    events: [event({ name: "Federal Reserve interest rate decision", time: new Date(now + 2 * 60 * 60_000).toISOString() })],
+    instrument: "XAUUSD",
+    now
+  });
+  assert.equal(result.upcomingEvents[0].category, "MONETARY_POLICY");
+  assert.equal(result.upcomingEvents[0].relevance.score, 100);
+  assert.equal(result.upcomingEvents[0].relevance.level, "HIGH");
+  assert.equal(result.upcomingEvents[0].relevance.currencyRole, "QUOTE");
+  assert.equal(result.upcomingEvents[0].relevance.interpretation, "RELEVANCE_ONLY_NO_DIRECTION_INFERRED");
+});
+
+test("macro context distinguishes lower-sensitivity event categories without changing blackout semantics", () => {
+  const result = evaluateBiQuoteCalendarRisk({
+    events: [event({ name: "US housing starts", time: new Date(now + 2 * 60 * 60_000).toISOString() })],
+    instrument: "EURUSD",
+    now
+  });
+  assert.equal(result.status, "UNKNOWN");
+  assert.equal(result.upcomingEvents[0].category, "HOUSING");
+  assert.equal(result.upcomingEvents[0].relevance.level, "LOW");
+});
+
 test("nonmatching currency does not create a false instrument-specific blackout", () => {
   const result = evaluateBiQuoteCalendarRisk({ events: [event({ currency: "JPY", countryCode: "JP" })], instrument: "EURUSD", now });
   assert.equal(result.status, "UNKNOWN");
