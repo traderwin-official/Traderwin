@@ -118,7 +118,9 @@ export default async function handler(req,res){
    return res.status(201).json({ok:true,session,message:executionMode==="AUTO"?"Automated DEMO session started. The selected strategy will open and manage virtual BOT positions only; no broker orders or real money are involved.":"Website manual DEMO session started. Open and close virtual positions here; no broker orders or real money are involved."});
   }
   if(!latest||!["RUNNING","PAUSED"].includes(latest.status))return res.status(200).json({ok:true,session:latest,message:"No active DEMO session is running."});
-  const {data:openTrade,error:tradeError}=await db.from("demo_paper_trades").select("id,trade_origin").eq("session_id",latest.id).eq("user_id",uid).eq("status","OPEN").eq("trade_origin","BOT").maybeSingle();
+  // AUTO sessions may hold several BOT positions; only existence is needed
+  // to decide whether the session must remain PAUSED for protective management.
+  const {data:openTrade,error:tradeError}=await db.from("demo_paper_trades").select("id,trade_origin").eq("session_id",latest.id).eq("user_id",uid).eq("status","OPEN").eq("trade_origin","BOT").limit(1).maybeSingle();
   if(tradeError)return res.status(503).json({error:"Could not verify the open paper position."});
   const nextStatus=openTrade?.trade_origin==="BOT"?"PAUSED":"STOPPED";
   const {data:stopped,error}=await db.from("demo_paper_sessions").update({status:nextStatus,stopped_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",latest.id).eq("user_id",uid).select("*").single();
