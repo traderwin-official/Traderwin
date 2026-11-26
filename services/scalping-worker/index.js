@@ -124,7 +124,7 @@ async function manageOpenTrades(instrument,tick){
      const last=lastMarked.get(trade.id)||0;
      if(Date.now()-last>=1000){
       lastMarked.set(trade.id,Date.now());
-      const {error}=await db.rpc("mark_demo_paper_trade",{p_user_id:trade.user_id,p_trade_id:trade.id,p_price:markPrice,p_quote_as_of:tick.quoteAsOf});
+      const {error}=await db.rpc("mark_demo_scalping_paper_trade_with_lease",{p_lease_token:leaseToken,p_user_id:trade.user_id,p_trade_id:trade.id,p_price:markPrice,p_quote_as_of:tick.quoteAsOf});
       if(error)throw error;
      }
     }
