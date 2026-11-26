@@ -7,7 +7,8 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/demo_scalping_preferences/);
  assert.match(s,/config_snapshot/);
  assert.match(s,/trader_profiles/);
- assert.match(s,/profileByUser\.get\(session\.user_id\).*account_mode==="DEMO"/);
+ assert.match(s,/scalpingSessionPermissions/);
+ assert.match(s,/hasOpenTrade:openSessionSet\.has\(session\.id\)/);
  assert.match(s,/preference\.paper_execution_enabled===true/);
  assert.match(s,/preference\.account_mode==="DEMO"/);
  assert.match(s,/preference\.execution==="WEBSITE_PAPER_ONLY"/);
