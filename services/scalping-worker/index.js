@@ -59,10 +59,22 @@ async function eligibleSymbols(){
   .in("session_id",allSessions.map(s=>s.id));
  if(preferenceError)throw preferenceError;
  const preferenceBySession=new Map((preferences||[]).filter(p=>allSessions.some(s=>s.id===p.session_id&&s.user_id===p.user_id)).map(p=>[p.session_id,p]));
- const {data:profiles,error:profileError}=await db.from("trader_profiles")
-  .select("user_id,account_mode").in("user_id",[...new Set(allSessions.map(s=>s.user_id))]);
+ const userIds=[...new Set(allSessions.map(s=>s.user_id))];
+ const [{data:profiles,error:profileError},{data:connections,error:connectionError}]=await Promise.all([
+  db.from("trader_profiles").select("user_id,account_mode").in("user_id",userIds),
+  db.from("deriv_connections").select("user_id,demo_account_id,accounts,token_expires_at").in("user_id",userIds)
+ ]);
  if(profileError)throw profileError;
+ if(connectionError)throw connectionError;
  const profileByUser=new Map((profiles||[]).map(p=>[p.user_id,p]));
+ const now=Date.now();
+ const connectionByUser=new Map((connections||[]).map(c=>{
+  const expiry=Date.parse(c.token_expires_at||"");
+  const verified=Boolean(c.demo_account_id&&Number.isFinite(expiry)&&expiry>now&&
+   Array.isArray(c.accounts)&&c.accounts.some(a=>a?.account_id===c.demo_account_id&&
+    String(a.account_type||"").toLowerCase()==="demo"&&String(a.status||"active").toLowerCase()==="active"));
+  return [c.user_id,verified];
+ }));
  const openSessionSet=new Set(openSessionIds);
  const wantedByInstrument=new Map();
  for(const session of allSessions){
@@ -72,6 +84,7 @@ async function eligibleSymbols(){
    session,
    preference,
    profile:profileByUser.get(session.user_id),
+   brokerConnectionVerified:connectionByUser.get(session.user_id)===true,
    hasOpenTrade:openSessionSet.has(session.id)
   });
   if(!permissions.include)continue;
