@@ -16,8 +16,10 @@ import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
 import { getBiQuoteCalendarRiskStatus } from "./lib/biquote-calendar-risk.js";
 import { getXausGoldReference, compareGoldReference } from "./lib/xaus-gold-reference.js";
 import { isVerifiedActiveDerivDemoConnection } from "../../lib/deriv-demo-connection.js";
+import { assertIsolatedSupabaseProject } from "../../lib/supabase-project-guard.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
+assertIsolatedSupabaseProject({url:URL,expectedProjectRef:process.env.SUPABASE_EXPECTED_PROJECT_REF});
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const SCALPING_STRATEGY="TIGER_SCHEME_QUANTUM_SCALPING";
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
