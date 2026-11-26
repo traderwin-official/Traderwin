@@ -28,6 +28,11 @@ test("staged exits preserve TP1 40 percent, TP2 30 percent and TP3 remainder",as
  assert.match(sql,/v_qty:=v_trade\.remaining_quantity/);assert.match(sql,/MANUAL_TRADE_NOT_MANAGED/);
  assert.match(sql,/remaining_quantity numeric\(28,12\) not null check \(remaining_quantity >= 0\)/);
  assert.match(sql,/status='CLOSED' and remaining_quantity=0/);
+ // Exit settlement updates USD balance and daily-loss locks atomically.
+ // It must therefore reject a missing conversion instead of guessing a rate.
+ assert.match(sql,/p_quote_to_usd<=0/);
+ assert.match(sql,/p_quote_source<>'DERIV'/);
+ assert.match(sql,/p_quote_as_of<now\(\)-interval '30 seconds'/);
 });
 test("manual close uses v2 atomic close and verified quote",async()=>{
  const route=await readFile(new URL("../handlers/bots/demo/close.js",import.meta.url),"utf8");
