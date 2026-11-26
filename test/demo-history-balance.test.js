@@ -16,7 +16,7 @@ test("DEMO history endpoint is authenticated, read-only and returns closed trade
 
 test("DEMO account balance carries all realized P/L into each new session", async () => {
   const route = await readFile(new URL("../handlers/bots/demo/control.js", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../supabase/migrations/202611240001_demo_account_balance_history.sql", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/202611240005_demo_account_balance_history.sql", import.meta.url), "utf8");
   assert.match(route, /rpc\(\"get_demo_paper_account_balance\"/);
   assert.match(route, /starting_balance:carriedBalance,current_balance:carriedBalance/);
   assert.match(migration, /10000 \+ coalesce\(sum\(realized_pnl_usd\),0\)/);

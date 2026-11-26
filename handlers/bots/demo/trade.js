@@ -3,6 +3,7 @@ import { validatePaperSetup, calculatePaperPosition } from "../../../lib/demo-ri
 import { getDerivPublicQuote } from "../../../lib/deriv-public-quote.js";
 import { getDerivQuoteToUsd } from "../../../lib/usd-conversion.js";
 import { loadApprovedInstrument } from "../../../lib/deriv/load-approved-instrument.js";
+import { runDemoDailyLossProtection } from "../../../lib/demo-daily-loss-protection-runner.js";
 const num=value=>{const n=Number(value);return Number.isFinite(n)?n:NaN;};
 const normalise=value=>String(value||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 export default async function handler(req,res){
@@ -26,6 +27,12 @@ export default async function handler(req,res){
   if(pe||!profile)return res.status(409).json({error:"Complete your account setup first."});
   if(profile.account_mode!=="DEMO")return res.status(403).json({error:"Paper trades are DEMO-only."});
   if(se||!session)return res.status(409).json({error:"Start your DEMO paper session first."});
+  const dailyGuard=await runDemoDailyLossProtection(db,{userIds:[uid],maxAccounts:1});
+  const dailyResult=dailyGuard.results?.[0];
+  if(!dailyGuard.healthy||dailyResult?.status==="ERROR")
+   return res.status(503).json({error:"Could not verify the 20% daily account-equity protection. New entries are blocked until valuation is healthy."});
+  if(dailyResult?.status==="LIMIT_REACHED")
+   return res.status(403).json({error:"The 20% daily account-equity loss limit has been reached. New entries are locked until the next Nairobi trading day.",reason:"DAILY_LOSS_LIMIT_REACHED"});
   if(normalise(symbol)!==normalise(session.instrument))return res.status(400).json({error:"Symbol must match the instrument selected for your website DEMO session."});
   const {data:emergency,error:ee}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",session.broker_account_ref).maybeSingle();
   if(ee)return res.status(503).json({error:"Could not verify the DEMO emergency stop."});

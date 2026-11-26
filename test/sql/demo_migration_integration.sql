@@ -26,6 +26,9 @@ begin
     10000,10000,1.00,2.00,3,2.00
   ) returning id into v_session_risk;
 
+  -- The account-wide guard must publish a fresh valuation before any entry RPC.
+  select public.evaluate_demo_daily_loss_guard(v_user,0) into v_result;
+
   -- First BOT position and one MANUAL position coexist in the same session.
   select public.open_demo_paper_trade(
     v_user,v_session_risk,'EURUSD','BUY',1.10000,1.09000,1.13000,
@@ -98,6 +101,10 @@ begin
   update public.demo_paper_trades set status='CLOSED',remaining_quantity=0,closed_at=now()
    where session_id=v_session_risk and status='OPEN';
   update public.demo_paper_sessions set status='STOPPED',stopped_at=now() where id=v_session_risk;
+
+  -- Realized exits invalidate the previous valuation; refresh account equity
+  -- before opening positions in the next session.
+  select public.evaluate_demo_daily_loss_guard(v_user,0) into v_result;
 
   -- A separate session proves the configurable position-count cap.
   insert into public.demo_paper_sessions(
