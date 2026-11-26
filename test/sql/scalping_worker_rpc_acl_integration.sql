@@ -16,8 +16,7 @@ begin
     'open_demo_scalping_paper_trade_batch_with_lease',
     'get_demo_scalping_entry_batch_with_lease',
     'close_demo_scalping_paper_trade_with_lease',
-    'mark_demo_scalping_paper_trade_with_lease',
-    'manage_demo_scalping_paper_exit_with_lease'
+    'mark_demo_scalping_paper_trade_with_lease'
   ] loop
     select count(*) into v_count
       from pg_proc p
@@ -64,5 +63,18 @@ begin
       raise exception 'Worker RPC % must expose exactly one service_role-executable overload; found %', v_name, v_service_role_count;
     end if;
   end loop;
+
+  -- This legacy staged-exit RPC was intentionally retired when full-position
+  -- exits replaced staged scalping exits. Keep it present but inaccessible.
+  if exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid=p.pronamespace
+     where n.nspname='public'
+       and p.proname='manage_demo_scalping_paper_exit_with_lease'
+       and has_function_privilege('service_role', p.oid, 'EXECUTE')
+  ) then
+    raise exception 'Retired staged-exit RPC must not be executable by service_role';
+  end if;
 end
-$$;
+$;
