@@ -668,8 +668,12 @@ smartButton.addEventListener("click",async()=>{
   const gate=result.marketIntelligence||{};
   const gateText=" · Higher timeframe "+(mtf.higherTimeframe||"unavailable")+" "+(mtf.higherTimeframeDirection||"n/a")+" ("+(mtf.status||"unknown")+") · Quality gate "+(gate.decision||"unknown")+" · Reasons "+((gate.reasons||[]).join(", ")||"none");
   const news=result.newsContext||{};
+  const newsRisk=result.newsRisk||{};
+  const calendar=result.calendarRisk||{};
   const headlines=(news.articles||[]).slice(0,3).map(a=>"["+a.tone+"] "+a.title+" ("+a.domain+")").join(" | ");
-  const newsText=" · News context "+(news.status||"unavailable")+" via "+(news.source||"unknown")+"; event gate "+(news.newsGateStatus||"UNKNOWN")+". "+(headlines||"No verified headlines available.")+" Keyword labels are contextual, not a trade signal.";
+  const calendarEvents=(calendar.events||[]).slice(0,3).map(e=>e.name+" "+(e.currency||"")+" "+(e.time||"")).join(" | ");
+  const riskHeadlines=(newsRisk.articles||[]).slice(0,2).map(a=>a.title+" ("+(a.domain||"source unknown")+")").join(" | ");
+  const newsText=" · News gate "+(newsRisk.status||"UNKNOWN")+" ("+(newsRisk.reason||"not verified")+") · Economic calendar "+(calendar.status||"UNKNOWN")+" ("+(calendar.reason||"not verified")+") "+(calendarEvents||"No confirmed matching event returned")+". Adverse headlines: "+(riskHeadlines||"none detected in provider window; this is not clearance")+". Context: "+(headlines||"No contextual headlines available")+". Headline labels are not a validated sentiment model.";
   output.hidden=false;
   output.textContent="Profile: "+document.getElementById("profileMode").value+" · Decision: "+r.direction+" · Technical score "+(r.candidateConfidence??r.confidence)+"/95 (not win probability) · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+gateText+" "+newsText+" "+planText+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Research only; no trade was executed.";
   status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
