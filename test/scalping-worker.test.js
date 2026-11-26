@@ -12,7 +12,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/preference\.account_mode==="DEMO"/);
  assert.match(s,/preference\.execution==="WEBSITE_PAPER_ONLY"/);
  assert.match(s,/trading_instrument_approvals/);
- assert.match(s,/ticks_history:[\s\S]*granularity:60/);
+ assert.match(s,/\["M1",60,180\]/);
  assert.match(s,/scalping_signal_events/);
  assert.doesNotMatch(s,/db\.channel\(|\.send\(\{type:"broadcast"/);
  assert.match(s,/DEMO_PAPER_ONLY_NO_BROKER_ORDERS/);
