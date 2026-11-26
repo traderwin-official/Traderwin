@@ -29,6 +29,7 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - The strategy uses EMA9/EMA21, RSI14, ATR/spread filters, momentum breakout and Fibonacci context.
 - Conflicting or incomplete conditions return WAIT.
 - The server-side entry RPC permits up to 15 concurrent DEMO paper positions, blocks duplicate M1-candle entries, caps each position at 0.25%, and limits combined open stop-risk to 1% of starting equity. The daily realized-loss cap is also 1%.
+- Manual DEMO positions may coexist with the automated portfolio and share its 15-position ceiling. The scalping worker only manages tagged BOT positions; monitoring or closing manual positions requires the account owner's separate explicit portfolio permissions.
 - Position size uses the verified USD value of the instrument's quote currency. Unsupported or stale conversions fail closed.
 - Paper positions use staged exits: TP1 0.75R, TP2 1.1R, TP3 at the engine's 1.5R–3R target, with the existing 40/30/30 staged-close ledger and stop-loss.
 - Exit decisions use the correct side of the spread: bid for BUY positions and ask for SELL positions. Missing bid/ask or stale quotes never trigger an exit.
