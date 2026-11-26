@@ -53,7 +53,7 @@ export default async function handler(req, res) {
       : Promise.resolve(null);
     const quotePromise = getDerivPublicQuote(instrument, { timeoutMs: 4000 }).catch(() => null);
     const newsPromise = getGdeltNewsContext(instrument);
-    const newsRiskPromise = getGdeltNewsRiskStatus();
+    const newsRiskPromise = getGdeltNewsRiskStatus({ instrument });
     const calendarRiskPromise = getBiQuoteCalendarRiskStatus({ instrument });
     const goldReferencePromise = instrument === "XAUUSD" ? getXausGoldReference() : Promise.resolve(null);
     const [market, trendMarket, quote, newsContext, newsRisk, calendarRisk, goldReference] = await Promise.all([
