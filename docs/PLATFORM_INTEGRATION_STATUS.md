@@ -15,7 +15,7 @@ Young Tiger FX is the platform. Strategies are independent optional modules. The
 
 | Area | Current branch capability | Important boundary |
 |---|---|---|
-| Dashboard | Shortcuts for Trade DEMO, Strategy Centre, Portfolio, Market Analysis, Signals, Academy, Membership, Payments, Standalone Bot, Broker Connections, Account & Risk | Preview deployment remains blocked by Vercel build-rate limit |
+| Dashboard | Shortcuts for Trade DEMO, Strategy Centre, Portfolio, Market Analysis, Signals, Academy, Membership, Payments, Standalone Bot, Broker Connections, Account & Risk; Market Watch cards now load a shared instrument into chart, Analyst, bot settings and DEMO setup | Preview deployment remains blocked by Vercel build-rate limit |
 | Manual and automated trading | Manual DEMO paper positions coexist with automated positions under shared capacity and portfolio risk controls | Manual positions are not silently enrolled in bot management |
 | Strategy centre | Manual Trading, Smart Multi-Confirmation, Auto-select, Tiger Fibonacci Psychology, Quantum Scalping and Manual Review workflows | Scalping is optional, not the whole platform |
 | Original automatic strategy | Liquidity-sweep continuation entry with reclaim and directional displacement; consolidation/retest is not mandatory for that setup | Sweep without follow-through is rejected; higher-timeframe, anti-chase, freshness, cooldown and risk gates remain |
@@ -61,7 +61,7 @@ The summary is a presentation/aggregation layer. It does not change the executio
 
 1. Validate the unified research summary and all API/UI contracts in CI.
 2. Add end-to-end analyst checks for source freshness, provider failure, unsupported instruments, calendar blackout and gold-reference mismatch.
-3. Consolidate market watch, analysis, signal review and strategy selection around a shared instrument/timeframe context without changing their permissions.
+3. **Completed in the current branch:** Market Watch selection now synchronizes the chart, Analyst, bot preferences and DEMO setup; M5/M15/H1/H4 timeframe changes synchronize the chart, Analyst and DEMO strategy controls. Binary contract cards remain non-selectable as spot instruments. Regression tests cover the shared instrument/timeframe wiring.
 4. Complete DEMO browser testing for sign-in, account mode, Deriv DEMO verification, market feed, strategy selection, risk settings, paper entries/exits, portfolio reconciliation, reconnect, daily-loss lock, kill switch and audit trail.
 5. Verify disposable Supabase Auth/RLS/PostgREST behaviour before considering any production schema work.
 6. Complete broker-specific MT5/Deriv operational testing and M-Pesa merchant verification separately.
