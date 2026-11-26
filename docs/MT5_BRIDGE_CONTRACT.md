@@ -14,7 +14,12 @@ MetaQuotes' official Python integration communicates with an installed MetaTrade
 - Shared broker-neutral snapshot validation and adapter registry.
 - Unit tests for account mismatch, valuation failure, HTTPS, and close routing.
 
-## DEMO-only adapter safeguards\n\n- The repository adapter now rejects REAL scopes, future-dated or stale snapshots, invalid quote-age declarations, unverified USD P&L, and malformed position identity/instrument data.\n- Bridge close requests are disabled by default and require an explicit DEMO-only configuration flag; the adapter rejects REAL close requests even when that flag is enabled.\n\n## Required bridge endpoints
+## DEMO-only adapter safeguards
+
+- The repository adapter now rejects REAL scopes, future-dated or stale snapshots, invalid quote-age declarations, unverified USD P&L, and malformed position identity/instrument data.
+- Bridge close requests are disabled by default and require an explicit DEMO-only configuration flag; the adapter rejects REAL close requests even when that flag is enabled.
+
+## Required bridge endpoints
 
 - `GET /v1/accounts/{accountRef}/portfolio`
   - Must authenticate the account and return `accountRef`, `accountMode`, `connected`, `quoteSource`, `asOf`, `maxQuoteAgeMs`, `emergency`, and all open positions.
