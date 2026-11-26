@@ -153,6 +153,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
     <option value="SP:SPX">S&P 500</option>
    </select>
   </div>
+  <p id="sharedMarketContextStatus" class="muted" role="status" aria-live="polite">Shared market context: XAUUSD · M15. Choose a market card or change the chart to align your analyst and DEMO setup.</p>
   <div class="tabs" id="timeTabs">
    <button data-time="5">M5</button>
    <button data-time="15" class="active">M15</button>
@@ -555,6 +556,61 @@ const marketData={
  "Binary Options":[["Rise/Fall","Directional contracts"],["Higher/Lower","Price direction contracts"],["Touch/No Touch","Price level contracts"]]
 };
 
+const marketContextSymbols={
+ XAUUSD:"OANDA:XAUUSD",XAGUSD:"OANDA:XAGUSD",EURUSD:"OANDA:EURUSD",
+ GBPUSD:"OANDA:GBPUSD",USDJPY:"OANDA:USDJPY",AUDUSD:"OANDA:AUDUSD",
+ USDCAD:"OANDA:USDCAD",USDCHF:"OANDA:USDCHF",NZDUSD:"OANDA:NZDUSD",
+ BTCUSD:"BITSTAMP:BTCUSD",ETHUSD:"BINANCE:ETHUSDT",SOLUSD:"COINBASE:SOLUSD",
+ USOIL:"TVC:USOIL",UKOIL:"TVC:UKOIL",NATGAS:"TVC:NATGAS",
+ US500:"SP:SPX",NAS100:"NASDAQ:NDX",US30:"DJ:DJI",
+ AAPL:"NASDAQ:AAPL",TSLA:"NASDAQ:TSLA",MSFT:"NASDAQ:MSFT"
+};
+function marketContextSymbol(label){
+ const key=String(label||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase();
+ return Object.prototype.hasOwnProperty.call(marketContextSymbols,key)?key:null;
+}
+function setSharedMarketContext(instrument){
+ const symbol=String(instrument||"").trim().toUpperCase();
+ if(!/^[A-Z0-9_]{2,24}$/.test(symbol))return false;
+ const chartSymbol=marketContextSymbols[symbol];
+ if(chartSymbol){
+  const chart=document.getElementById("symbol");
+  let option=Array.from(chart.options).find(item=>item.value===chartSymbol);
+  if(!option){option=new Option(symbol+" · "+chartSymbol,chartSymbol);chart.add(option);}
+  chart.value=chartSymbol;
+  loadChart();
+ }
+ ["smartInstrument","paperSymbol","botInstrument","profileInstrument"].forEach(id=>{
+  const field=document.getElementById(id);
+  if(field)field.value=symbol;
+ });
+ const notice=document.getElementById("sharedMarketContextStatus");
+ if(notice)notice.textContent="Shared market: "+symbol+" · Chart, analyst and DEMO setup aligned. Confirm the instrument is supported by your selected broker before using it.";
+ return true;
+}
+function currentChartInstrument(){
+ const selected=document.getElementById("symbol").value;
+ return Object.keys(marketContextSymbols).find(key=>marketContextSymbols[key]===selected)||"XAUUSD";
+}
+function setSharedTimeframe(timeframe){
+ const tf=String(timeframe||"").toUpperCase();
+ if(!["M5","M15","H1","H4"].includes(tf))return;
+ const smart=document.getElementById("smartTimeframe");
+ const demo=document.getElementById("demoTimeframe");
+ const bot=document.getElementById("botTimeframe");
+ if(smart)smart.value=tf;
+ if(demo)demo.value=tf;
+ if(bot)bot.value=tf;
+ const interval={M5:"5",M15:"15",H1:"60",H4:"240"}[tf];
+ selectedTime=interval;
+ document.querySelectorAll("#timeTabs button").forEach(button=>{
+  button.classList.toggle("active",button.dataset.time===interval);
+ });
+ loadChart();
+ const notice=document.getElementById("sharedMarketContextStatus");
+ if(notice)notice.textContent="Shared market: "+currentChartInstrument()+" · "+tf+" timeframe aligned across chart, analyst and DEMO setup.";
+}
+
 function showMarkets(category){
  const container=document.getElementById("marketCards");
  container.innerHTML="";
@@ -568,8 +624,19 @@ function showMarkets(category){
   description.textContent=item[1];
   const note=document.createElement("p");
   note.className="muted";
-  note.textContent="Select this instrument in the chart above to view available chart data.";
-  card.append(heading,description,note);
+  note.textContent="Load this market into your shared chart, analyst and DEMO setup.";
+  const useButton=document.createElement("button");
+  useButton.type="button";
+  useButton.className="secondary";
+  useButton.textContent="Use this market";
+  const canonical=marketContextSymbol(item[0]);
+  useButton.disabled=!canonical;
+  useButton.addEventListener("click",()=>{
+   if(!canonical)return;
+   setSharedMarketContext(canonical);
+   document.getElementById("analysis").scrollIntoView({behavior:"smooth",block:"start"});
+  });
+  card.append(heading,description,note,useButton);
   container.appendChild(card);
  });
 }
@@ -607,16 +674,12 @@ function loadChart(){
  });
 }
 
-document.getElementById("symbol").addEventListener("change",loadChart);
-document.getElementById("demoTimeframe").addEventListener("change",event=>{
- const intervalByTimeframe={M5:"5",M15:"15",H1:"60",H4:"240"};
- const next=intervalByTimeframe[event.target.value];
- if(!next)return;
- selectedTime=next;
- document.querySelectorAll("#timeTabs button").forEach(button=>{
-  button.classList.toggle("active",button.dataset.time===next);
- });
+document.getElementById("symbol").addEventListener("change",()=>{
+ setSharedMarketContext(currentChartInstrument());
  loadChart();
+});
+document.getElementById("demoTimeframe").addEventListener("change",event=>{
+ setSharedTimeframe(event.target.value);
 });
 
 document.querySelectorAll("#timeTabs button").forEach(button=>{
@@ -626,6 +689,14 @@ document.querySelectorAll("#timeTabs button").forEach(button=>{
   selectedTime=button.dataset.time;
   loadChart();
  });
+});
+
+document.getElementById("smartInstrument").addEventListener("change",event=>{
+ const value=String(event.target.value||"").trim().toUpperCase();
+ if(value)setSharedMarketContext(value);
+});
+document.getElementById("smartTimeframe").addEventListener("change",event=>{
+ setSharedTimeframe(event.target.value);
 });
 
 const smartButton=document.getElementById("runSmartAnalysis");
