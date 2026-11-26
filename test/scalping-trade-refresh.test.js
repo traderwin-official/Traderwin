@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {applyOpenTradeSnapshot} from "../lib/scalping-trade-refresh.js";
+import {applyOpenTradeSnapshot,quarantineTradeForRefresh} from "../lib/scalping-trade-refresh.js";
 
 test("worker restart rehydrates all open positions from the durable snapshot",()=>{
  const active=new Map(),pending=new Map(),locks=new Set();
@@ -58,4 +58,18 @@ test("ordinary refresh updates unlocked positions but never overwrites a locked 
  applyOpenTradeSnapshot({trades:[{id:"p1",tp1_done:true},{id:"p2",tp1_done:true}],activeTrades:active,locks,pendingRefresh:pending,snapshotGeneration:1});
  assert.equal(active.get("p1").tp1_done,true);
  assert.equal(active.get("p2").tp1_done,false);
+});
+
+
+test("quarantines a position after a transient database write failure",()=>{
+ const active=new Map([["p1",{id:"p1",tp1_done:false}]]),pending=new Map(),removed=[];
+ const required=quarantineTradeForRefresh({tradeId:"p1",activeTrades:active,pendingRefresh:pending,snapshotGeneration:4,onRemoved:id=>removed.push(id)});
+ assert.equal(required,5);
+ assert.equal(active.has("p1"),false);
+ assert.equal(pending.get("p1"),5);
+ assert.deepEqual(removed,["p1"]);
+});
+
+test("rejects quarantine requests without a durable trade identifier",()=>{
+ assert.throws(()=>quarantineTradeForRefresh({activeTrades:new Map(),pendingRefresh:new Map()}),/trade ID/);
 });
