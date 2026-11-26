@@ -39,7 +39,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/const managementPromise=manageOpenTrades/);
  assert.match(s,/void managementPromise/);
  assert.doesNotMatch(s,/await managementPromise/);
- assert.doesNotMatch(s,/if\(!managementHealthy\)return/);
+ assert.doesNotMatch(s,/managementHealthy/);
  assert.match(s,/Promise\.all\(ready\.map\(async item/);
  assert.match(s,/if\(!tradeLocks\.has\(trade\.id\)\)activeTrades\.set/);
  assert.match(s,/OPEN_SCALPING_POSITION_PROVIDER_MAPPING_MISSING/);
