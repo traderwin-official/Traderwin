@@ -9,11 +9,11 @@ test("every API endpoint referenced by the dashboard is registered in the server
   ]);
 
   const dashboardRoutes = new Set(
-    [...html.matchAll(/["'`]((?:\\/api\\/)[^"'`\\s]*)["'`]/g)]
+    [...html.matchAll(/["'`]((?:\/api\/)[^"'`\s]*)["'`]/g)]
       .map(match => match[1].split("?")[0])
   );
   const registeredRoutes = new Set(
-    [...router.matchAll(/["'](\\/api\\/[^"']+)["']\\s*:/g)]
+    [...router.matchAll(/["'](\/api\/[^"']+)["']\s*:/g)]
       .map(match => match[1])
   );
 
