@@ -73,3 +73,21 @@ test("flags a missing or divergent independent XAUUSD reference in the consolida
   });
   assert.ok(!notGold.risk.flags.includes("INDEPENDENT_GOLD_REFERENCE_NOT_VERIFIED"));
 });
+
+
+test("deduplicates date-only events that appear in both blackout and upcoming calendar lists", () => {
+  const sameEvent = {
+    name: "US CPI", category: "INFLATION", currency: "USD",
+    time: "2026-11-26T00:00:00.000Z", timeMode: "DATE"
+  };
+  const summary = buildAnalystResearchSummary({
+    instrument: "XAUUSD",
+    calendarRisk: {
+      status: "BLACKOUT",
+      events: [sameEvent],
+      upcomingEvents: [sameEvent]
+    }
+  });
+  assert.equal(summary.fundamental.upcomingAndBlackoutEvents.length, 1);
+  assert.equal(summary.fundamental.upcomingAndBlackoutEvents[0].timing, "BLACKOUT_WINDOW");
+});
