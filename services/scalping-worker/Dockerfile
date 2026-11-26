@@ -13,6 +13,7 @@ COPY lib/deriv-public-quote.js ./lib/deriv-public-quote.js
 COPY lib/market-intelligence.js ./lib/market-intelligence.js
 COPY lib/market-intelligence-gate.js ./lib/market-intelligence-gate.js
 COPY lib/scalping-trade-concurrency.js ./lib/scalping-trade-concurrency.js
+COPY lib/gdelt-news-risk.js ./lib/gdelt-news-risk.js
 EXPOSE 8080
 USER node
 CMD ["node", "index.js"]
