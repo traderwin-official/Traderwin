@@ -17,6 +17,8 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.doesNotMatch(s,/db\.channel\(|\.send\(\{type:"broadcast"/);
  assert.match(s,/DEMO_PAPER_ONLY_NO_BROKER_ORDERS/);
  assert.match(s,/openScalpingPaperPosition/);
+ assert.match(s,/if\(!leaseOwned\|\|stopping\)return;/);
+ assert.match(s,/openScalpingPaperPosition\(\{db,leaseToken,/);
  assert.match(s,/manageScalpingPaperPosition/);
  assert.match(s,/getDerivQuoteToUsd/);
  assert.match(s,/refreshOpenTrades/);
@@ -92,4 +94,20 @@ test("base scalping execution guard retains DEMO-only consent and daily risk pro
  assert.match(sql,/from public\.trader_profiles/);
  assert.match(sql,/to service_role/);
  assert.match(sql,/from public, anon, authenticated/);
+});
+
+test("paper adapter requires and forwards the worker lease token to the fenced database RPC",async()=>{
+ const s=await readFile(new URL("../lib/scalping-paper-adapter.js",import.meta.url),"utf8");
+ assert.match(s,/typeof leaseToken !== "string" \|\| !leaseToken/);
+ assert.match(s,/open_demo_scalping_paper_trade_with_lease/);
+ assert.match(s,/p_lease_token:leaseToken/);
+});
+test("lease-fenced database entry locks and validates the live lease before opening a paper trade",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611260003_scalping_worker_lease_fencing.sql",import.meta.url),"utf8");
+ assert.match(sql,/open_demo_scalping_paper_trade_with_lease/);
+ assert.match(sql,/from public\.scalping_worker_leases[\s\S]*for update/);
+ assert.match(sql,/lease_token is distinct from p_lease_token/);
+ assert.match(sql,/lease_until <= clock_timestamp\(\)/);
+ assert.match(sql,/SCALPING_WORKER_LEASE_NOT_OWNED/);
+ assert.match(sql,/return public\.open_demo_scalping_paper_trade/);
 });
