@@ -65,5 +65,6 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - The M-Pesa callback permits a previously verified PAID order to retry subscription fulfilment after payment-state recovery; fulfilment now delegates to the atomic database transaction rather than a separate client-side upsert.
 - Authenticated members' payment-status polling also retries fulfilment for their own PAID order, providing a recovery path if the provider callback was acknowledged while entitlement activation was temporarily unavailable.
 - The payment UI keeps a verified PAID order retryable until entitlement activation succeeds, rather than disabling the recovery action prematurely.
+- MT5 DEMO adapter hardening now enforces DEMO-only account snapshots, fresh non-future quote timestamps, verified USD valuations and strict position identity/instrument validation. Bridge close requests are disabled by default and require an explicit DEMO-only server configuration. The actual terminal bridge, account verification, server credentials and end-to-end MT5 tests remain outstanding.
 
 - Dashboard mode-profile reads explicitly authenticate the current user and scope the DEMO/REAL preference query to that user's row, avoiding ambiguous profile reads across accounts.
