@@ -37,7 +37,7 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 ## Data path and health
 
 - One persistent Deriv public WebSocket connection subscribes to approved symbols.
-- M1/M5 history is warmed up before a symbol becomes ready.
+- M1/M5/M15/H1/H4 history is warmed up before a symbol becomes ready. All five histories refresh every 60 seconds; M1/M5 refresh lets the worker recover from a market-session gap without remaining stuck below its contiguous warm-up threshold.
 - Latest ticks and signal candidates are persisted to private Supabase tables.
 - Open scalping positions are refreshed without replacing in-flight trade state and managed concurrently from the same tick stream; each position can take profit or stop out independently while the others remain open.
 - `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error.
