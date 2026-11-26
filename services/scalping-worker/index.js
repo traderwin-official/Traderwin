@@ -15,6 +15,7 @@ import { runInstrumentEntryAnalysis } from "./lib/scalping-entry-lock.js";
 import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
 import { getBiQuoteCalendarRiskStatus } from "./lib/biquote-calendar-risk.js";
 import { getXausGoldReference, compareGoldReference } from "./lib/xaus-gold-reference.js";
+import { isVerifiedActiveDerivDemoConnection } from "../../lib/deriv-demo-connection.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
@@ -68,13 +69,9 @@ async function eligibleSymbols(){
  if(connectionError)throw connectionError;
  const profileByUser=new Map((profiles||[]).map(p=>[p.user_id,p]));
  const now=Date.now();
- const connectionByUser=new Map((connections||[]).map(c=>{
-  const expiry=Date.parse(c.token_expires_at||"");
-  const verified=Boolean(c.demo_account_id&&Number.isFinite(expiry)&&expiry>now&&
-   Array.isArray(c.accounts)&&c.accounts.some(a=>a?.account_id===c.demo_account_id&&
-    String(a.account_type||"").toLowerCase()==="demo"&&String(a.status||"active").toLowerCase()==="active"));
-  return [c.user_id,verified];
- }));
+ const connectionByUser=new Map((connections||[]).map(c=>[
+  c.user_id,isVerifiedActiveDerivDemoConnection(c,now)
+ ]));
  const openSessionSet=new Set(openSessionIds);
  const wantedByInstrument=new Map();
  for(const session of allSessions){
