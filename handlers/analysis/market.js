@@ -95,7 +95,7 @@ export default async function handler(req, res) {
       : null;
     const configuredMaxSpreadBps = Number(process.env.MARKET_ANALYST_MAX_SPREAD_BPS);
     const tradePlan = buildAnalystTradePlan({
-      direction: candidate.direction,
+      direction: mtfAgrees ? candidate.direction : "WAIT",
       quote,
       atr: candidate.indicators?.atr14,
       instrument,
