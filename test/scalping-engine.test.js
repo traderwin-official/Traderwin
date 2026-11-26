@@ -171,7 +171,8 @@ test("scalping engine rejects M5 trend history with missing five-minute candles"
  const rows=candles(),base=Math.floor((now/1000)/300)*300;
  const trend=Array.from({length:30},(_,i)=>{const close=1900+i*0.5;return {epoch:base-(29-i)*300,open:close-0.2,high:close+0.5,low:close-0.5,close};});
  trend[17].epoch+=300;
- const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:tick(),now});
+ const t=tick();t.bid=t.quote-0.001;t.ask=t.quote+0.001;
+ const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:t,now});
  assert.equal(result.direction,"WAIT");
  assert.equal(result.reason,"TREND_CONFIRMATION_UNAVAILABLE");
 });
@@ -179,7 +180,8 @@ test("scalping engine rejects malformed M5 trend candles",()=>{
  const rows=candles(),base=Math.floor((now/1000)/300)*300;
  const trend=Array.from({length:30},(_,i)=>{const close=1900+i*0.5;return {epoch:base-(29-i)*300,open:close-0.2,high:close+0.5,low:close-0.5,close};});
  trend[20].high=0;
- const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:tick(),now});
+ const t=tick();t.bid=t.quote-0.001;t.ask=t.quote+0.001;
+ const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:t,now});
  assert.equal(result.direction,"WAIT");
  assert.equal(result.reason,"TREND_CONFIRMATION_UNAVAILABLE");
 });
