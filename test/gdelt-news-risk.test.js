@@ -8,11 +8,24 @@ const response=(payload,{ok=true,type="application/json"}={})=>({
 
 test("GDELT adverse headline can only produce a blocking news status",async()=>{
  resetGdeltNewsRiskCacheForTests();
- const result=await getGdeltNewsRiskStatus({now:Date.UTC(2026,10,26),fetchImpl:async()=>response({articles:[{title:"Federal Reserve surprise rate decision announced",url:"https://example.test/a"}]})});
+ const result=await getGdeltNewsRiskStatus({now:Date.UTC(2026,10,26),fetchImpl:async()=>response({articles:[{title:"Federal Reserve surprise rate decision announced",seendate:"20261126T000000Z",url:"https://example.test/a"}]})});
  assert.equal(result.status,"BLACKOUT");
  assert.equal(result.reason,"POTENTIAL_HIGH_IMPACT_HEADLINE");
  assert.equal(result.articles.length,1);
  assert.equal(result.provider,"GDELT_DOC_2_0");
+});
+
+test("stale or undated high-impact headlines cannot trigger a current blackout",async()=>{
+ resetGdeltNewsRiskCacheForTests();
+ const now=Date.UTC(2026,10,26,12,0,0);
+ const result=await getGdeltNewsRiskStatus({now,fetchImpl:async()=>response({articles:[
+  {title:"Federal Reserve surprise rate decision",seendate:"20261126T090000Z"},
+  {title:"War and military strike",seendate:"not-a-date"},
+  {title:"Emergency central bank action"}
+ ]})});
+ assert.equal(result.status,"UNKNOWN");
+ assert.equal(result.reason,"NEWS_CLEARANCE_NOT_ESTABLISHED");
+ assert.deepEqual(result.articles,[]);
 });
 
 test("empty news search never claims CLEAR",async()=>{
