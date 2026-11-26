@@ -17,21 +17,23 @@ const paperDb=(rpc,rows=[])=>({
 const tick={source:"DERIV",instrument:"XAUUSD",bid:2000,ask:2000.1,quoteAsOf:new Date(now).toISOString(),receivedAt:new Date(now).toISOString()};
 const signal={instrument:"XAUUSD",direction:"BUY",entry:2000.1,stopLoss:1990,takeProfit:2016};
 
-test("paper adapter opens only through the strict server-side DEMO RPC and sizes at 0.25 percent",async()=>{
+test("paper adapter opens all 15 available positions through one atomic DEMO batch RPC",async()=>{
  let call;
- const db=paperDb(async(name,args)=>{call={name,args};return {data:{ok:true,trade_id:"trade-1"},error:null};});
+ const db=paperDb(async(name,args)=>{call={name,args};return {data:{ok:true,trade_ids:Array.from({length:15},(_,i)=>"trade-"+(i+1)),opened_count:15},error:null};});
  const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,leaseToken:"lease-token-1",now});
  assert.equal(result.ok,true);
- assert.equal(call.name,"open_demo_scalping_paper_trade_with_lease");
+ assert.equal(call.name,"open_demo_scalping_paper_trade_batch_with_lease");
  assert.equal(call.args.p_lease_token,"lease-token-1");
  assert.equal(call.args.p_user_id,session.user_id);
- assert.equal(call.args.p_side,"BUY");
- assert.ok(call.args.p_risk_pct<=0.25);
- assert.ok(call.args.p_risk_amount<=25);
- assert.ok(call.args.p_tp1<call.args.p_tp2&&call.args.p_tp2<call.args.p_tp3);
+ assert.equal(call.args.p_entries.length,15);
+ assert.equal(call.args.p_entries[0].side,"BUY");
+ assert.ok(call.args.p_entries[0].risk_pct<=0.25);
+ assert.ok(call.args.p_entries[0].risk_amount<=25);
+ assert.ok(call.args.p_entries[0].tp1<call.args.p_entries[0].tp2&&call.args.p_entries[0].tp2<call.args.p_entries[0].tp3);
+ assert.ok(call.args.p_entries.reduce((sum,row)=>sum+row.risk_amount,0)<=100);
  assert.equal(call.args.p_entry_as_of,new Date(now).toISOString());
- assert.equal(call.args.p_entry_key,`quantum:${session.id}:${signal.instrument}:${signal.direction}:${Math.floor(Date.parse(tick.quoteAsOf)/1000)}`);
- assert.equal(call.args.p_candle_as_of,new Date(Math.floor(now/60000)*60*1000).toISOString());
+ assert.equal(call.args.p_entry_key,`quantum-batch:${session.id}:${signal.instrument}:${signal.direction}:${Math.floor(Date.parse(tick.quoteAsOf)/1000)}`);
+ assert.equal(call.args.p_entries[0].candle_as_of,new Date(Math.floor(now/60000)*60*1000).toISOString());
 });
 
 test("paper adapter refuses a non-opted-in or REAL session without calling the database",async()=>{
@@ -111,14 +113,15 @@ test("paper adapter refuses automatic entries unless the separate paper-executio
  assert.equal(called,false);
 });
 
-test("portfolio risk is divided across remaining slots so 15 entries fit inside the 1 percent aggregate cap",async()=>{
+test("portfolio risk is divided across remaining slots for a one-position atomic batch",async()=>{
  let args;
  const rows=Array.from({length:14},()=>({risk_amount_usd:6.66,quantity:666,remaining_quantity:666}));
- const db=paperDb(async(name,value)=>{args=value;return {data:{ok:true,trade_id:"trade-15"},error:null};},rows);
+ const db=paperDb(async(name,value)=>{args=value;return {data:{ok:true,trade_ids:["trade-15"],opened_count:1},error:null};},rows);
  const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
  assert.equal(result.ok,true);
- assert.ok(args.p_risk_amount<=6.76);
- assert.ok(args.p_risk_pct<0.07);
+ assert.equal(args.p_entries.length,1);
+ assert.ok(args.p_entries[0].risk_amount<=6.76);
+ assert.ok(args.p_entries[0].risk_pct<0.07);
 });
 
 test("portfolio refuses a sixteenth open position before requesting an entry",async()=>{
