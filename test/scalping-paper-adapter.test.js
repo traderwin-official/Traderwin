@@ -143,3 +143,47 @@ test("paper position management refuses missing worker lease before database acc
  assert.equal(result.reason,"SCALPING_WORKER_LEASE_NOT_OWNED");
  assert.equal(called,false);
 });
+
+
+test("paper adapter recovers a committed batch when the original RPC response is lost",async()=>{
+ const calls=[];
+ const db=paperDb(async(name,args)=>{
+  calls.push(name);
+  if(name==="open_demo_scalping_paper_trade_batch_with_lease")return {data:null,error:new Error("socket hang up after commit")};
+  return {data:{ok:true,trade_ids:["trade-a","trade-b"],opened_count:2,batch_key:args.p_entry_key,recovered:true},error:null};
+ });
+ const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,leaseToken:"lease-token-1",now});
+ assert.equal(result.ok,true);
+ assert.equal(result.recovered,true);
+ assert.deepEqual(result.trade_ids,["trade-a","trade-b"]);
+ assert.deepEqual(calls,["open_demo_scalping_paper_trade_batch_with_lease","get_demo_scalping_entry_batch_with_lease"]);
+});
+
+test("paper adapter retries an absent batch once with the identical idempotency key",async()=>{
+ const calls=[];
+ const db=paperDb(async(name,args)=>{
+  calls.push({name,args});
+  if(name==="open_demo_scalping_paper_trade_batch_with_lease"){
+   if(calls.filter(x=>x.name===name).length===1)return {data:null,error:new Error("temporary network failure")};
+   return {data:{ok:true,trade_ids:["trade-retry"],opened_count:1},error:null};
+  }
+  return {data:{ok:false,reason:"SCALPING_BATCH_NOT_FOUND"},error:null};
+ });
+ const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,leaseToken:"lease-token-1",now});
+ assert.equal(result.ok,true);
+ const openCalls=calls.filter(x=>x.name==="open_demo_scalping_paper_trade_batch_with_lease");
+ assert.equal(openCalls.length,2);
+ assert.equal(openCalls[0].args.p_entry_key,openCalls[1].args.p_entry_key);
+ assert.equal(openCalls[0].args.p_entry_as_of,openCalls[1].args.p_entry_as_of);
+ assert.equal(calls.filter(x=>x.name==="get_demo_scalping_entry_batch_with_lease").length,1);
+});
+
+test("paper adapter never retries a batch when recovery itself fails",async()=>{
+ let openCalls=0;
+ const db=paperDb(async(name)=>{
+  if(name==="open_demo_scalping_paper_trade_batch_with_lease"){openCalls++;return {data:null,error:new Error("network failure")};}
+  return {data:null,error:new Error("recovery unavailable")};
+ });
+ await assert.rejects(()=>openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,leaseToken:"lease-token-1",now}),/network failure/);
+ assert.equal(openCalls,1);
+});
