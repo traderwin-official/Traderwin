@@ -151,11 +151,10 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   lastSignal.set(wanted.instrument,key);state.signals++;state.lastSignalAt=new Date().toISOString();
  }
  if(!leaseOwned||stopping)return;
- const entryTickEpoch=Math.floor(Date.parse(tick.quoteAsOf)/1000);
- if(!Number.isFinite(entryTickEpoch))return;
- const ready=wanted.sessions.filter(x=>x.entryEnabled&&lastEntryAttempt.get(x.session.id)!==entryTickEpoch);
+ const entryAttemptAt=Date.now();
+ const ready=wanted.sessions.filter(x=>x.entryEnabled&&entryAttemptAt-(lastEntryAttempt.get(x.session.id)||0)>=1000);
  if(!ready.length)return;
- for(const item of ready)lastEntryAttempt.set(item.session.id,entryTickEpoch);
+ for(const item of ready)lastEntryAttempt.set(item.session.id,entryAttemptAt);
  let conversion;
  try{conversion=await getDerivQuoteToUsd(wanted.instrument,tick);}
  catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);return;}
