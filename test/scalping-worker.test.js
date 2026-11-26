@@ -76,6 +76,9 @@ test("scalping portfolio migration allows up to 15 positions with a 1 percent ag
  assert.match(sql,/drop index if exists public\.demo_paper_one_open_bot_trade_per_session/);
  assert.match(sql,/demo_paper_sessions_max_open_positions_check/);
  assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(p_user_id::text, 0\)\)/);
+ assert.match(sql,/SCALPING_INSTRUMENT_NOT_APPROVED/);
+ assert.match(sql,/a\.status='APPROVED' and a\.is_active=true/);
+ assert.match(sql,/a\.approved_at is not null and a\.approved_by is not null/);
 });
 
 test("base scalping execution guard retains DEMO-only consent and daily risk protections",async()=>{
