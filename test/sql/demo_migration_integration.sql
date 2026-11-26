@@ -343,5 +343,29 @@ begin
      or coalesce((v_result->>'already_closed')::boolean,false) is not true then
     raise exception 'Expected idempotent portfolio close retry: %',v_result;
   end if;
+
+  -- The scalping RPC must independently enforce its 1% daily loss cap and
+  -- lock the session before another candle can open a paper position.
+  update public.demo_scalping_preferences
+     set paper_execution_enabled=true
+   where session_id=v_scalping_session and user_id=v_scalping_user;
+  insert into public.demo_paper_realized_events(
+    user_id,session_id,trade_id,realized_pnl_delta_usd,realized_at
+  ) values(v_scalping_user,v_scalping_session,v_scalping_trade,-100.00,now());
+
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '5 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_DAILY_LOSS_LIMIT' then
+    raise exception 'Expected the 1 percent daily loss lockout, got %',v_result;
+  end if;
+  if not exists(
+    select 1 from public.demo_paper_sessions
+     where id=v_scalping_session and status='RISK_LOCKED'
+  ) then
+    raise exception 'Expected daily loss breach to lock the scalping DEMO session';
+  end if;
 end
 $body$;
