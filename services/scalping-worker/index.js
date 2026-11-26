@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { analyseScalping, mergeCompletedM5, latestContiguousCandles } from "./lib/scalping-engine.js";
 import { getDerivQuoteToUsd } from "./lib/usd-conversion.js";
 import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/scalping-paper-adapter.js";
-import { scalpingSessionPermissions } from "../../lib/scalping-session-eligibility.js";
+import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
