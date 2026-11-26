@@ -42,7 +42,8 @@ test("scalping engine confirms a BUY only on M1 breakout with aligned M5 trend",
  const last=rows.at(-1);
  const quote=last.high+0.02;
  const t={source:"DERIV",instrument:"XAUUSD",providerSymbol:"frxXAUUSD",quote,bid:quote-0.002,ask:quote+0.002,quoteAsOf:new Date(now).toISOString(),receivedAt:new Date(now).toISOString()};
- const trend=Array.from({length:30},(_,i)=>({close:1900+i*0.5}));
+ const trendBase=Math.floor((now/1000)/300)*300;
+ const trend=Array.from({length:30},(_,i)=>{const close=1900+i*0.5;return {epoch:trendBase-(29-i)*300,open:close-0.2,high:close+0.5,low:close-0.5,close};});
  const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:t,now});
  assert.equal(result.direction,"BUY");
  assert.ok(result.stopLoss<result.entry);
@@ -164,4 +165,21 @@ test("latest contiguous candle suffix resets on duplicate or malformed candles",
  assert.equal(suffix.length,20);
  const malformed=latestContiguousCandles([...rows.slice(0,20),{...rows[20],high:0},...rows.slice(21)],60,240);
  assert.equal(malformed.length,19);
+});
+
+test("scalping engine rejects M5 trend history with missing five-minute candles",()=>{
+ const rows=candles(),base=Math.floor((now/1000)/300)*300;
+ const trend=Array.from({length:30},(_,i)=>{const close=1900+i*0.5;return {epoch:base-(29-i)*300,open:close-0.2,high:close+0.5,low:close-0.5,close};});
+ trend[17].epoch+=300;
+ const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:tick(),now});
+ assert.equal(result.direction,"WAIT");
+ assert.equal(result.reason,"TREND_CONFIRMATION_UNAVAILABLE");
+});
+test("scalping engine rejects malformed M5 trend candles",()=>{
+ const rows=candles(),base=Math.floor((now/1000)/300)*300;
+ const trend=Array.from({length:30},(_,i)=>{const close=1900+i*0.5;return {epoch:base-(29-i)*300,open:close-0.2,high:close+0.5,low:close-0.5,close};});
+ trend[20].high=0;
+ const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:tick(),now});
+ assert.equal(result.direction,"WAIT");
+ assert.equal(result.reason,"TREND_CONFIRMATION_UNAVAILABLE");
 });
