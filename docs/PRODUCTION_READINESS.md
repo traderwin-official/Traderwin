@@ -6,8 +6,8 @@ Young Tiger FX is the public brand of the existing Traderwin codebase. Keep the 
 ## Verified codebase status at this audit
 - Static HTML dashboard with TradingView chart embed, risk calculator, authentication and account-mode onboarding.
 - Tiger AI marketing/interface section is present; it is not yet a connected AI inference service.
-- Bot settings can be saved, but there is no persistent strategy scheduler, market-data ingestion pipeline, execution worker, order reconciliation service or production bot engine.
-- Deriv OAuth start/callback code exists. The callback currently saves a null Deriv account ID; OAuth completion is not equivalent to verified trading permissions or working order execution.
+- The integration branch contains a continuous DEMO-only paper scalping worker with a persistent Deriv public quote feed, lease-fenced paper-trade entry/exit, portfolio risk controls and recovery logic. It is not deployed to Railway and does not submit live broker orders. A production REAL execution engine is not approved or implemented.
+- Deriv OAuth start/callback code verifies and sanitizes the provider-returned account list, stores encrypted access tokens server-side, and supports explicit DEMO account selection. The integration branch now marks a connection healthy only when the selected DEMO account is still present and active in the verified account list and the authorization token is unexpired. OAuth connection is not equivalent to working broker order execution.
 - No completed MetaTrader 5 bridge or general broker adapter is present.
 - Existing payment callback code is not a complete, verified M-Pesa checkout and entitlement lifecycle.
 - A prior database migration exists for trader profiles. Do not assume every later requested table or migration has been applied; reconcile schema against Supabase before executing new SQL.
@@ -51,3 +51,13 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - Deriv OAuth request now asks for `trade account_manage` scopes. The registered Deriv OAuth application must permit these scopes.
 - Added migration `202611140001_platform_foundation.sql` for missing platform data structures using `CREATE TABLE IF NOT EXISTS`, indexes and row-level security. Existing tables are not dropped or overwritten.
 - Live execution remains blocked. This update does not create a working bot worker, Deriv OTP/WebSocket order lifecycle, MT5 bridge, or verified payment settlement.
+
+
+## 2026-11-26 integration-branch validation update
+- The integration branch contains optional independent strategies; Quantum Scalping remains a DEMO paper strategy and does not replace manual trading or other platform strategies.
+- DEMO paper scalping uses a continuous Deriv public quote feed, lease-fenced server-side paper execution, atomic batch entry, idempotent recovery, stale-feed safeguards and full-position stop-loss/final-take-profit exits.
+- DEMO manual and bot positions share a portfolio capacity limit while manual positions remain outside bot management unless the account owner separately grants the relevant permissions.
+- Deriv connection health now requires both an unexpired authorization token and a matching active DEMO account in the provider-verified account list. REAL account metadata does not unlock REAL trading.
+- Latest integration CI at this checkpoint passed 570 tests, dashboard script checks, worker image build and disposable PostgreSQL DEMO/portfolio migration validation. This is branch validation only; it is not a production deployment or live-broker certification.
+- Vercel preview builds are currently blocked by the account build-rate limit. Do not upgrade the plan or incur costs to bypass it without explicit approval.
+- M-Pesa settlement/entitlement lifecycle, a broker-authorized MT5 bridge, independent AI inference service, production operational review and all REAL execution approvals remain outstanding.
