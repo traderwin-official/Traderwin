@@ -18,6 +18,7 @@ MetaQuotes' official Python integration communicates with an installed MetaTrade
 
 - The repository adapter now rejects REAL scopes, future-dated or stale snapshots, invalid quote-age declarations, unverified USD P&L, and malformed position identity/instrument data.
 - Bridge close requests are disabled by default and require an explicit DEMO-only configuration flag; the adapter rejects REAL close requests even when that flag is enabled.
+- Broker heartbeat state must include explicit connection/kill-switch booleans and a fresh timestamp. The server adapter independently caps accepted heartbeat age at 5 seconds, even if the bridge reports a more permissive limit.
 
 ## Required bridge endpoints
 
