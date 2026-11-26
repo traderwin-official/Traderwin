@@ -4,6 +4,7 @@ import {readFile} from "node:fs/promises";
 
 test("continuous worker executes only opted-in DEMO paper trades and never sends broker orders",async()=>{
  const s=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
+ const permissions=await readFile(new URL("../lib/scalping-session-eligibility.js",import.meta.url),"utf8");
  assert.match(s,/demo_scalping_preferences/);
  assert.match(s,/config_snapshot/);
  assert.match(s,/trader_profiles/);
@@ -11,9 +12,10 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  const dockerfile=await readFile(new URL("../services/scalping-worker/Dockerfile",import.meta.url),"utf8");
  assert.match(dockerfile,/COPY lib\/scalping-session-eligibility\.js \.\/lib\/scalping-session-eligibility\.js/);
  assert.match(s,/hasOpenTrade:openSessionSet\.has\(session\.id\)/);
- assert.match(s,/preference\.paper_execution_enabled===true/);
- assert.match(s,/preference\.account_mode==="DEMO"/);
- assert.match(s,/preference\.execution==="WEBSITE_PAPER_ONLY"/);
+ assert.match(permissions,/preference\?\.paper_execution_enabled === true/);
+ assert.match(permissions,/preference\?\.account_mode === "DEMO"/);
+ assert.match(permissions,/preference\?\.execution === "WEBSITE_PAPER_ONLY"/);
+ assert.match(permissions,/profile\?\.account_mode === "DEMO"/);
  assert.match(s,/trading_instrument_approvals/);
  assert.match(s,/\["M1",60,180\]/);
  assert.match(s,/scalping_signal_events/);
