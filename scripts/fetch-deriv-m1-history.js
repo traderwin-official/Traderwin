@@ -4,8 +4,8 @@ import {resolve} from "node:path";
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const [symbolArg,daysArg="14",outputArg="deriv-m1-history.csv"]=process.argv.slice(2);
 const days=Number(daysArg);
-if(!symbolArg||!Number.isInteger(days)||days<1||days>30){
- console.error("Usage: node scripts/fetch-deriv-m1-history.js <active-symbol> [days 1-30] [output.csv]");
+if(!symbolArg||!Number.isInteger(days)||days<1||days>120){
+ console.error("Usage: node scripts/fetch-deriv-m1-history.js <active-symbol> [days 1-120] [output.csv]");
  process.exit(2);
 }
 const ws=new WebSocket(ENDPOINT),pending=new Map();
@@ -35,10 +35,11 @@ try{
  if(!selected)throw new Error("Symbol is not in Deriv's current active-symbol list: "+symbolArg);
  const from=Math.floor(Date.now()/1000)-days*86400;
  let end="latest",all=[],oldest=Infinity,pages=0;
+ const completedBefore=Math.floor(Date.now()/60000)*60;
  while(pages<200){
   const response=await request({ticks_history:symbolArg,count:1000,end,style:"candles",granularity:60},"candles");
   const candles=(response.candles||[]).map(c=>({epoch:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)}))
-   .filter(c=>Number.isFinite(c.epoch)&&[c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.epoch%60===0&&c.low>0&&c.high>=c.low&&c.open>=c.low&&c.open<=c.high&&c.close>=c.low&&c.close<=c.high);
+   .filter(c=>Number.isFinite(c.epoch)&&c.epoch<completedBefore&&[c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.epoch%60===0&&c.low>0&&c.high>=c.low&&c.open>=c.low&&c.open<=c.high&&c.close>=c.low&&c.close<=c.high);
   if(!candles.length)break;
   all.push(...candles);pages++;
   const first=Math.min(...candles.map(c=>c.epoch));
