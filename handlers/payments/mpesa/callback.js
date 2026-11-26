@@ -95,11 +95,16 @@ export default async function handler(req, res) {
         console.error("Paid service entitlement could not be resolved:", serviceError?.message || "Service missing");
       } else {
         const { data: existingSubscription, error: existingSubscriptionError } = await admin
-          .from("user_subscriptions").select("ends_at,status")
+          .from("user_subscriptions").select("ends_at,status,payment_order_id")
           .eq("user_id", paidOrder.user_id).eq("service_code", paidOrder.service_code).maybeSingle();
         if (existingSubscriptionError) {
           console.error("Existing subscription lookup failed:", existingSubscriptionError.message);
           return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment verified; entitlement update pending" });
+        }
+        // A payment order may be delivered more than once. If it already
+        // owns the active subscription row, do not extend the term again.
+        if (existingSubscription?.payment_order_id === paidOrder.id) {
+          return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment entitlement already active" });
         }
         const now = new Date();
         const existingEnd = existingSubscription?.ends_at ? new Date(existingSubscription.ends_at) : null;
