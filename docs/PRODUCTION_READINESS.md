@@ -89,6 +89,14 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - Unit coverage added for plan direction, side-specific entry, quote freshness and higher-timeframe labeling. CI verification pending.
 
 
+## 2026-11-26 fundamental-analysis context upgrade
+
+- The authenticated Market Analyst now receives instrument-relevant upcoming high-impact macro events from the existing BiQuote calendar adapter, separately from the immediate blackout decision.
+- Upcoming events are categorized into monetary policy, inflation, employment, growth/demand, business activity, bonds/yields, housing or other macro releases. Event currency, publisher/source, timestamp mode and high-impact classification are retained for audit/context.
+- A scheduled event outside the configured immediate blackout window is displayed as upcoming context, not incorrectly treated as an active blackout. Date-only/tentative matching high-impact events continue to trigger the conservative same-UTC-day blackout.
+- The calendar still cannot certify a CLEAR window because provider completeness is not independently verified. Missing, malformed, stale or incomplete data remains UNKNOWN.
+- This is structured fundamental context, not a forecast or generative-AI conclusion. Further work remains: broader event horizon, reliable source redundancy/completeness, central-bank statement/yield context, and tested event-to-instrument relevance.
+
 ## 2026-11-26 market news context update
 
 - The research analyst now optionally retrieves 24-hour headline context from the public GDELT DOC API for mapped FX, metals and crypto instruments. Results are timestamp-checked, deduplicated and shown with publisher domains.
