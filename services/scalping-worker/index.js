@@ -7,7 +7,7 @@ import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/sc
 import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.js";
 import { evaluateMarketCandidate } from "./lib/market-intelligence-gate.js";
 import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
-import { applyOpenTradeSnapshot } from "../../lib/scalping-trade-refresh.js";
+import { applyOpenTradeSnapshot, quarantineTradeForRefresh } from "../../lib/scalping-trade-refresh.js";
 import { acceptMonotonicMarketTick } from "../../lib/scalping-tick-order.js";
 import { runInstrumentEntryAnalysis } from "./lib/scalping-entry-lock.js";
 import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
@@ -116,6 +116,7 @@ async function refreshOpenTrades(){
   tradeStateReady=true;
  })();
  try{return await tradeRefreshInFlight;}
+ catch(error){tradeStateReady=false;throw error;}
  finally{tradeRefreshInFlight=null;}
 }
 
@@ -130,17 +131,14 @@ async function manageOpenTrades(instrument,tick){
    } catch(error) {
     // A transport failure may have happened after PostgreSQL committed.
     // Quarantine the local snapshot until a fresh DB read resolves the state.
-    tradeRefreshPending.set(trade.id,tradeRefreshGeneration+1);
-    activeTrades.delete(trade.id);
+    quarantineTradeForRefresh({tradeId:trade.id,activeTrades,pendingRefresh:tradeRefreshPending,snapshotGeneration:tradeRefreshGeneration,onRemoved:id=>lastMarked.delete(id)});
     throw error;
    }
    if(result.action==="EXIT"){
     if(result.result?.ok===true){state.paperExits++;state.lastPaperExitAt=new Date().toISOString();}
     // Success, conflict, or an ambiguous stage response all require an
     // authoritative ledger read before another tick may manage this position.
-    tradeRefreshPending.set(trade.id,tradeRefreshGeneration+1);
-    activeTrades.delete(trade.id);
-    lastMarked.delete(trade.id);
+    quarantineTradeForRefresh({tradeId:trade.id,activeTrades,pendingRefresh:tradeRefreshPending,snapshotGeneration:tradeRefreshGeneration,onRemoved:id=>lastMarked.delete(id)});
    }
    if(result.action==="HOLD"){
     const markPrice=Number(trade.side==="BUY"?tick.bid:tick.ask);
@@ -149,7 +147,7 @@ async function manageOpenTrades(instrument,tick){
      if(Date.now()-last>=1000){
       lastMarked.set(trade.id,Date.now());
       const {error}=await db.rpc("mark_demo_scalping_paper_trade_with_lease",{p_lease_token:leaseToken,p_user_id:trade.user_id,p_trade_id:trade.id,p_price:markPrice,p_quote_as_of:tick.quoteAsOf});
-      if(error)throw error;
+      if(error){quarantineTradeForRefresh({tradeId:trade.id,activeTrades,pendingRefresh:tradeRefreshPending,snapshotGeneration:tradeRefreshGeneration,onRemoved:id=>lastMarked.delete(id)});throw error;}
      }
     }
    }
