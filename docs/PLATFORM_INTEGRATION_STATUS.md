@@ -42,9 +42,9 @@ The summary is a presentation/aggregation layer. It does not change the executio
 
 ## Current validation checkpoint
 
-- Latest Node workflow [#1151](https://github.com/traderwin-official/Traderwin/actions/runs/45823335313) passed **607/607 tests** (0 failed), including the regression assertion that the authenticated Analyst API wires `researchSummary`.
-- Full Traderwin workflow [#1970](https://github.com/traderwin-official/Traderwin/actions/runs/45823252237) passed: Node tests, serverless syntax, inline page scripts, worker Docker image build and isolated PostgreSQL migration/integration checks.
-- The latest branch head after those checks contains documentation-only updates; application code and tests are unchanged from the validated head.
+- Latest Node workflow [#1164](https://github.com/traderwin-official/Traderwin/actions/runs/45824790846) passed **609/609 tests** (0 failed), including the new shared market/timeframe context regressions.
+- Full Traderwin workflow [#1977](https://github.com/traderwin-official/Traderwin/actions/runs/45824790925) passed: Node tests, serverless JavaScript syntax, inline page scripts, worker Docker image build and isolated PostgreSQL DEMO/portfolio migration checks.
+- The validated application-code head is `28523f299d16a2bb21736d16b62380f9fb04f0eb`; the later documentation-only checkpoint records these results. No preview deployment is claimed.
 - Vercel preview checks remain blocked by the account build-rate limit. No preview deployment is claimed.
 ## Not deployed / not yet verified
 
