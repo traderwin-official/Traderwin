@@ -684,10 +684,15 @@ document.getElementById("demoTimeframe").addEventListener("change",event=>{
 
 document.querySelectorAll("#timeTabs button").forEach(button=>{
  button.addEventListener("click",()=>{
-  document.querySelectorAll("#timeTabs button").forEach(b=>b.classList.remove("active"));
-  button.classList.add("active");
-  selectedTime=button.dataset.time;
-  loadChart();
+  const timeframeByInterval={"5":"M5","15":"M15","60":"H1","240":"H4"};
+  const timeframe=timeframeByInterval[button.dataset.time];
+  if(timeframe)setSharedTimeframe(timeframe);
+  else{
+   document.querySelectorAll("#timeTabs button").forEach(b=>b.classList.remove("active"));
+   button.classList.add("active");
+   selectedTime=button.dataset.time;
+   loadChart();
+  }
  });
 });
 
