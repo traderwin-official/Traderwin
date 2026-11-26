@@ -10,3 +10,9 @@ Young Tiger FX is the rebranded continuation of the existing Traderwin project. 
 - No production bot execution engine or completed MT5 bridge is currently deployed.
 
 See `docs/PRODUCTION_READINESS.md` for broker compatibility, safeguards and remaining release gates.
+
+## Platform architecture
+
+Young Tiger FX is the platform; strategies are optional modules inside it. Quantum Scalping is one strategy and must not replace manual trading, other strategies, portfolio/account management, market intelligence, education, membership, payments or administration.
+
+See [Strategy and Platform Architecture](docs/STRATEGY_ARCHITECTURE.md) for platform-wide product boundaries and the Quantum Scalping strategy contract.
