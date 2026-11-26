@@ -5,6 +5,7 @@ import { analyseScalping, mergeCompletedM5, latestContiguousCandles } from "./li
 import { getDerivQuoteToUsd } from "./lib/usd-conversion.js";
 import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/scalping-paper-adapter.js";
 import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.js";
+import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
@@ -109,10 +110,12 @@ async function refreshOpenTrades(){
 }
 
 async function manageOpenTrades(instrument,tick){
- const trades=[...activeTrades.values()].filter(trade=>norm(trade.instrument)===norm(instrument)&&!tradeLocks.has(trade.id));
- const outcomes=await Promise.all(trades.map(async trade=>{
-  tradeLocks.add(trade.id);
-  try{
+ const trades=[...activeTrades.values()].filter(trade=>norm(trade.instrument)===norm(instrument));
+ return manageTradesIndependently({
+  trades,
+  locks:tradeLocks,
+  onError:e=>logError(e),
+  manage:async trade=>{
    const result=await manageScalpingPaperPosition({db,trade,tick,leaseToken,now:Date.now()});
    if(result.action==="EXIT"&&result.result?.ok===true){
     state.paperExits++;state.lastPaperExitAt=new Date().toISOString();
@@ -133,11 +136,8 @@ async function manageOpenTrades(instrument,tick){
      }
     }
    }
-   return true;
-  }catch(e){logError(e);return false;}
-  finally{tradeLocks.delete(trade.id);}
- }));
- return outcomes.every(Boolean);
+  }
+ });
 }
 
 async function saveSignal(wanted,result,candleEpoch,tick){
