@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {runScalpingBacktest,summarizeScalpingBacktest} from "../lib/scalping-backtest.js";
+import {runScalpingBacktest,summarizeScalpingBacktest,parseM1Csv} from "../lib/scalping-backtest.js";
 
 function flatHistory(count=220){
  const base=Math.floor(Date.now()/60000)*60-count*60;
@@ -45,4 +45,21 @@ test("backtest summary computes win rate, expectancy, profit factor and drawdown
 });
 test("backtest caps the requested portfolio at fifteen positions",()=>{
  assert.throws(()=>summarizeScalpingBacktest([],{maxPositions:16}),/between 1 and 15/);
+});
+
+test("CSV loader accepts epoch and ISO timestamps with CRLF and BOM",()=>{
+ const base=Math.floor(Date.now()/60000)*60;
+ const csv="\\uFEFFtimestamp,open,high,low,close\\r\\n"+[0,1,2].map(i=>[base+i*60,2000,2001,1999,2000.5].join(",")).join("\\r\\n");
+ const rows=parseM1Csv(csv);
+ assert.equal(rows.length,3);
+ assert.equal(rows[1].epoch,base+60);
+ const iso="time,open,high,low,close\\n"+[0,1].map(i=>[new Date((base+i*60)*1000).toISOString(),2000,2001,1999,2000.5].join(",")).join("\\n");
+ assert.equal(parseM1Csv(iso).length,2);
+});
+test("CSV loader rejects gaps and malformed OHLC",()=>{
+ const base=Math.floor(Date.now()/60000)*60;
+ const gap="epoch,open,high,low,close\\n"+[0,2].map(i=>[base+i*60,2000,2001,1999,2000].join(",")).join("\\n");
+ assert.throws(()=>parseM1Csv(gap),/strictly contiguous/);
+ const malformed="epoch,open,high,low,close\\n"+[base,2000,1990,1999,2000].join(",");
+ assert.throws(()=>parseM1Csv(malformed),/strictly contiguous/);
 });
