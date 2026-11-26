@@ -60,7 +60,8 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - Deriv connection health now requires both an unexpired authorization token and a matching active DEMO account in the provider-verified account list. REAL account metadata does not unlock REAL trading.
 - Latest integration CI at this checkpoint passed 577 tests, dashboard script checks, worker image build and disposable PostgreSQL DEMO/portfolio migration validation, including authenticated user-scoped account-mode profile reads. This is branch validation only; it is not a production deployment or live-broker certification.
 - Vercel preview builds are currently blocked by the account build-rate limit. Do not upgrade the plan or incur costs to bypass it without explicit approval.
-- M-Pesa settlement/entitlement lifecycle, a broker-authorized MT5 bridge, independent AI inference service, production operational review and all REAL execution approvals remain outstanding.
-- The M-Pesa callback now permits a previously verified PAID order to retry subscription entitlement activation, including recovery after a concurrent callback wins the payment-state update; payment retry contract coverage is included in the Node suite.
+- M-Pesa settlement is still not production-certified. The integration branch now adds a service-role-only transactional entitlement RPC and permanent per-payment-order ledger so duplicate and historical callbacks cannot extend a subscription twice; PostgreSQL replay tests are included in CI but must pass before this is considered validated.
+- A broker-authorized MT5 bridge, independent AI inference service, production operational review and all REAL execution approvals remain outstanding.
+- The M-Pesa callback permits a previously verified PAID order to retry subscription fulfilment after payment-state recovery; fulfilment now delegates to the atomic database transaction rather than a separate client-side upsert.
 
 - Dashboard mode-profile reads explicitly authenticate the current user and scope the DEMO/REAL preference query to that user's row, avoiding ambiguous profile reads across accounts.
