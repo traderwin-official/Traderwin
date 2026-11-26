@@ -1052,12 +1052,17 @@ calculateRisk();
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||"Could not check payment status.");
     const status=result.order.status;
+    const entitlementPending=status==="PAID"&&result.entitlementStatus==="PENDING";
     paymentMessage.textContent=status==="PAID"
-     ?"Payment confirmed. Your service access is being activated."
+     ?entitlementPending
+      ?"Payment confirmed. Service activation is still processing. Check again shortly to retry activation."
+      :"Payment confirmed and service access is active."
      :status==="FAILED"?"Payment was not completed. You can start a new request."
      :"Payment is still pending. Complete the M-Pesa prompt, then check again.";
-    if(status==="PAID") await refreshRealSubscriptionStatus();
-    if(status!=="PENDING") activePaymentOrderId=null;
+    if(status==="PAID"&&!entitlementPending) await refreshRealSubscriptionStatus();
+    // Keep the order available for another authenticated recovery attempt if
+    // payment was verified but the entitlement transaction is still pending.
+    if(status!=="PENDING"&&!entitlementPending) activePaymentOrderId=null;
    }catch(error){
     paymentMessage.textContent=error.message||"Could not check payment status.";
    }finally{
