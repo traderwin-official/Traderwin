@@ -64,5 +64,6 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - A broker-authorized MT5 bridge, independent AI inference service, production operational review and all REAL execution approvals remain outstanding.
 - The M-Pesa callback permits a previously verified PAID order to retry subscription fulfilment after payment-state recovery; fulfilment now delegates to the atomic database transaction rather than a separate client-side upsert.
 - Authenticated members' payment-status polling also retries fulfilment for their own PAID order, providing a recovery path if the provider callback was acknowledged while entitlement activation was temporarily unavailable.
+- The payment UI keeps a verified PAID order retryable until entitlement activation succeeds, rather than disabling the recovery action prematurely.
 
 - Dashboard mode-profile reads explicitly authenticate the current user and scope the DEMO/REAL preference query to that user's row, avoiding ambiguous profile reads across accounts.
