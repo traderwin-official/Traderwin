@@ -20,6 +20,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/if\(!leaseOwned\|\|stopping\)return;/);
  assert.match(s,/openScalpingPaperPosition\(\{db,leaseToken,/);
  assert.match(s,/manageScalpingPaperPosition/);
+ assert.match(s,/manageScalpingPaperPosition\(\{db,trade,tick,leaseToken,/);
  assert.match(s,/getDerivQuoteToUsd/);
  assert.match(s,/refreshOpenTrades/);
  assert.match(s,/claim_traderwin_scalping_worker/);
@@ -116,4 +117,14 @@ test("lease-fenced database entry locks and validates the live lease before open
  assert.match(sql,/lease_until <= clock_timestamp\(\)/);
  assert.match(sql,/SCALPING_WORKER_LEASE_NOT_OWNED/);
  assert.match(sql,/return public\.open_demo_scalping_paper_trade/);
+});
+
+test("scalping position mark and exit writes are fenced by the active worker lease",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611260004_scalping_worker_management_lease_fencing.sql",import.meta.url),"utf8");
+ assert.match(sql,/mark_demo_scalping_paper_trade_with_lease/);
+ assert.match(sql,/manage_demo_scalping_paper_exit_with_lease/);
+ assert.match(sql,/lease_token is distinct from p_lease_token/);
+ assert.match(sql,/lease_until <= clock_timestamp\(\)/);
+ assert.match(sql,/trade_origin='BOT'/);
+ assert.match(sql,/metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING'/);
 });
