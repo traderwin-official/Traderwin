@@ -6,6 +6,8 @@ import { getDerivPublicQuote } from "../../lib/deriv-public-quote.js";
 import { loadApprovedInstrument } from "../../lib/deriv/load-approved-instrument.js";
 import { evaluateMarketCandidate } from "../../lib/market-intelligence-gate.js";
 import { getGdeltNewsContext } from "../../lib/gdelt-news-context.js";
+import { getGdeltNewsRiskStatus } from "../../lib/gdelt-news-risk.js";
+import { getBiQuoteCalendarRiskStatus } from "../../lib/biquote-calendar-risk.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -50,7 +52,13 @@ export default async function handler(req, res) {
       : Promise.resolve(null);
     const quotePromise = getDerivPublicQuote(instrument, { timeoutMs: 4000 }).catch(() => null);
     const newsPromise = getGdeltNewsContext(instrument);
-    const [market, trendMarket, quote, newsContext] = await Promise.all([marketPromise, trendPromise, quotePromise, newsPromise]);
+    const newsRiskPromise = getGdeltNewsRiskStatus();
+    const calendarRiskPromise = getBiQuoteCalendarRiskStatus({ instrument });
+    const [market, trendMarket, quote, newsContext, newsRisk, calendarRisk] = await Promise.all([
+      marketPromise, trendPromise, quotePromise, newsPromise, newsRiskPromise, calendarRiskPromise
+    ]);
+    const combinedNewsStatus = newsRisk.status === "BLACKOUT" || calendarRisk.status === "BLACKOUT"
+      ? "BLACKOUT" : "UNKNOWN";
     const candidate = analyseStrategy(market.candles, strategy, {
       trendCandles: trendMarket?.candles || market.candles,
       trendTimeframe: higherTimeframe || timeframe,
@@ -120,7 +128,8 @@ export default async function handler(req, res) {
         riskReward: tradePlan.status === "INDICATIVE_ONLY" ? tradePlan.riskReward1 : null,
         minimumRiskReward: 1.5,
         entryTriggerConfirmed: mtfAgrees && ["BUY", "SELL"].includes(String(candidate.direction || "").toUpperCase()),
-        newsStatus: "UNKNOWN"
+        newsStatus: combinedNewsStatus,
+        highImpactNewsWindow: combinedNewsStatus === "BLACKOUT"
       },
       maxAgeMs: Math.max(120000, Number(market.granularity || 0) * 2000)
     });
@@ -148,6 +157,8 @@ export default async function handler(req, res) {
       candidate: result,
       marketIntelligence,
       newsContext,
+      newsRisk,
+      calendarRisk,
       marketData: {
         quoteStatus: quoteFresh ? "FRESH" : "UNAVAILABLE_OR_UNVERIFIED",
         quoteAsOf: quote?.quoteAsOf || null,
