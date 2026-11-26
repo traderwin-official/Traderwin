@@ -5,20 +5,29 @@ import { analyseScalping, mergeCompletedM5, latestContiguousCandles } from "./li
 import { getDerivQuoteToUsd } from "./lib/usd-conversion.js";
 import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/scalping-paper-adapter.js";
 import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.js";
+import { evaluateMarketCandidate } from "./lib/market-intelligence-gate.js";
 import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
+import { applyOpenTradeSnapshot, quarantineTradeForRefresh } from "../../lib/scalping-trade-refresh.js";
+import { acceptMonotonicMarketTick } from "../../lib/scalping-tick-order.js";
+import { detectMarketDataGap } from "../../lib/scalping-market-data-gap.js";
+import { recordMarketDataGapReview, resolveMarketDataGapReview } from "../../lib/scalping-gap-review.js";
+import { runInstrumentEntryAnalysis } from "./lib/scalping-entry-lock.js";
+import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
+import { getBiQuoteCalendarRiskStatus } from "./lib/biquote-calendar-risk.js";
+import { getXausGoldReference, compareGoldReference } from "./lib/xaus-gold-reference.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const SCALPING_STRATEGY="TIGER_SCHEME_QUANTUM_SCALPING";
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
-const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
+const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastMarketIntelligence:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},lastMarketDataGap:null,marketDataReviewRequired:{},newsRisk:{status:"UNKNOWN",reason:"NOT_CHECKED"},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
-let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[];
+const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map(),entryAnalysisLocks=new Set(),latestTickEpoch=new Map(),tradeRefreshPending=new Map(),marketDataReviewRequired=new Map();
+let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[],tradeRefreshGeneration=0,tradeRefreshInFlight=null,reconcileInFlight=null,tradeStateReady=false;
 const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
- if(req.url==="/healthz"){const leaseRenewedAt=Date.parse(state.leaseLastRenewedAt);const leaseAgeMs=Date.now()-leaseRenewedAt;const leaseFresh=Number.isFinite(leaseRenewedAt)&&leaseAgeMs>=0&&leaseAgeMs<=30000;const healthy=leaseOwned&&leaseFresh&&!stopping&&!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
+ if(req.url==="/healthz"){const leaseRenewedAt=Date.parse(state.leaseLastRenewedAt);const leaseAgeMs=Date.now()-leaseRenewedAt;const leaseFresh=Number.isFinite(leaseRenewedAt)&&leaseAgeMs>=0&&leaseAgeMs<=30000;const healthy=leaseOwned&&leaseFresh&&!stopping&&!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.subscribed.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
  res.writeHead(404);res.end();
 });
 function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.error("scalping-worker:",state.lastError);}
@@ -94,36 +103,44 @@ async function eligibleSymbols(){
 }
 
 async function refreshOpenTrades(){
- const {data,error}=await db.from("demo_paper_trades")
-  .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
-  .eq("status","OPEN").eq("trade_origin","BOT")
-  .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(1000);
- if(error)throw error;
- const seen=new Set();
- for(const trade of data||[]){
-  seen.add(trade.id);
-  if(!tradeLocks.has(trade.id))activeTrades.set(trade.id,trade);
- }
- for(const id of activeTrades.keys()){
-  if(!seen.has(id)&&!tradeLocks.has(id)){activeTrades.delete(id);lastMarked.delete(id);}
- }
+ if(tradeRefreshInFlight)return tradeRefreshInFlight;
+ const generation=++tradeRefreshGeneration;
+ tradeRefreshInFlight=(async()=>{
+  const {data,error}=await db.from("demo_paper_trades")
+   .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,take_profit,tp3_price,tp1_price,tp2_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
+   .eq("status","OPEN").eq("trade_origin","BOT")
+   .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(1000);
+  if(error)throw error;
+  applyOpenTradeSnapshot({
+   trades:data||[],activeTrades,locks:tradeLocks,pendingRefresh:tradeRefreshPending,
+   snapshotGeneration:generation,onRemoved:id=>lastMarked.delete(id)
+  });
+  tradeStateReady=true;
+ })();
+ try{return await tradeRefreshInFlight;}
+ catch(error){tradeStateReady=false;throw error;}
+ finally{tradeRefreshInFlight=null;}
 }
 
 async function manageOpenTrades(instrument,tick){
- const trades=[...activeTrades.values()].filter(trade=>norm(trade.instrument)===norm(instrument));
+ const trades=tradeStateReady?[...activeTrades.values()].filter(trade=>!tradeRefreshPending.has(trade.id)&&norm(trade.instrument)===norm(instrument)):[];
  return manageTradesIndependently({
-  trades,
-  locks:tradeLocks,
-  onError:e=>logError(e),
+  trades,locks:tradeLocks,onError:e=>logError(e),
   manage:async trade=>{
-   const result=await manageScalpingPaperPosition({db,trade,tick,leaseToken,now:Date.now()});
-   if(result.action==="EXIT"&&result.result?.ok===true){
-    state.paperExits++;state.lastPaperExitAt=new Date().toISOString();
-    if(result.stage==="TP1")trade.tp1_done=true;
-    if(result.stage==="TP2")trade.tp2_done=true;
-    if(result.stage==="TP3"||result.stage==="STOP_LOSS"||result.result.closed===true){
-     activeTrades.delete(trade.id);lastMarked.delete(trade.id);
-    }else activeTrades.set(trade.id,trade);
+   let result;
+   try {
+    result=await manageScalpingPaperPosition({db,trade,tick,leaseToken,now:Date.now()});
+   } catch(error) {
+    // A transport failure may have happened after PostgreSQL committed.
+    // Quarantine the local snapshot until a fresh DB read resolves the state.
+    quarantineTradeForRefresh({tradeId:trade.id,activeTrades,pendingRefresh:tradeRefreshPending,snapshotGeneration:tradeRefreshGeneration,onRemoved:id=>lastMarked.delete(id)});
+    throw error;
+   }
+   if(result.action==="EXIT"){
+    if(result.result?.ok===true){state.paperExits++;state.lastPaperExitAt=new Date().toISOString();}
+    // Success, conflict, or an ambiguous stage response all require an
+    // authoritative ledger read before another tick may manage this position.
+    quarantineTradeForRefresh({tradeId:trade.id,activeTrades,pendingRefresh:tradeRefreshPending,snapshotGeneration:tradeRefreshGeneration,onRemoved:id=>lastMarked.delete(id)});
    }
    if(result.action==="HOLD"){
     const markPrice=Number(trade.side==="BUY"?tick.bid:tick.ask);
@@ -132,7 +149,7 @@ async function manageOpenTrades(instrument,tick){
      if(Date.now()-last>=1000){
       lastMarked.set(trade.id,Date.now());
       const {error}=await db.rpc("mark_demo_scalping_paper_trade_with_lease",{p_lease_token:leaseToken,p_user_id:trade.user_id,p_trade_id:trade.id,p_price:markPrice,p_quote_as_of:tick.quoteAsOf});
-      if(error)throw error;
+      if(error){quarantineTradeForRefresh({tradeId:trade.id,activeTrades,pendingRefresh:tradeRefreshPending,snapshotGeneration:tradeRefreshGeneration,onRemoved:id=>lastMarked.delete(id)});throw error;}
      }
     }
    }
@@ -149,9 +166,10 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   lastSignal.set(wanted.instrument,key);state.signals++;state.lastSignalAt=new Date().toISOString();
  }
  if(!leaseOwned||stopping)return;
- const ready=wanted.sessions.filter(x=>x.entryEnabled&&lastEntryAttempt.get(x.session.id)!==candleEpoch);
+ const entryAttemptAt=Date.now();
+ const ready=wanted.sessions.filter(x=>x.entryEnabled&&entryAttemptAt-(lastEntryAttempt.get(x.session.id)||0)>=1000);
  if(!ready.length)return;
- for(const item of ready)lastEntryAttempt.set(item.session.id,candleEpoch);
+ for(const item of ready)lastEntryAttempt.set(item.session.id,entryAttemptAt);
  let conversion;
  try{conversion=await getDerivQuoteToUsd(wanted.instrument,tick);}
  catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);return;}
@@ -160,12 +178,15 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   try{
    const opened=await openScalpingPaperPosition({db,leaseToken,session:item.session,preference:item.preference,signal:{...result,instrument:wanted.instrument},tick,candleEpoch,quoteToUsd:conversion.rate,now:Date.now()});
    if(opened?.ok===true){
-    state.paperEntries++;state.lastPaperEntryAt=new Date().toISOString();state.lastEntryReason=null;
-    if(opened.trade_id){
-     const {data:trade,error:tradeLoadError}=await db.from("demo_paper_trades")
-      .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
-      .eq("id",opened.trade_id).maybeSingle();
-     if(tradeLoadError)logError(tradeLoadError);else if(trade?.status==="OPEN")activeTrades.set(trade.id,trade);
+    const tradeIds=Array.isArray(opened.trade_ids)?opened.trade_ids:(opened.trade_id?[opened.trade_id]:[]);
+    state.paperEntries+=Number(opened.opened_count)||tradeIds.length||1;
+    state.lastPaperEntryAt=new Date().toISOString();state.lastEntryReason=null;
+    if(tradeIds.length){
+     const {data:trades,error:tradeLoadError}=await db.from("demo_paper_trades")
+      .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,take_profit,tp3_price,tp1_price,tp2_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
+      .in("id",tradeIds);
+     if(tradeLoadError)logError(tradeLoadError);
+     else for(const trade of trades||[])if(trade.status==="OPEN")quarantineTradeForRefresh({tradeId:trade.id,activeTrades,pendingRefresh:tradeRefreshPending,snapshotGeneration:tradeRefreshGeneration,onRemoved:id=>lastMarked.delete(id)});
     }
    }else state.lastEntryReason=opened?.reason||"SCALPING_ENTRY_NOT_ACCEPTED";
   }catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);}
@@ -174,20 +195,26 @@ async function saveSignal(wanted,result,candleEpoch,tick){
 
 async function publishTick(wanted,tick){
  const quote=Number(tick.quote),epoch=Number(tick.epoch),providerSymbol=String(tick.symbol||"");
+ if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(epoch)||epoch<=0||Math.abs(Date.now()-epoch*1000)>30000)return;
+ // Enforce per-instrument ordering before exits, persistence, or candle updates.
+ // Keep the epoch map across socket reconnects so delayed packets from an old
+ // connection cannot roll a freshly rehydrated worker backwards.
+ const previousEpoch=latestTickEpoch.get(norm(wanted.instrument));
+ if(!acceptMonotonicMarketTick({instrument:wanted.instrument,epoch,latestByInstrument:latestTickEpoch}))return;
+ const gap=detectMarketDataGap({instrument:wanted.instrument,previousEpoch,epoch,activePositionCount:[...activeTrades.values()].filter(trade=>norm(trade.instrument)===norm(wanted.instrument)).length});
+ if(gap){state.lastMarketDataGap={...gap,detectedAt:new Date().toISOString()};recordMarketDataGapReview({gap,reviewRequiredByInstrument:marketDataReviewRequired});state.marketDataReviewRequired[wanted.instrument]=marketDataReviewRequired.get(wanted.instrument)||null;}
  const quoteAsOf=new Date(epoch*1000).toISOString(),receivedAt=new Date().toISOString();
- if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(epoch)||Math.abs(Date.now()-epoch*1000)>30000)return;
  const payload={instrument:wanted.instrument,providerSymbol,quote,bid:typeof tick.bid==="number"&&Number.isFinite(tick.bid)&&tick.bid>0?tick.bid:null,ask:typeof tick.ask==="number"&&Number.isFinite(tick.ask)&&tick.ask>0?tick.ask:null,quoteAsOf,receivedAt,source:"DERIV"};
  state.lastTickAt=receivedAt;state.ticks++;
  const bidAskAvailable=payload.bid!==null&&payload.ask!==null;
- state.marketDataQuality[wanted.instrument]={providerSymbol,quoteAsOf,bidAskAvailable,status:bidAskAvailable?"BID_ASK_READY":"SPOT_ONLY"};
+ state.marketDataQuality[wanted.instrument]={providerSymbol,quoteAsOf,bidAskAvailable,status:bidAskAvailable?"BID_ASK_READY":"SPOT_ONLY",...(gap?{marketDataGap:gap}:{} )};
  if(!bidAskAvailable){
   state.bidAskMissingTicks++;
   if(wanted.sessions.some(x=>x.entryEnabled))state.lastEntryReason="DERIV_BID_ASK_UNAVAILABLE:"+wanted.instrument;
  }
  // Start exits immediately, but do not block candle ingestion on database round-trips.
  const managementPromise=manageOpenTrades(wanted.instrument,payload).catch(e=>{logError(e);return false;});
- // Deliberately do not await this promise: every open trade has its own lock
- // and exit task, while the signal/entry pipeline continues on this tick.
+ // Exit failures are isolated; M1 ingestion and new-entry analysis keep running.
  void managementPromise;
  if(Date.now()-(lastPersisted.get(wanted.instrument)||0)>=1000){
   lastPersisted.set(wanted.instrument,Date.now());
@@ -200,16 +227,62 @@ async function publishTick(wanted,tick){
   if(h.current&&h.current.epoch+60<=minute){h.m1.push(h.current);h.m1=latestContiguousCandles(h.m1,60,240);}
   h.current={epoch:minute,open:quote,high:quote,low:quote,close:quote};
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
- // Entry analysis runs independently of the per-position exit tasks above.
- // A slow close/mark for one position must not pause M1 signal scanning or
- // prevent other positions from being managed concurrently. The database
- // entry RPC still enforces the shared portfolio position and risk limits.
  if(!leaseOwned||stopping||!wanted.sessions.some(x=>x.entryEnabled))return;
+ if(resolveMarketDataGapReview({instrument:wanted.instrument,activeTrades,pendingRefresh:tradeRefreshPending,reviewRequiredByInstrument:marketDataReviewRequired})){delete state.marketDataReviewRequired[wanted.instrument];}
+ if(marketDataReviewRequired.has(wanted.instrument)){state.lastEntryReason="MARKET_DATA_GAP_MANUAL_REVIEW_REQUIRED:"+wanted.instrument;return;}
+ await runInstrumentEntryAnalysis({instrument:wanted.instrument,locks:entryAnalysisLocks,analyse:async()=>{
  const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
  if(!leaseOwned||stopping)return;
  const result=analyseScalping({instrument:wanted.instrument,candles:h.m1.slice(-180),trendCandles:m5,contextCandles:{M15:h.m15,H1:h.h1,H4:h.h4},tick:payload,now:Date.now()});
+ if(result.direction==="BUY"||result.direction==="SELL"){
+  const mid=(payload.bid+payload.ask)/2;
+  const spreadBps=Number.isFinite(mid)&&mid>0?((payload.ask-payload.bid)/mid)*10000:null;
+  const configuredMaxSpreadBps=Number(process.env.SCALPING_MAX_SPREAD_BPS);
+  // Fetch all independent external vetoes concurrently so XAUUSD does not
+  // wait for news/calendar checks before starting its independent gold reference.
+  const [gdeltRisk,calendarRisk,goldReference]=await Promise.all([
+   getGdeltNewsRiskStatus({instrument:wanted.instrument}),
+   getBiQuoteCalendarRiskStatus({instrument:wanted.instrument}),
+   wanted.instrument==="XAUUSD"?getXausGoldReference():Promise.resolve(null)
+  ]);
+  const newsRisk={
+   status:gdeltRisk.status==="BLACKOUT"||calendarRisk.status==="BLACKOUT"?"BLACKOUT":"UNKNOWN",
+   reason:gdeltRisk.status==="BLACKOUT"?"GDELT_HIGH_IMPACT_NEWS":calendarRisk.status==="BLACKOUT"?"BIQUOTE_HIGH_IMPACT_CALENDAR":"NEWS_CLEARANCE_NOT_ESTABLISHED",
+   gdelt:gdeltRisk,calendar:calendarRisk
+  };
+  state.newsRisk=newsRisk;
+  if(wanted.instrument==="XAUUSD"){
+   const referenceLimit=Number(process.env.SCALPING_XAUUSD_MAX_REFERENCE_DEVIATION_BPS||50);
+   const goldGuard=compareGoldReference({brokerMid:mid,reference:goldReference,maxDeviationBps:referenceLimit});
+   state.goldReference={...goldReference,guard:goldGuard};
+   if(goldGuard.status!=="PASS"){
+    state.lastMarketIntelligence={decision:"NO_TRADE",direction:"WAIT",executionAuthorized:false,goldReference:goldGuard,evaluatedAt:new Date().toISOString()};
+    state.lastEntryReason=("GOLD_REFERENCE_WAIT:"+goldGuard.reason).slice(0,180);
+    return;
+   }
+  }
+  const gate=evaluateMarketCandidate({
+   instrument:wanted.instrument,timeframe:"M1",direction:result.direction,
+   confidence:result.confidence,source:"DERIV",asOf:result.signalAsOf,
+   market:{tradable:wanted.sessions.some(x=>x.entryEnabled),quoteFresh:true,candleClosed:true},
+   risk:{
+    spreadBps,
+    maxSpreadBps:Number.isFinite(configuredMaxSpreadBps)&&configuredMaxSpreadBps>0?configuredMaxSpreadBps:null,
+    riskReward:result.riskReward,minimumRiskReward:1.5,
+    entryTriggerConfirmed:true,newsStatus:newsRisk.status
+   },
+   now:Date.now()
+  });
+  state.lastMarketIntelligence={...gate,evaluatedAt:new Date().toISOString()};
+  if(gate.decision!=="SIGNAL_READY_FOR_RISK_GATE"||gate.direction!==result.direction){
+   state.lastEntryReason=("MARKET_INTELLIGENCE_WAIT:"+gate.reasons.slice(0,8).join(",")).slice(0,240);
+   return;
+  }
+  state.lastEntryReason=null;
+ }
  if(result.direction==="BUY"||result.direction==="SELL")await saveSignal(wanted,result,h.m1.at(-1).epoch,payload);
+ }});
 }
 
 function closeSocket(){for(const timer of contextRefreshTimers.values())clearInterval(timer);contextRefreshTimers.clear();if(socket){const old=socket;socket=null;try{old.onopen=null;old.onmessage=null;old.onerror=null;old.onclose=null;old.close();}catch{}}state.socket="DISCONNECTED";}
@@ -235,6 +308,15 @@ async function subscribeSet(desired){
     const found=active.find(a=>String(a.underlying_symbol||a.symbol||"")===wanted.providerSymbol);
     if(!found){logError(new Error("Approved provider symbol is not currently active on Deriv."));closeSocket();scheduleReconnect();return;}
     const requests=[["M1",60,180],["M5",300,60],["M15",900,60],["H1",3600,60],["H4",14400,60]];
+    // Resume live quotes immediately after reconnect. Open DEMO positions can
+    // be checked while candle history warms; publishTick keeps new entries
+    // blocked until all required histories are ready.
+    const liveHistory=history.get(wanted.instrument)||{m1:[],m5:[],m15:[],h1:[],h4:[],current:null,loadedM1:false,loadedM5:false,loadedM15:false,loadedH1:false,loadedH4:false,subscribed:false};
+    history.set(wanted.instrument,liveHistory);
+    if(!liveHistory.subscribed){
+     liveHistory.subscribed=true;
+     ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));
+    }
     for(const [kind,granularity,count] of requests){
      const id=nextId++;requestMap.set(id,{instrument:wanted.instrument,kind});
      ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count,end:"latest",style:"candles",granularity,req_id:id}));
@@ -256,9 +338,9 @@ async function subscribeSet(desired){
      logError(new Error("Deriv did not provide enough contiguous completed M1/M5/M15/H1/H4 candles to warm up the scalping engine."));
      closeSocket();scheduleReconnect();return;
     }
-    if(!h.subscribed){
-     h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted)return;
-     ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);
+    if(!state.readySymbols.includes(req.instrument))state.readySymbols.push(req.instrument);
+    if(!h.warmupComplete){
+     h.warmupComplete=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted)return;
      if(!contextRefreshTimers.has(wanted.instrument)){
       const timer=setInterval(()=>{
        if(socket!==ws||ws.readyState!==WebSocket.OPEN)return;
@@ -287,19 +369,25 @@ function validCandle(c){return c&&[c.epoch,c.open,c.high,c.low,c.close].every(Nu
 function scheduleReconnect(){if(stopping||reconnectTimer)return;reconnectTimer=setTimeout(()=>{reconnectTimer=null;reconcile().catch(logError);},retry);retry=Math.min(retry*2,30000);}
 async function reconcile(){
  if(stopping)return;
- try{
-  const {data:claimed,error:leaseError}=await db.rpc("claim_traderwin_scalping_worker",{p_lease_token:leaseToken,p_lease_seconds:90});
-  if(leaseError)throw leaseError;
-  leaseOwned=claimed===true;state.leaseOwned=leaseOwned;
-  if(!leaseOwned){state.leaseLastError="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
-  state.leaseLastRenewedAt=new Date().toISOString();state.leaseLastError=null;
-  const desired=await eligibleSymbols();await subscribeSet(desired);state.lastError=null;
- }catch(e){leaseOwned=false;state.leaseOwned=false;state.leaseLastError=String(e?.message||e).slice(0,180);closeSocket();logError(e);scheduleReconnect();}
+ if(reconcileInFlight)return reconcileInFlight;
+ reconcileInFlight=(async()=>{
+  try{
+   const {data:claimed,error:leaseError}=await db.rpc("claim_traderwin_scalping_worker",{p_lease_token:leaseToken,p_lease_seconds:90});
+   if(leaseError)throw leaseError;
+   leaseOwned=claimed===true;state.leaseOwned=leaseOwned;
+   if(!leaseOwned){tradeStateReady=false;state.leaseLastError="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
+   state.leaseLastRenewedAt=new Date().toISOString();state.leaseLastError=null;
+   // Rehydrate the durable open-position ledger before reconnecting market data.
+   await refreshOpenTrades();
+   const desired=await eligibleSymbols();await subscribeSet(desired);state.lastError=null;
+  }catch(e){leaseOwned=false;state.leaseOwned=false;tradeStateReady=false;state.leaseLastError=String(e?.message||e).slice(0,180);closeSocket();logError(e);scheduleReconnect();}
+ })();
+ try{return await reconcileInFlight;}
+ finally{reconcileInFlight=null;}
 }
 server.listen(PORT,()=>console.log("Young Tiger continuous DEMO scalping paper worker listening on",PORT));
 reconcile().catch(logError);
 reconcileTimer=setInterval(()=>reconcile().catch(logError),10000);
-refreshOpenTrades().catch(logError);
 tradeRefreshTimer=setInterval(()=>refreshOpenTrades().catch(logError),1000);
 async function shutdown(){
  if(stopping)return;

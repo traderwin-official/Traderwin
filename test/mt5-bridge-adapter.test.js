@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createMt5BridgeAdapter } from "../lib/mt5-bridge-adapter.js";
+import { createMt5BridgeAdapter, createMt5BridgeAdapterFromEnv } from "../lib/mt5-bridge-adapter.js";
 
 const scope = { userId: "user-1", accountMode: "DEMO", broker: "MT5", accountRef: "acct-7" };
 const portfolio = {
@@ -30,14 +30,16 @@ const portfolio = {
   }]
 };
 
-function makeAdapter(payload = portfolio, onRequest = () => {}) {
+function makeAdapter(payload = portfolio, onRequest = () => {}, adapterOptions = {}) {
   return createMt5BridgeAdapter({
     baseUrl: "https://mt5-bridge.example.test",
     apiToken: "server-side-test-token-long-enough",
-    fetchImpl: async (url, options) => {
-      onRequest(url, options);
+    fetchImpl: async (url, requestOptions) => {
+      onRequest(url, requestOptions);
       return { ok: true, status: 200, json: async () => payload };
-    }
+    },
+    now: () => 1_000_000,
+    ...adapterOptions
   });
 }
 
@@ -72,7 +74,7 @@ test("sends idempotent close request to the correct MT5 account and ticket", asy
   let captured;
   const adapter = makeAdapter({ closed: true, status: "DONE", dealId: 88 }, (url, options) => {
     captured = { url, options };
-  });
+  }, { allowDemoClose: true });
   const result = await adapter.closePosition({
     broker: "MT5", brokerPositionId: "12345", accountRef: "acct-7",
     accountMode: "DEMO", source: "MANUAL"
@@ -82,4 +84,47 @@ test("sends idempotent close request to the correct MT5 account and ticket", asy
   assert.equal(captured.options.headers["Idempotency-Key"], "protect:demo:mt5:12345");
   assert.equal(captured.options.headers.Authorization, "Bearer server-side-test-token-long-enough");
   assert.equal(JSON.parse(captured.options.body).expectedPositionSource, "MANUAL");
+});
+
+test("rejects REAL snapshots and stale or future-dated DEMO quotes", async () => {
+  const adapter = makeAdapter();
+  await assert.rejects(() => adapter.loadSnapshot({ ...scope, accountMode: "REAL" }), /DEMO-only/);
+  await assert.rejects(() => makeAdapter({ ...portfolio, asOf: new Date(990_000).toISOString() }).loadSnapshot(scope), /stale/);
+  await assert.rejects(() => makeAdapter({ ...portfolio, asOf: new Date(1_000_001).toISOString() }).loadSnapshot(scope), /stale/);
+});
+
+test("MT5 DEMO closing is disabled unless explicitly enabled and can never close REAL positions", async () => {
+  const adapter = makeAdapter({ closed: true, status: "DONE" });
+  await assert.rejects(() => adapter.closePosition({
+    broker: "MT5", brokerPositionId: "12345", accountRef: "acct-7",
+    accountMode: "DEMO", source: "MANUAL"
+  }, { idempotencyKey: "demo-close", reason: "TEST" }), /disabled/);
+
+  const enabled = makeAdapter({ closed: true, status: "DONE" }, () => {}, { allowDemoClose: true });
+  await assert.rejects(() => enabled.closePosition({
+    broker: "MT5", brokerPositionId: "12345", accountRef: "acct-7",
+    accountMode: "REAL", source: "MANUAL"
+  }, { idempotencyKey: "real-close", reason: "TEST" }), /DEMO position/);
+});
+
+test("server environment config is optional but rejects partial MT5 credentials", () => {
+  assert.equal(createMt5BridgeAdapterFromEnv({ env: {} }), null);
+  assert.throws(() => createMt5BridgeAdapterFromEnv({
+    env: { MT5_BRIDGE_URL: "https://bridge.example.test" }
+  }), /incomplete/);
+  const adapter = createMt5BridgeAdapterFromEnv({
+    env: {
+      MT5_BRIDGE_URL: "https://bridge.example.test",
+      MT5_BRIDGE_API_TOKEN: "server-side-test-token-long-enough"
+    }
+  });
+  assert.equal(adapter.broker, "MT5");
+  const closeEnabled = createMt5BridgeAdapterFromEnv({
+    env: {
+      MT5_BRIDGE_URL: "https://bridge.example.test",
+      MT5_BRIDGE_API_TOKEN: "server-side-test-token-long-enough",
+      MT5_DEMO_CLOSE_ENABLED: "true"
+    }
+  });
+  assert.equal(closeEnabled.broker, "MT5");
 });

@@ -28,16 +28,23 @@ begin
     raise exception 'Service role must not bypass the lease-fenced paper entry wrapper';
   end if;
   if not has_function_privilege('service_role',
-    to_regprocedure('public.open_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz)'),
+    to_regprocedure('public.open_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz,timestamptz,text)'),
     'EXECUTE') then
     raise exception 'Service role must be allowed to use the lease-fenced paper entry wrapper';
   end if;
+  if has_function_privilege('service_role',
+    to_regprocedure('public.open_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz)'),
+    'EXECUTE') then
+    raise exception 'Legacy lease wrapper must not bypass tick-level entry idempotency';
+  end if;
   if not has_function_privilege('service_role',
     to_regprocedure('public.mark_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,numeric,timestamptz)'),
-    'EXECUTE') or not has_function_privilege('service_role',
+    'EXECUTE') or has_function_privilege('service_role',
     to_regprocedure('public.manage_demo_scalping_paper_exit_with_lease(uuid,uuid,uuid,text,numeric,numeric,text,timestamptz)'),
+    'EXECUTE') or not has_function_privilege('service_role',
+    to_regprocedure('public.close_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,numeric,numeric,text,timestamptz)'),
     'EXECUTE') then
-    raise exception 'Service role must use lease-fenced scalping position management RPCs';
+    raise exception 'Service role must use only the lease-fenced full-position scalping exit RPC';
   end if;
   perform set_config('request.jwt.claim.role','service_role',true);
   insert into auth.users default values returning id into v_user;
@@ -197,18 +204,6 @@ begin
     raise exception 'Expected manual portfolio close to be blocked: %',v_result;
   end if;
 
-  -- Monitoring-only consent must still never authorize a portfolio close.
-  update public.portfolio_trade_permissions
-     set manual_trade_management=true,close_manual_trades=false,updated_at=now()
-   where user_id=v_user and account_mode='DEMO' and broker='DERIV'
-     and broker_account_ref='DEMO:'||v_user;
-  select public.close_demo_portfolio_trade(
-    v_user,v_manual_portfolio_id,'EURUSD',1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
-  ) into v_result;
-  if v_result->>'reason' <> 'MANUAL_CLOSE_PERMISSION_NOT_GRANTED' then
-    raise exception 'Monitoring-only permission unexpectedly authorized a manual close: %',v_result;
-  end if;
-
   update public.portfolio_trade_permissions
      set manual_trade_management=true,close_manual_trades=true,updated_at=now()
    where user_id=v_user and account_mode='DEMO' and broker='DERIV'
@@ -295,8 +290,8 @@ begin
   end if;
   v_scalping_trade_2 := (v_result->>'trade_id')::uuid;
 
-  -- Manual DEMO positions must remain openable alongside the bot. They share
-  -- the portfolio cap but are not silently enrolled in bot management.
+  -- Manual DEMO positions remain available beside bot positions. They share
+  -- the portfolio ceiling but are not enrolled in bot management by default.
   insert into public.demo_paper_trades(
     session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
     quantity,remaining_quantity,risk_amount_usd,risk_pct,quote_to_usd,
@@ -311,7 +306,6 @@ begin
   if coalesce((v_result->>'ok')::boolean,false) is not true then
     raise exception 'Expected manual DEMO position to remain manageable during scalping: %',v_result;
   end if;
-
   select count(*) into v_count from public.demo_paper_trades
    where user_id=v_scalping_user and status='OPEN'
      and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING';
@@ -364,7 +358,7 @@ begin
     raise exception 'Expected missing paper execution consent to block entries: %',v_result;
   end if;
 
-  -- Manual entries still obey the shared 15-position portfolio ceiling.
+  -- Manual entries remain allowed but must obey the shared 15-position cap.
   begin
     insert into public.demo_paper_trades(
       session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
@@ -457,7 +451,7 @@ begin
   select public.open_demo_scalping_paper_trade_with_lease(
     v_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
-    666,6.66,0.0666,1,now(),now()-interval '4 seconds'
+    666,6.66,0.0666,1,now(),now()-interval '4 seconds',now(),'CI_CURRENT_LEASE'
   ) into v_result;
   if v_result->>'reason' <> 'ELIGIBLE_RUNNING_DERIV_DEMO_SESSION_REQUIRED' then
     raise exception 'Expected current lease to pass fencing before the stopped-session guard: %',v_result;
@@ -466,7 +460,7 @@ begin
   select public.open_demo_scalping_paper_trade_with_lease(
     v_other_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
-    666,6.66,0.0666,1,now(),now()-interval '3 seconds'
+    666,6.66,0.0666,1,now(),now()-interval '3 seconds',now(),'CI_WRONG_LEASE'
   ) into v_result;
   if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
     raise exception 'Expected mismatched worker token to be blocked: %',v_result;
@@ -486,7 +480,7 @@ begin
   select public.open_demo_scalping_paper_trade_with_lease(
     v_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
-    666,6.66,0.0666,1,now(),now()-interval '2 seconds'
+    666,6.66,0.0666,1,now(),now()-interval '2 seconds',now(),'CI_EXPIRED_LEASE'
   ) into v_result;
   if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
     raise exception 'Expected displaced worker token to be fenced after takeover: %',v_result;
@@ -497,11 +491,11 @@ begin
   ) into v_saved;
   if v_saved is not false then raise exception 'Displaced worker must not mark scalping positions'; end if;
 
-  select public.manage_demo_scalping_paper_exit_with_lease(
-    v_lease_token,v_scalping_user,v_scalping_trade,'TP1',1.10750,1,'DERIV',now()
+  select public.close_demo_scalping_paper_trade_with_lease(
+    v_lease_token,v_scalping_user,v_scalping_trade,'STOP_LOSS',1.09000,1,'DERIV',now()
   ) into v_result;
   if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
-    raise exception 'Displaced worker must not manage scalping exits: %',v_result;
+    raise exception 'Displaced worker must not close scalping positions: %',v_result;
   end if;
 
   select public.mark_demo_scalping_paper_trade_with_lease(
@@ -509,11 +503,11 @@ begin
   ) into v_saved;
   if v_saved is not false then raise exception 'Closed scalping trade must not be marked'; end if;
 
-  select public.manage_demo_scalping_paper_exit_with_lease(
-    v_other_lease_token,v_scalping_user,v_scalping_trade,'TP1',1.10750,1,'DERIV',now()
+  select public.close_demo_scalping_paper_trade_with_lease(
+    v_other_lease_token,v_scalping_user,v_scalping_trade,'STOP_LOSS',1.09000,1,'DERIV',now()
   ) into v_result;
-  if v_result->>'reason' <> 'SCALPING_POSITION_NOT_FOUND' then
-    raise exception 'Lease owner should only manage an open tagged scalping BOT position: %',v_result;
+  if v_result->>'reason' <> 'TRADE_NOT_OPEN' then
+    raise exception 'Lease owner must not re-realize a closed scalping position: %',v_result;
   end if;
 
   select public.release_traderwin_scalping_worker(v_lease_token) into v_saved;

@@ -187,6 +187,24 @@ async function processSession(db,raw){
  if(tradeError)return {sessionId:raw.id,action:"ERROR",reason:"OPEN_TRADE_LOOKUP_FAILED"};
  if((emergencyError||legacyEmergencyError)&&!t)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STATUS_UNAVAILABLE"};
  const openTrade=t?{...t,symbol:t.instrument,direction:t.side,virtual_units:Number(t.remaining_quantity)}:null;
+ let recentBotCloses=[];
+ if(!openTrade){
+  const {data:closedTrades,error:closedTradeError}=await db.from("demo_paper_trades")
+   .select("realized_pnl_usd,closed_at").eq("session_id",raw.id).eq("user_id",raw.user_id)
+   .eq("trade_origin","BOT").eq("status","CLOSED").order("closed_at",{ascending:false}).limit(3);
+  if(closedTradeError)return {sessionId:raw.id,action:"ERROR",reason:"RECENT_BOT_OUTCOMES_LOOKUP_FAILED"};
+  recentBotCloses=closedTrades||[];
+  let consecutiveLosses=0;
+  for(const trade of recentBotCloses){if(Number(trade.realized_pnl_usd)<0)consecutiveLosses++;else break;}
+  if(consecutiveLosses>0){
+   const latestClose=Date.parse(recentBotCloses[0]?.closed_at||"");
+   const cooldownMinutes=consecutiveLosses>=2?120:30;
+   if(Number.isFinite(latestClose)){
+    session.consecutiveBotLosses=consecutiveLosses;
+    session.lossCooldownUntil=new Date(latestClose+cooldownMinutes*60000).toISOString();
+   }
+  }
+ }
  if(["PAUSED","RISK_LOCKED"].includes(raw.status)&&!openTrade)return {sessionId:raw.id,action:"SKIP",reason:"SESSION_PAUSED_NO_OPEN_POSITION"};
  if((emergency?.entries_blocked||legacyEmergency?.kill_switch_active)&&!openTrade)return {sessionId:raw.id,action:"BLOCK",reason:"EMERGENCY_STOP_ACTIVE"};
  let quote;
@@ -197,8 +215,9 @@ async function processSession(db,raw){
  if(!openTrade){
   try{
    const selected=await getDerivCandles(raw.instrument,raw.timeframe||"M15");
-   const trend=(["TIGER_FIBONACCI_PSYCHOLOGY_V1","AUTO_SELECT_V1"].includes(autoStrategy)&&raw.timeframe!=="H1")?await getDerivCandles(raw.instrument,"H1"):selected;
-   market={...selected,trendCandles:trend.candles};
+   const higherTimeframe=({M5:"M15",M15:"H1",H1:"H4"})[String(raw.timeframe||"M15").toUpperCase()];
+   const trend=higherTimeframe?await getDerivCandles(raw.instrument,higherTimeframe):selected;
+   market={...selected,trendCandles:trend.candles,trendTimeframe:higherTimeframe||"H4",trendCandleAsOf:trend.latestCandleAsOf};
   }catch(e){return {sessionId:raw.id,action:"BLOCK",reason:"CANDLE_HISTORY_UNAVAILABLE",detail:safeError(e)};}
  }
  let decision;

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { evaluateDerivConnectionStatus } from "../../lib/deriv-connection-status.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
 
     const { data, error } = await admin
       .from("deriv_connections")
-      .select("deriv_account_id,demo_account_id,real_account_id,token_expires_at,updated_at")
+      .select("demo_account_id,accounts,token_expires_at,connected_at,updated_at")
       .eq("user_id", auth.user.id)
       .maybeSingle();
 
@@ -39,16 +40,7 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: "Deriv connection status is temporarily unavailable." });
     }
 
-    const tokenExpiresAt = data?.token_expires_at ? new Date(data.token_expires_at).getTime() : 0;
-    const tokenValid = Number.isFinite(tokenExpiresAt) && tokenExpiresAt > Date.now();
-    return res.status(200).json({
-      connected: Boolean(data?.demo_account_id && tokenValid),
-      demoAccountId: data?.demo_account_id || null,
-      realAccountId: data?.real_account_id || null,
-      tokenValid,
-      tokenExpiresAt: data?.token_expires_at || null,
-      connectedAt: data?.updated_at || null
-    });
+    return res.status(200).json(evaluateDerivConnectionStatus(data));
   } catch (error) {
     console.error("Deriv status error:", error.message);
     return res.status(500).json({ error: "Could not check Deriv connection." });

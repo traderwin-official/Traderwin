@@ -19,10 +19,11 @@ test("Deriv callback verifies, sanitizes and stores the complete account list", 
   assert.doesNotMatch(source, /eligible\.find\(account/);
 });
 
-test("Deriv connection status requires a selected verified DEMO account and unexpired token", async () => {
+test("Deriv connection status delegates to the verified-account evaluator", async () => {
   const source = await readFile(new URL("../handlers/deriv/status.js", import.meta.url), "utf8");
-  assert.match(source, /demo_account_id && tokenValid/);
-  assert.match(source, /realAccountId/);
+  assert.match(source, /evaluateDerivConnectionStatus\(data\)/);
+  assert.match(source, /demo_account_id,accounts,token_expires_at,connected_at,updated_at/);
+  assert.doesNotMatch(source, /real_account_id/);
 });
 
 test("Deriv account verification migration adds separate demo and real account IDs", async () => {

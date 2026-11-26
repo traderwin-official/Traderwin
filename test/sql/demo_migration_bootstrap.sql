@@ -84,3 +84,29 @@ create table public.deriv_connections (
   token_expires_at timestamptz,
   updated_at timestamptz not null default now()
 );
+
+
+-- Minimal payment/subscription foundation for atomic entitlement integration tests.
+alter table public.service_catalog
+  add column service_code text unique,
+  add column billing_period text not null default 'MONTHLY'
+    check (billing_period in ('ONE_TIME','MONTHLY','YEARLY'));
+
+create table public.payment_orders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  service_code text not null references public.service_catalog(service_code),
+  status text not null check (status in ('PENDING','PAID','FAILED','CANCELLED','REFUNDED')),
+  created_at timestamptz not null default now()
+);
+
+create table public.user_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  service_code text not null references public.service_catalog(service_code),
+  status text not null default 'PENDING',
+  starts_at timestamptz,
+  ends_at timestamptz,
+  payment_order_id uuid references public.payment_orders(id),
+  unique (user_id, service_code)
+);

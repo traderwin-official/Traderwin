@@ -6,7 +6,7 @@ test("DEMO worker uses cron authorization, v2 lease and never sends broker order
  assert.match(s,/CRON_SECRET/);assert.match(s,/claim_demo_paper_worker/);assert.match(s,/release_demo_paper_worker/);
  assert.match(s,/p_lease_seconds:90/);assert.match(s,/eq\("trade_origin","BOT"\)/);assert.match(s,/realOrdersSent:0/);
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);assert.match(s,/neq\("strategy","MANUAL"\)/);
- assert.match(s,/\["TIGER_FIBONACCI_PSYCHOLOGY_V1","AUTO_SELECT_V1"\]/);
+ assert.match(s,/M5:"M15",M15:"H1",H1:"H4"/);
 });
 test("worker processes DEMO sessions only and respects paused, risk-lock and emergency stop",async()=>{
  const s=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
@@ -28,6 +28,11 @@ test("staged exits preserve TP1 40 percent, TP2 30 percent and TP3 remainder",as
  assert.match(sql,/v_qty:=v_trade\.remaining_quantity/);assert.match(sql,/MANUAL_TRADE_NOT_MANAGED/);
  assert.match(sql,/remaining_quantity numeric\(28,12\) not null check \(remaining_quantity >= 0\)/);
  assert.match(sql,/status='CLOSED' and remaining_quantity=0/);
+ // Exit settlement updates USD balance and daily-loss locks atomically.
+ // It must therefore reject a missing conversion instead of guessing a rate.
+ assert.match(sql,/p_quote_to_usd<=0/);
+ assert.match(sql,/p_quote_source<>'DERIV'/);
+ assert.match(sql,/p_quote_as_of<now\(\)-interval '30 seconds'/);
 });
 test("manual close uses v2 atomic close and verified quote",async()=>{
  const route=await readFile(new URL("../handlers/bots/demo/close.js",import.meta.url),"utf8");

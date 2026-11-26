@@ -1,6 +1,6 @@
-# Young Tiger continuous DEMO scalping worker
+# Young Tiger FX — DEMO scalping strategy worker
 
-A persistent Deriv public market-data worker for **Tiger Scheme AI Bot — Quantum Scalping**. It generates M1/M5 candidates and manages virtual DEMO paper positions in Traderwin's isolated `demo_paper_*` ledger. It does not send Deriv broker orders and cannot execute REAL trades.
+This worker implements **Tiger Scheme AI Bot — Quantum Scalping**, one optional automated strategy within the wider Young Tiger FX platform. It is an additive strategy module, not a replacement for the platform or its other strategies and services. It generates M1/M5 candidates and manages virtual DEMO paper positions in the isolated `demo_paper_*` ledger. It does not send Deriv broker orders and cannot execute REAL trades.
 
 ## Runtime and deployment
 
@@ -21,7 +21,7 @@ The worker opens a paper position only for a session that:
 - uses an active, explicitly approved Deriv instrument;
 - has fresh, timestamped Deriv bid and ask values and a fresh quote-currency-to-USD conversion.
 
-Enabling the feed alone never opens a position; `paper_execution_enabled` defaults to false and must be explicitly enabled from the dashboard. Either disabled flag blocks new entries. Existing scalping BOT positions remain subscribed and managed to their stop or staged targets even if the user disables new entries or pauses the session.
+Enabling the feed alone never opens a position; `paper_execution_enabled` defaults to false and must be explicitly enabled from the dashboard. Either disabled flag blocks new entries. Existing scalping BOT positions remain subscribed and managed to their stop or single full-position target even if the user disables new entries or pauses the session.
 
 ## Strategy and execution
 
@@ -29,18 +29,19 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - The strategy uses EMA9/EMA21, RSI14, ATR/spread filters, momentum breakout and Fibonacci context.
 - Conflicting or incomplete conditions return WAIT.
 - The server-side entry RPC permits up to 15 concurrent DEMO paper positions, blocks duplicate M1-candle entries, caps each position at 0.25%, and limits combined open stop-risk to 1% of starting equity. The daily realized-loss cap is also 1%.
+- Manual DEMO positions may coexist with the automated portfolio and share its 15-position ceiling. The scalping worker only manages tagged BOT positions; monitoring or closing manual positions requires the account owner's separate explicit portfolio permissions.
 - Position size uses the verified USD value of the instrument's quote currency. Unsupported or stale conversions fail closed.
-- Paper positions use staged exits: TP1 0.75R, TP2 1.1R, TP3 at the engine's 1.5R–3R target, with the existing 40/30/30 staged-close ledger and stop-loss.
+- Scalping paper positions use one final take-profit target (1.5R–3R) and close the entire remaining position at that target. Stop-loss also closes the entire remaining position. There are no TP1/TP2 partial exits in this fast scalping strategy. This rule is scoped to scalping only; it does not remove or change partial-exit features used by manual trading or other strategies.
 - Exit decisions use the correct side of the spread: bid for BUY positions and ask for SELL positions. Missing bid/ask or stale quotes never trigger an exit.
 - Database RPCs are the only entry/exit path. Worker entry, mark and staged-exit writes are fenced by the current singleton lease and limited to tagged scalping BOT positions; the underlying shared DEMO ledger RPCs retain their existing callers and protections.
 
 ## Data path and health
 
 - One persistent Deriv public WebSocket connection subscribes to approved symbols.
-- M1/M5/M15/H1/H4 history is warmed up before a symbol becomes ready. All five histories refresh every 60 seconds; M1/M5 refresh lets the worker recover from a market-session gap without remaining stuck below its contiguous warm-up threshold.
+- After reconnect, live ticks resume immediately while M1/M5/M15/H1/H4 candle history warms in parallel. This lets the worker assess open DEMO positions against fresh bid/ask quotes during warm-up; new entries remain blocked until all five histories are complete and pass the contiguous-candle checks. All five histories refresh every 60 seconds; M1/M5 refresh lets the worker recover from a market-session gap without remaining stuck below its contiguous warm-up threshold.
 - Latest ticks and signal candidates are persisted to private Supabase tables. The worker health response also reports per-instrument quote-side readiness and counts spot-only ticks; a spot quote without both valid bid and ask is never eligible for a new entry.
 - Open scalping positions are refreshed without replacing in-flight trade state and managed concurrently from the same tick stream; each position can take profit or stop out independently while the others remain open.
-- `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error.
+- `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error. It reports the service healthy once the lease and quote WebSocket are connected, even while candle history is warming; `readySymbols` remains the separate indicator-readiness signal, and entry analysis stays blocked until all required histories pass validation.
 
 ## Pre-deployment readiness check
 
@@ -52,6 +53,10 @@ Before starting the service, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE
 - Do not deploy until the migration has been reviewed and explicitly approved for the target Supabase project.
 - Do not add the service-role key to a browser environment, GitHub source, or chat.
 - Keep the service stopped until code checks are green and the Railway trial credit balance has been checked. Do not upgrade to a paid Railway plan without the account owner's explicit approval.
+
+## Reconnect gap handling
+
+The worker records per-instrument quote-stream gaps longer than 30 seconds. After reconnect it manages existing DEMO positions only from the first fresh, validated bid/ask quote and keeps new entries blocked while the required contiguous candle history warms. Historical spot ticks or OHLC candles are not treated as executable bid/ask prices and are never used to invent a missed stop/target fill. If an open position existed during a detected gap, the health payload flags the gap for manual review; this diagnostic does not claim that a missed exit has been reconstructed.
 
 ## Historical strategy research
 

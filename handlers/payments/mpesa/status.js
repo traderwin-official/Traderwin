@@ -35,7 +35,21 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: "Payment status is temporarily unavailable." });
     }
     if (!data) return res.status(404).json({ error: "Payment order was not found." });
-    return res.status(200).json({ order: data });
+    let entitlementStatus = data.status === "PAID" ? "PENDING" : "NOT_APPLICABLE";
+    if (data.status === "PAID") {
+      // Member polling is also a recovery path if the provider callback recorded
+      // payment but the entitlement transaction was temporarily unavailable.
+      const { data: entitlement, error: entitlementError } = await admin.rpc(
+        "fulfill_paid_subscription_order",
+        { p_order_id: data.id }
+      );
+      if (entitlementError) {
+        console.error("Paid subscription recovery failed:", entitlementError.message);
+      } else {
+        entitlementStatus = entitlement?.status || "APPLIED";
+      }
+    }
+    return res.status(200).json({ order: data, entitlementStatus });
   } catch (error) {
     console.error("Payment status error:", error.message);
     return res.status(500).json({ error: "Could not check payment status." });

@@ -6,8 +6,8 @@ Young Tiger FX is the public brand of the existing Traderwin codebase. Keep the 
 ## Verified codebase status at this audit
 - Static HTML dashboard with TradingView chart embed, risk calculator, authentication and account-mode onboarding.
 - Tiger AI marketing/interface section is present; it is not yet a connected AI inference service.
-- Bot settings can be saved, but there is no persistent strategy scheduler, market-data ingestion pipeline, execution worker, order reconciliation service or production bot engine.
-- Deriv OAuth start/callback code exists. The callback currently saves a null Deriv account ID; OAuth completion is not equivalent to verified trading permissions or working order execution.
+- The integration branch contains a continuous DEMO-only paper scalping worker with a persistent Deriv public quote feed, lease-fenced paper-trade entry/exit, portfolio risk controls and recovery logic. It is not deployed to Railway and does not submit live broker orders. A production REAL execution engine is not approved or implemented.
+- Deriv OAuth start/callback code verifies and sanitizes the provider-returned account list, stores encrypted access tokens server-side, and supports explicit DEMO account selection. The integration branch now marks a connection healthy only when the selected DEMO account is still present and active in the verified account list and the authorization token is unexpired. OAuth connection is not equivalent to working broker order execution.
 - No completed MetaTrader 5 bridge or general broker adapter is present.
 - Existing payment callback code is not a complete, verified M-Pesa checkout and entitlement lifecycle.
 - A prior database migration exists for trader profiles. Do not assume every later requested table or migration has been applied; reconcile schema against Supabase before executing new SQL.
@@ -51,3 +51,88 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - Deriv OAuth request now asks for `trade account_manage` scopes. The registered Deriv OAuth application must permit these scopes.
 - Added migration `202611140001_platform_foundation.sql` for missing platform data structures using `CREATE TABLE IF NOT EXISTS`, indexes and row-level security. Existing tables are not dropped or overwritten.
 - Live execution remains blocked. This update does not create a working bot worker, Deriv OTP/WebSocket order lifecycle, MT5 bridge, or verified payment settlement.
+
+
+
+## 2026-11-26 original automated-strategy hardening (integration only)
+- The original non-scalping DEMO auto strategies now request an independent next-higher timeframe (M5→M15, M15→H1, H1→H4); H4 is explicitly the highest supported timeframe and is not described as having independent higher-timeframe confirmation.
+- New entries are blocked when the higher-timeframe EMA 9/21 direction disagrees with the selected strategy direction, or when the live entry quote is more than 0.75 ATR beyond the completed signal candle (anti-chase guard).
+- After a closed BOT DEMO loss, the worker applies a 30-minute entry cooldown; after two or more consecutive closed BOT losses, it applies a 120-minute cooldown. Existing open positions continue to be managed; cooldown only prevents new entries.
+- These filters are conservative hypotheses, not proof of profitability. They require instrument/timeframe backtesting with spread, slippage and execution costs, followed by extended DEMO forward testing. Do not increase risk or claim expected returns.
+- The Market Analyst checkpoint remains research-only and deterministic: next-higher-timeframe technical agreement, Deriv bid/ask indicative plans, BiQuote calendar blackout, instrument-aware GDELT adverse-news context and XAUUSD independent XAUS reference comparison. GDELT absence is not CLEAR; the analyst's news gate remains fail-closed. It is not yet connected to a generative AI inference provider.
+- No production migration, deployment, or REAL trading action is included in this integration work.
+
+## 2026-11-26 integration-branch validation update
+- The integration branch contains optional independent strategies; Quantum Scalping remains a DEMO paper strategy and does not replace manual trading or other platform strategies.
+- DEMO paper scalping uses a continuous Deriv public quote feed, lease-fenced server-side paper execution, atomic batch entry, idempotent recovery, stale-feed safeguards and full-position stop-loss/final-take-profit exits.
+- DEMO manual and bot positions share a portfolio capacity limit while manual positions remain outside bot management unless the account owner separately grants the relevant permissions.
+- Deriv connection health now requires both an unexpired authorization token and a matching active DEMO account in the provider-verified account list. REAL account metadata does not unlock REAL trading.
+- Latest integration CI at this checkpoint passed 577 tests, dashboard script checks, worker image build and disposable PostgreSQL DEMO/portfolio migration validation, including authenticated user-scoped account-mode profile reads. This is branch validation only; it is not a production deployment or live-broker certification.
+- Vercel preview builds are currently blocked by the account build-rate limit. Do not upgrade the plan or incur costs to bypass it without explicit approval.
+- M-Pesa settlement is still not production-certified. The integration branch now adds a service-role-only transactional entitlement RPC and permanent per-payment-order ledger so duplicate and historical callbacks cannot extend a subscription twice; PostgreSQL replay tests are included in CI but must pass before this is considered validated.
+- A broker-authorized MT5 bridge, independent AI inference service, production operational review and all REAL execution approvals remain outstanding.
+- The M-Pesa callback permits a previously verified PAID order to retry subscription fulfilment after payment-state recovery; fulfilment now delegates to the atomic database transaction rather than a separate client-side upsert.
+- Authenticated members' payment-status polling also retries fulfilment for their own PAID order, providing a recovery path if the provider callback was acknowledged while entitlement activation was temporarily unavailable.
+- The payment UI keeps a verified PAID order retryable until entitlement activation succeeds, rather than disabling the recovery action prematurely.
+- MT5 DEMO adapter hardening now enforces DEMO-only account snapshots, fresh non-future quote timestamps, verified USD valuations and strict position identity/instrument validation. Bridge close requests are disabled by default and require an explicit DEMO-only server configuration. The actual terminal bridge, account verification, server credentials and end-to-end MT5 tests remain outstanding.
+
+- Dashboard mode-profile reads explicitly authenticate the current user and scope the DEMO/REAL preference query to that user's row, avoiding ambiguous profile reads across accounts.
+
+
+## Market analyst research upgrade (2026-11-26)
+
+- Authenticated market analysis compares the selected completed-candle timeframe with the next higher supported timeframe: M5→M15, M15→H1, H1→H4. H4 cannot claim higher-timeframe confirmation with the currently supported Deriv candle feed.
+- The candidate direction is forced to WAIT unless the higher timeframe independently agrees.
+- Indicative plan levels use the actual Deriv ask for BUY and bid for SELL, a 1.5×ATR stop distance and 1.5R/2R targets. If provider bid/ask is absent, stale, future-dated or invalid, no levels are fabricated.
+- Candidate technical score is distinct from the final market-intelligence gate. Missing independent evidence, spread limits, or verified news status keep the final decision at WAIT.
+- All results are research-only. The analyst never opens, modifies or closes broker or DEMO positions.
+- Unit coverage added for plan direction, side-specific entry, quote freshness and higher-timeframe labeling. CI verification pending.
+
+
+## 2026-11-26 fundamental-analysis context upgrade
+
+- The authenticated Market Analyst now receives instrument-relevant upcoming high-impact macro events from the existing BiQuote calendar adapter, separately from the immediate blackout decision.
+- Upcoming events are categorized into monetary policy, inflation, employment, growth/demand, business activity, bonds/yields, housing or other macro releases. Event currency, publisher/source, timestamp mode and high-impact classification are retained for audit/context.
+- A scheduled event outside the configured immediate blackout window is displayed as upcoming context, not incorrectly treated as an active blackout. Date-only/tentative matching high-impact events continue to trigger the conservative same-UTC-day blackout.
+- The calendar still cannot certify a CLEAR window because provider completeness is not independently verified. Missing, malformed, stale or incomplete data remains UNKNOWN.
+- This is structured fundamental context, not a forecast or generative-AI conclusion. Further work remains: broader event horizon, reliable source redundancy/completeness, central-bank statement/yield context, and tested event-to-instrument relevance.
+
+## 2026-11-26 market news context update
+
+- The research analyst now optionally retrieves 24-hour headline context from the public GDELT DOC API for mapped FX, metals and crypto instruments. Results are timestamp-checked, deduplicated and shown with publisher domains.
+- Headline labels use a small transparent keyword lexicon (positive/negative/mixed/unclassified). They are not a validated sentiment model, do not infer causal market impact and are not presented as a probability or trade direction.
+- GDELT headline discovery is not an economic calendar. It cannot certify that no high-impact event is imminent. The analyst therefore continues to set the execution-quality news gate to UNKNOWN; no headline results never means CLEAR.
+- Unsupported instruments and provider failures return an unavailable context without fabricated headlines. The research endpoint remains non-executing.
+- A separate verified economic-calendar adapter, event importance/currency mapping, timezone validation, source redundancy and blackout-window tests remain outstanding. No generative-AI inference provider is connected yet. The corrected integration head passed Node workflow #1040 (591/591 tests) and full Traderwin workflow #1919 (serverless syntax, inline scripts, worker image build and isolated PostgreSQL migration checks).
+
+
+### Instrument-scoped adverse headline checks
+
+- The GDELT adverse-news tripwire now scopes queries to mapped instruments (including XAUUSD gold/USD, major FX pairs, silver and selected crypto assets). Results are cached independently per instrument.
+- The continuous DEMO worker passes the active instrument into the same adapter; it no longer uses a single generic global headline cache for every market.
+- Unsupported instruments remain UNKNOWN. This is deliberate: no broad or unrelated news search is treated as instrument-specific clearance.
+- Provider headline timestamps are parsed and checked against the observation time before a headline can trigger BLACKOUT. Empty results, malformed timestamps, stale results and provider errors remain UNKNOWN.
+
+
+## 2026-11-26 instrument-specific macro relevance update
+
+- Upcoming calendar events now include a deterministic relevance score and HIGH/MEDIUM/LOW label based on event category and the selected instrument's currency exposure.
+- USD monetary-policy, inflation and bond/yield releases are marked highly relevant to XAUUSD; employment and growth releases are also elevated. Other events use transparent category weights.
+- Relevance is explicitly labelled as context only: it does not infer bullish/bearish direction, probability of profit or permission to trade. Existing blackout timing and UNKNOWN/fail-closed behaviour are unchanged.
+- Regression tests cover gold sensitivity and lower-sensitivity housing context. This is still provider-limited calendar context, not a complete central-bank statement, bond-yield or geopolitical research feed.
+
+
+## 2026-11-26 headline macro-topic context update
+
+- GDELT contextual headlines now receive transparent keyword topic labels for monetary policy, bonds/yields, inflation, employment, geopolitical risk, growth/demand, energy and digital assets.
+- Headlines also receive an instrument-aware HIGH/MEDIUM/LOW relevance score. XAUUSD rate/yield/inflation and geopolitical headlines are elevated; crypto-specific headlines are elevated for BTCUSD/ETHUSD.
+- These are headline-keyword classifications only, not validated sentiment, causal impact or trade direction. They do not change the fail-closed news gate: GDELT cannot certify CLEAR and empty results remain UNKNOWN.
+- Fixed an invalid backspace character in the negative-keyword boundary for the word "ban"; regression tests cover macro-topic classification and direction-neutral relevance.
+
+
+## XAUUSD independent-reference gate correction (2026-11-26)
+
+- The Market Analyst previously displayed the independent XAUS gold comparison but did not pass its status into the final market-intelligence gate. That meant the comparison was informational rather than an actual veto.
+- The server-side analyst now requires the XAUS comparison to be `PASS` for XAUUSD before the market candidate can pass. A verified divergence returns `INDEPENDENT_REFERENCE_DIVERGENCE`; missing, stale or unverified reference data returns `INDEPENDENT_REFERENCE_NOT_VERIFIED`.
+- The independent reference remains indicative and is never substituted for Deriv bid/ask. Other instruments do not require a gold reference.
+- Regression tests cover PASS, BLOCK, UNKNOWN and non-gold behaviour. This is a research gate only; no execution is authorized.

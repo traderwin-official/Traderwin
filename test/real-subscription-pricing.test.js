@@ -32,8 +32,11 @@ test("subscription status never treats payment as live-trading authorization", a
   assert.doesNotMatch(source, /message: active/);
 });
 
-test("early manual renewal extends the existing subscription expiry", async () => {
+test("subscription renewals are applied atomically from the paid-order ledger", async () => {
   const source = await readFile(new URL("../handlers/payments/mpesa/callback.js", import.meta.url), "utf8");
-  assert.match(source, /existingSubscription\.ends_at/);
-  assert.match(source, /const startsAt = existingEnd && existingEnd > now \? existingEnd : now/);
+  const migration = await readFile(new URL("../supabase/migrations/202611260011_atomic_subscription_entitlements.sql", import.meta.url), "utf8");
+  assert.match(source, /fulfill_paid_subscription_order/);
+  assert.match(migration, /v_subscription\.ends_at > v_now/);
+  assert.match(migration, /v_ends_at := v_starts_at \+ interval '1 month'/);
+  assert.match(migration, /on conflict \(payment_order_id\) do nothing/);
 });

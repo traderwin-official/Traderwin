@@ -1,7 +1,7 @@
 name: Traderwin checks
 on:
   pull_request:
-    branches: [main, upgrade/full-platform-build, "integration/**"]
+    branches: [main, upgrade/full-platform-build, feat/continuous-demo-scalping-feed, "integration/**"]
   push:
     branches: [main, upgrade/full-platform-build, integration/young-tiger-platform, "feature/**"]
 permissions:
@@ -65,6 +65,13 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260003_scalping_worker_lease_fencing.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260004_scalping_worker_management_lease_fencing.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260005_security_definer_acl_hardening.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260007_scalping_tick_entry_idempotency.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_tick_entry_idempotency_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260008_scalping_atomic_batch_entries.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260009_scalping_batch_response_recovery.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260010_scalping_full_position_exits.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_full_position_exits_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_atomic_batch_entries_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/security_definer_acl_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/trading_instrument_approval_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/deriv_account_selection_integration.sql
@@ -72,3 +79,6 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/demo_paper_daily_realization_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/manual_demo_pending_batches_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/manual_demo_partial_exit_rpc_contract.sql
+
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260011_atomic_subscription_entitlements.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/subscription_entitlement_atomicity_integration.sql

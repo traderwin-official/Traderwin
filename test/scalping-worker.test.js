@@ -36,8 +36,16 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/release_traderwin_scalping_worker/);
  assert.match(s,/manageOpen/);
  assert.match(s,/manageTradesIndependently\(/);
+ assert.match(s,/const managementPromise=manageOpenTrades/);
+ assert.match(s,/void managementPromise/);
+ assert.doesNotMatch(s,/await managementPromise/);
+ assert.doesNotMatch(s,/managementHealthy/);
  assert.match(s,/Promise\.all\(ready\.map\(async item/);
- assert.match(s,/if\(!tradeLocks\.has\(trade\.id\)\)activeTrades\.set/);
+ const refresh=await readFile(new URL("../lib/scalping-trade-refresh.js",import.meta.url),"utf8");
+ assert.match(s,/applyOpenTradeSnapshot\(/);
+ assert.match(s,/quarantineTradeForRefresh\(/);
+ assert.match(refresh,/if\(locks\.has\(id\)\)continue/);
+ assert.match(refresh,/pendingRefresh\.delete\(id\)/);
  assert.match(s,/OPEN_SCALPING_POSITION_PROVIDER_MAPPING_MISSING/);
  assert.match(s,/leaseOwned&&leaseFresh&&!stopping&&!state\.lastError/);
  assert.match(s,/leaseAgeMs<=30000/);
@@ -46,20 +54,13 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/async function shutdown\(\)/);
  assert.match(s,/await db\.rpc\("release_traderwin_scalping_worker"/);
  assert.match(s,/if\(stopping\)return;/);
- assert.match(s,/catch\(e\)\{leaseOwned=false;state\.leaseOwned=false;state\.leaseLastError=String\(e\?\.message\|\|e\)\.slice\(0,180\);closeSocket\(\);logError\(e\);scheduleReconnect\(\);\}/);
+ assert.match(s,/catch\(e\)\{leaseOwned=false;state\.leaseOwned=false;tradeStateReady=false;state\.leaseLastError=String\(e\?\.message\|\|e\)\.slice\(0,180\);closeSocket\(\);logError\(e\);scheduleReconnect\(\);\}/);
  assert.match(s,/if\(sessionError\)throw sessionError;/);
  assert.match(s,/if\(preferenceError\)throw preferenceError;/);
  assert.match(s,/if\(profileError\)throw profileError;/);
  assert.match(s,/TIGER_SCHEME_QUANTUM_SCALPING/);
  assert.match(s,/latestContiguousCandles\(candles,interval,240\)/);
  assert.match(s,/async function manageOpenTrades\(instrument,tick\)\{\s*const trades=/);
- assert.match(s,/manageTradesIndependently\(/);
-
- assert.doesNotMatch(s,/await managementPromise/);
- assert.doesNotMatch(s,/if\(!managementHealthy\)return;/);
- assert.match(s,/const managementPromise=manageOpenTrades\(wanted\.instrument,payload\)\.catch/);
- assert.match(s,/void managementPromise/);
- assert.match(s,/Entry analysis runs independently of the per-position exit tasks above/);
 
 
  assert.match(s,/bidAskMissingTicks:0,marketDataQuality:\{\}/);
@@ -121,8 +122,26 @@ test("base scalping execution guard retains DEMO-only consent and daily risk pro
 test("paper adapter requires and forwards the worker lease token to the fenced database RPC",async()=>{
  const s=await readFile(new URL("../lib/scalping-paper-adapter.js",import.meta.url),"utf8");
  assert.match(s,/typeof leaseToken !== "string" \|\| !leaseToken/);
- assert.match(s,/open_demo_scalping_paper_trade_with_lease/);
+ assert.match(s,/open_demo_scalping_paper_trade_batch_with_lease/);
+ assert.match(s,/p_entries:entries/);
  assert.match(s,/p_lease_token:leaseToken/);
+});
+test("atomic scalping batch RPC creates up to 15 positions with portfolio-wide checks",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611260008_scalping_atomic_batch_entries.sql",import.meta.url),"utf8");
+ assert.match(sql,/open_demo_scalping_paper_trade_batch_with_lease/);
+ assert.match(sql,/jsonb_array_length\(p_entries\) > 15/);
+ assert.match(sql,/pg_advisory_xact_lock/);
+ assert.match(sql,/SCALPING_MAX_OPEN_POSITIONS/);
+ assert.match(sql,/SCALPING_TOTAL_OPEN_RISK_LIMIT/);
+ assert.match(sql,/SCALPING_DAILY_LOSS_LIMIT/);
+ assert.match(sql,/scalping_batch_index/);
+ assert.match(sql,/to service_role/);
+});
+test("worker registers every trade ID returned by one atomic entry batch",async()=>{
+ const source=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
+ assert.match(source,/Array\.isArray\(opened\.trade_ids\)/);
+ assert.match(source,/\.in\("id",tradeIds\)/);
+ assert.match(source,/state\.paperEntries\+=Number\(opened\.opened_count\)/);
 });
 test("lease-fenced database entry locks and validates the live lease before opening a paper trade",async()=>{
  const sql=await readFile(new URL("../supabase/migrations/202611260003_scalping_worker_lease_fencing.sql",import.meta.url),"utf8");
@@ -145,57 +164,59 @@ test("scalping position mark and exit writes are fenced by the active worker lea
 });
 
 
-test("open positions are managed concurrently with independent locks", async () => {
-  const locks = new Set();
-  const completed = [];
-  let releaseSlow;
-  const slow = new Promise(resolve => { releaseSlow = resolve; });
-  const trades = [{ id: "A" }, { id: "B" }, { id: "B" }];
-  const running = manageTradesIndependently({
-    trades,
-    locks,
-    manage: async trade => {
-      if (trade.id === "A") await slow;
-      completed.push(trade.id);
-    }
-  });
-  await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(completed, ["B"]);
-  assert.deepEqual([...locks].sort(), ["A"]);
-  releaseSlow();
-  assert.equal(await running, true);
-  assert.deepEqual(completed.sort(), ["A", "B"]);
-  assert.equal(locks.size, 0);
+test("market-gated worker manages each open DEMO position independently", async () => {
+ const locks=new Set(),finished=[];
+ let releaseA;
+ const waitA=new Promise(resolve=>{releaseA=resolve;});
+ const run=manageTradesIndependently({
+  trades:[{id:"A"},{id:"B"},{id:"B"}],locks,
+  manage:async trade=>{if(trade.id==="A")await waitA;finished.push(trade.id);}
+ });
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(finished,["B"]);
+ assert.deepEqual([...locks],["A"]);
+ releaseA();
+ assert.equal(await run,true);
+ assert.deepEqual(finished.sort(),["A","B"]);
+ assert.equal(locks.size,0);
 });
 
-test("one failed position does not block sibling exits and all locks are released", async () => {
-  const locks = new Set();
-  const completed = [];
-  const errors = [];
-  const result = await manageTradesIndependently({
-    trades: [{ id: "A" }, { id: "B" }, { id: "C" }],
-    locks,
-    manage: async trade => {
-      completed.push(trade.id);
-      if (trade.id === "B") throw new Error("isolated exit failure");
-    },
-    onError: (error, trade) => errors.push([trade.id, error.message])
-  });
-  assert.equal(result, false);
-  assert.deepEqual(completed.sort(), ["A", "B", "C"]);
-  assert.deepEqual(errors, [["B", "isolated exit failure"]]);
-  assert.equal(locks.size, 0);
+test("all 15 positions are evaluated in the same tick management cycle",async()=>{
+ const locks=new Set(),started=[],completed=[];
+ let release;
+ const gate=new Promise(resolve=>{release=resolve;});
+ const trades=Array.from({length:15},(_,i)=>({id:"position-"+(i+1)}));
+ const run=manageTradesIndependently({
+  trades,locks,
+  manage:async trade=>{started.push(trade.id);await gate;completed.push(trade.id);}
+ });
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(started.length,15);
+ assert.equal(locks.size,15);
+ release();
+ assert.equal(await run,true);
+ assert.equal(completed.length,15);
+ assert.equal(locks.size,0);
+});
+test("one position-management error is isolated from other open positions", async () => {
+ const locks=new Set(),finished=[],errors=[];
+ const ok=await manageTradesIndependently({
+  trades:[{id:"A"},{id:"B"},{id:"C"}],locks,
+  manage:async trade=>{finished.push(trade.id);if(trade.id==="B")throw new Error("isolated exit failure");},
+  onError:(error,trade)=>errors.push([trade.id,error.message])
+ });
+ assert.equal(ok,false);
+ assert.deepEqual(finished.sort(),["A","B","C"]);
+ assert.deepEqual(errors,[["B","isolated exit failure"]]);
+ assert.equal(locks.size,0);
 });
 
-test("a position already being managed is skipped without locking sibling positions", async () => {
-  const locks = new Set(["A"]);
-  const completed = [];
-  const result = await manageTradesIndependently({
-    trades: [{ id: "A" }, { id: "B" }],
-    locks,
-    manage: async trade => completed.push(trade.id)
-  });
-  assert.equal(result, true);
-  assert.deepEqual(completed, ["B"]);
-  assert.deepEqual([...locks], ["A"]);
+
+test("emergency kill switch blocks new atomic entries while the worker still manages existing open positions",async()=>{
+ const worker=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
+ const migration=await readFile(new URL("../supabase/migrations/202611260008_scalping_atomic_batch_entries.sql",import.meta.url),"utf8");
+ const tick=worker.slice(worker.indexOf("async function publishTick("),worker.indexOf("\nfunction closeSocket"));
+ assert.ok(tick.indexOf("manageOpenTrades(wanted.instrument,payload)")<tick.indexOf("if(!leaseOwned||stopping||!wanted.sessions.some(x=>x.entryEnabled))return"),"open-position management must start before the new-entry gate");
+ assert.match(migration,/from public\.demo_paper_emergency_controls e[\s\S]*?e\.entries_blocked[\s\S]*?KILL_SWITCH_ACTIVE/);
+ assert.match(migration,/where e\.user_id=p_user_id[\s\S]*?e\.broker_account_ref=v_session\.broker_account_ref/);
 });
