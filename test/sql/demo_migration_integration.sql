@@ -39,10 +39,12 @@ begin
   end if;
   if not has_function_privilege('service_role',
     to_regprocedure('public.mark_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,numeric,timestamptz)'),
-    'EXECUTE') or not has_function_privilege('service_role',
+    'EXECUTE') or has_function_privilege('service_role',
     to_regprocedure('public.manage_demo_scalping_paper_exit_with_lease(uuid,uuid,uuid,text,numeric,numeric,text,timestamptz)'),
+    'EXECUTE') or not has_function_privilege('service_role',
+    to_regprocedure('public.close_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,numeric,numeric,text,timestamptz)'),
     'EXECUTE') then
-    raise exception 'Service role must use lease-fenced scalping position management RPCs';
+    raise exception 'Service role must use only the lease-fenced full-position scalping exit RPC';
   end if;
   perform set_config('request.jwt.claim.role','service_role',true);
   insert into auth.users default values returning id into v_user;
@@ -489,11 +491,11 @@ begin
   ) into v_saved;
   if v_saved is not false then raise exception 'Displaced worker must not mark scalping positions'; end if;
 
-  select public.manage_demo_scalping_paper_exit_with_lease(
-    v_lease_token,v_scalping_user,v_scalping_trade,'TP1',1.10750,1,'DERIV',now()
+  select public.close_demo_scalping_paper_trade_with_lease(
+    v_lease_token,v_scalping_user,v_scalping_trade,'STOP_LOSS',1.09000,1,'DERIV',now()
   ) into v_result;
   if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
-    raise exception 'Displaced worker must not manage scalping exits: %',v_result;
+    raise exception 'Displaced worker must not close scalping positions: %',v_result;
   end if;
 
   select public.mark_demo_scalping_paper_trade_with_lease(
@@ -501,11 +503,11 @@ begin
   ) into v_saved;
   if v_saved is not false then raise exception 'Closed scalping trade must not be marked'; end if;
 
-  select public.manage_demo_scalping_paper_exit_with_lease(
-    v_other_lease_token,v_scalping_user,v_scalping_trade,'TP1',1.10750,1,'DERIV',now()
+  select public.close_demo_scalping_paper_trade_with_lease(
+    v_other_lease_token,v_scalping_user,v_scalping_trade,'STOP_LOSS',1.09000,1,'DERIV',now()
   ) into v_result;
-  if v_result->>'reason' <> 'SCALPING_POSITION_NOT_FOUND' then
-    raise exception 'Lease owner should only manage an open tagged scalping BOT position: %',v_result;
+  if v_result->>'reason' <> 'TRADE_NOT_OPEN' then
+    raise exception 'Lease owner must not re-realize a closed scalping position: %',v_result;
   end if;
 
   select public.release_traderwin_scalping_worker(v_lease_token) into v_saved;
