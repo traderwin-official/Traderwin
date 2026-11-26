@@ -76,7 +76,7 @@ test("paper adapter closes tagged scalping BOT positions through the single full
  const trade={id:"trade-1",user_id:"user-1",status:"OPEN",trade_origin:"BOT",
   metadata:{strategy:"TIGER_SCHEME_QUANTUM_SCALPING"},side:"BUY",stop_loss:"1990",
   take_profit:"2016",tp3_price:"2016",quote_to_usd:"1"};
- const exit=await manageScalpingPaperPosition({db,trade,tick:{...tick,bid:2008,ask:2008.1},now});
+ const exit=await manageScalpingPaperPosition({db,trade,tick:{...tick,bid:2016,ask:2016.1},now});
  assert.equal(exit.reason,"TAKE_PROFIT");
  assert.equal(call.name,"close_demo_scalping_paper_trade_with_lease");
  assert.equal(call.args.p_lease_token,"lease-token-1");
