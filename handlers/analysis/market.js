@@ -92,6 +92,13 @@ export default async function handler(req, res) {
       ? ((ask - bid) / mid) * 10000
       : null;
     const configuredMaxSpreadBps = Number(process.env.MARKET_ANALYST_MAX_SPREAD_BPS);
+    const tradePlan = buildAnalystTradePlan({
+      direction: candidate.direction,
+      quote,
+      atr: candidate.indicators?.atr14,
+      instrument,
+      timeframe
+    });
     const marketIntelligence = evaluateMarketCandidate({
       instrument: market.instrument,
       timeframe: market.timeframe,
@@ -114,13 +121,6 @@ export default async function handler(req, res) {
         newsStatus: "UNKNOWN"
       },
       maxAgeMs: Math.max(120000, Number(market.granularity || 0) * 2000)
-    });
-    const tradePlan = buildAnalystTradePlan({
-      direction: candidate.direction,
-      quote,
-      atr: candidate.indicators?.atr14,
-      instrument,
-      timeframe
     });
     const gatedResult = {
       ...result,
