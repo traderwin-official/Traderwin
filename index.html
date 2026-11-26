@@ -104,9 +104,13 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <div class="dashboard-actions">
    <a class="dashboard-action" href="#demoSimulator"><span class="dashboard-icon">📊</span><strong>Trade DEMO</strong><small>Open the virtual trading terminal</small></a>
-   <a class="dashboard-action" href="#botSetupForm"><span class="dashboard-icon">🤖</span><strong>Bot &amp; Strategy</strong><small>Choose auto-select or your own strategy</small></a>
-   <a class="dashboard-action" href="/bot-shop.html"><span class="dashboard-icon">⚡</span><strong>Standalone Bot</strong><small>View independent bot products</small></a>
-   <a class="dashboard-action" href="#analysis"><span class="dashboard-icon">📈</span><strong>Market Analysis</strong><small>Charts, timeframes and market tools</small></a>
+   <a class="dashboard-action" href="#strategyCentre"><span class="dashboard-icon">🧭</span><strong>Strategy Centre</strong><small>Explore independent trading approaches</small></a>
+   <a class="dashboard-action" href="#livePositionsMonitor"><span class="dashboard-icon">🗂️</span><strong>Portfolio</strong><small>Review open positions and exposure</small></a>
+   <a class="dashboard-action" href="#analysis"><span class="dashboard-icon">📈</span><strong>Market Analysis</strong><small>Charts, live prices and analysis tools</small></a>
+   <a class="dashboard-action" href="#signals"><span class="dashboard-icon">🔔</span><strong>Signals</strong><small>View signal-centre availability</small></a>
+   <a class="dashboard-action" href="#academy"><span class="dashboard-icon">🎓</span><strong>Academy</strong><small>Trading education and learning</small></a>
+   <a class="dashboard-action" href="#membership"><span class="dashboard-icon">👤</span><strong>Membership</strong><small>Plans and account eligibility</small></a>
+   <a class="dashboard-action" href="#payments"><span class="dashboard-icon">💳</span><strong>Payments</strong><small>Secure service checkout</small></a>
   </div>
   <p class="dashboard-foot">Your key trading tools are gathered here. DEMO uses virtual funds; live broker execution remains locked and requires separate approval.</p>
  </div>
@@ -211,16 +215,30 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   DEMO automation uses virtual paper trades and verified market data only. REAL broker execution remains separately locked and is never enabled by saving preferences or starting a DEMO session.
  </div>
 
+ <div class="card" id="strategyCentre" style="margin-top:15px">
+  <div class="dashboard-head"><h3>Young Tiger FX <span class="gold">Strategy Centre</span></h3><span class="dashboard-mode">STRATEGIES ARE OPTIONAL</span></div>
+  <p class="muted">Choose how you want to trade. Young Tiger FX remains the main platform: each strategy is an independent tool, and you can keep using manual trading, portfolio controls, charts, education and other services without enabling any bot.</p>
+  <div class="grid">
+   <div class="card"><h4>Manual Trading</h4><p class="muted">You choose entries and manage your own positions in the DEMO terminal. Automated strategy permissions do not apply to your manual positions unless you separately authorize a specific portfolio permission.</p><a href="#demoSimulator" class="gold">Open DEMO terminal →</a></div>
+   <div class="card"><h4>Smart Multi-Confirmation</h4><p class="muted">A configurable strategy preference using EMA, RSI, ATR and breakout confirmation. Automated execution depends on a compatible, healthy and authorized DEMO worker.</p><a href="#botSetupForm" class="gold">Configure strategy →</a></div>
+   <div class="card"><h4>Auto-select</h4><p class="muted">Compares the supported strategy choices and should wait when evidence conflicts or confirmation is insufficient. It is not a guarantee of profitable signals.</p><a href="#botSetupForm" class="gold">Configure strategy →</a></div>
+   <div class="card"><h4>Tiger Fibonacci Psychology</h4><p class="muted">A separate strategy preference based on higher-timeframe trend, Fibonacci levels, support/resistance and liquidity context. Availability depends on worker validation.</p><a href="#botSetupForm" class="gold">Configure strategy →</a></div>
+   <div class="card"><h4>Quantum Scalping</h4><p class="muted">An optional fast-trading strategy module. Its current implementation is restricted to verified Deriv DEMO data and virtual paper execution. It does not replace other strategies or manual trading.</p><a href="#demoScalpingPanel" class="gold">Open scalping controls →</a></div>
+   <div class="card"><h4>Manual Review</h4><p class="muted">Use analysis and candidate signals for review without automatic entries. You remain responsible for deciding whether to place a manual DEMO trade.</p><a href="#smart-analyst" class="gold">Open market analyst →</a></div>
+  </div>
+  <p class="notice" style="margin-top:14px">A saved strategy preference is not proof that a strategy is currently running. Check the DEMO worker status and strategy-specific controls before relying on automation. REAL execution remains separately locked.</p>
+ </div>
+
  <div class="card" id="demoSimulator" style="margin-top:15px">
   <h3>Website DEMO Trading</h3>
-  <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss, three target prices and their exit allocations, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
+  <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss and three take-profit levels with allocations for your manual DEMO setup, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
   <p class="status" id="demoSessionStatus">Session: Not started</p>
   <div class="field"><label for="demoExecutionMode">How should your DEMO account trade?</label><select id="demoExecutionMode"><option value="MANUAL">Manual — I choose and manage each trade</option><option value="AUTO">Automated — bot trades my saved strategy</option></select></div>
   <p class="muted" id="demoWorkerHealth">Choose Manual or Automated DEMO. Automated mode needs saved Deriv strategy settings and a healthy scheduled worker.</p>
   <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh DEMO status</button>
   <div class="card" id="demoScalpingPanel" style="margin-top:14px">
-   <h4>Young Tiger Live Scalping — DEMO</h4>
-   <p class="muted">Fast M1 momentum signals from a continuous Deriv tick stream, confirmed by M5 trend and verified bid/ask spread. Enabling this feed only displays signals; automatic DEMO paper entries require a separate confirmation below.</p>
+   <h4>Quantum Scalping — Optional DEMO Strategy</h4>
+   <p class="muted">An optional fast M1 strategy using a continuous Deriv tick stream, M5 trend confirmation and verified bid/ask spread. It is one strategy inside Young Tiger FX, not a replacement for manual trading or other strategies. Enabling this feed only displays signals; automatic DEMO paper entries require a separate confirmation below.</p>
    <p class="status" id="demoScalpingStatus">Scalping is OFF. Start a verified Deriv DEMO session before enabling it.</p>
    <button type="button" id="enableDemoScalping">Enable DEMO Scalping Feed</button>
    <button type="button" id="disableDemoScalping" class="secondary" disabled>Disable Scalping</button>
@@ -228,7 +246,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <p class="status" id="demoScalpingPaperStatus">Automatic DEMO paper trading: OFF</p>
    <button type="button" id="enableDemoScalpingPaper" disabled>Enable Automatic DEMO Paper Trading</button>
    <button type="button" id="disableDemoScalpingPaper" class="secondary" disabled>Pause Automatic Paper Trading</button>
-   <p class="muted" id="demoScalpingMessage" role="status" aria-live="polite">Feed access is read-only. Automatic paper trading is a separate opt-in, uses virtual DEMO balances only, and is capped at 0.25% risk per trade, 1% daily loss and one open position. No Deriv broker orders or REAL trades are sent.</p>
+   <p class="muted" id="demoScalpingMessage" role="status" aria-live="polite">Feed access is read-only. Automatic paper trading is a separate opt-in, uses virtual DEMO balances only, and is capped at 0.25% risk per trade, 1% daily loss and a maximum of 15 open DEMO paper positions shared with the portfolio cap. No Deriv broker orders or REAL trades are sent.</p>
    <div class="live-feed" id="demoScalpingFeed" aria-live="polite">
     <div class="live-feed-head"><h4>Scalping Live Feed</h4><span class="live-feed-status" id="demoScalpingFeedStatus">Feed is off</span></div>
     <div class="live-feed-price" id="demoScalpingFeedPrice">Waiting for verified quote</div>
@@ -1446,7 +1464,7 @@ calculateRisk();
      catch(e){scalpMessage.textContent=e.message;scalpDisable.disabled=false;}
     });
     scalpPaperEnable.addEventListener("click",async()=>{
-     if(!window.confirm("Enable automatic DEMO paper trading for this session? The bot may open and manage virtual positions in the platform's DEMO paper ledger only. No Deriv broker order or REAL trade will be sent. Maximum risk is 0.25% per trade, daily loss is capped at 1%, and only one position may be open."))return;
+     if(!window.confirm("Enable automatic DEMO paper trading for this session? The bot may open and manage virtual positions in the platform's DEMO paper ledger only. No Deriv broker order or REAL trade will be sent. Maximum risk is 0.25% per trade, daily loss is capped at 1%, and a maximum of 15 open DEMO paper positions shared with the account portfolio cap."))return;
      scalpPaperEnable.disabled=true;scalpMessage.textContent="Verifying the separate automatic DEMO paper-trading permission...";
      try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE_PAPER_EXECUTION"});scalpPaperStatus.textContent="Automatic DEMO paper trading: ON · virtual ledger only";scalpMessage.textContent=r.message;await loadScalpingPreference();}
      catch(e){scalpMessage.textContent=e.message;scalpPaperEnable.disabled=false;}
