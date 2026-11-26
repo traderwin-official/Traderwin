@@ -3,10 +3,11 @@ do $$
 declare
   v_inner regprocedure := to_regprocedure('public.open_demo_scalping_paper_trade_batch(uuid,uuid,jsonb,timestamptz,text)');
   v_wrapper regprocedure := to_regprocedure('public.open_demo_scalping_paper_trade_batch_with_lease(uuid,uuid,uuid,jsonb,timestamptz,text)');
+  v_recovery regprocedure := to_regprocedure('public.get_demo_scalping_entry_batch_with_lease(uuid,uuid,uuid,text)');
   v_definition text;
 begin
-  if v_inner is null or v_wrapper is null then
-    raise exception 'Atomic Quantum Scalping batch RPCs are missing';
+  if v_inner is null or v_wrapper is null or v_recovery is null then
+    raise exception 'Atomic Quantum Scalping batch and recovery RPCs are missing';
   end if;
   if to_regclass('public.demo_scalping_entry_batches') is null then
     raise exception 'Durable Quantum Scalping batch idempotency ledger is missing';
@@ -27,6 +28,16 @@ begin
   end if;
   if not has_function_privilege('service_role',v_wrapper,'EXECUTE') then
     raise exception 'Service role must be allowed to execute the lease-fenced batch wrapper';
+  end if;
+  if has_function_privilege('authenticated',v_recovery,'EXECUTE')
+     or not has_function_privilege('service_role',v_recovery,'EXECUTE') then
+    raise exception 'Batch recovery must be service-role-only';
+  end if;
+  select pg_get_functiondef(v_recovery) into v_definition;
+  if position('SCALPING_WORKER_LEASE_NOT_OWNED' in v_definition)=0
+     or position('demo_scalping_entry_batches' in v_definition)=0
+     or position('SCALPING_BATCH_NOT_FOUND' in v_definition)=0 then
+    raise exception 'Batch recovery must be lease-fenced and read the durable batch ledger';
   end if;
   select pg_get_functiondef(v_inner) into v_definition;
   if position('SCALPING_MAX_OPEN_POSITIONS' in v_definition)=0
