@@ -26,7 +26,7 @@ test("rejects a missing or malformed expected project ref", () => {
 
 test("rejects a URL that does not match the explicitly expected project", () => {
   assert.throws(() => assertIsolatedSupabaseProject({
-    url: "https://zyxwvutsrqponmlkjihgf.supabase.co",
+    url: "https://zyxwvutsrqponmlkjihg.supabase.co",
     expectedProjectRef: isolatedRef
   }), /does not match/);
 });
