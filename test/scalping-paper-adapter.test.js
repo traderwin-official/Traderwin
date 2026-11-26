@@ -187,3 +187,18 @@ test("paper adapter never retries a batch when recovery itself fails",async()=>{
  await assert.rejects(()=>openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,leaseToken:"lease-token-1",now}),/network failure/);
  assert.equal(openCalls,1);
 });
+
+
+test("paper adapter restores trade IDs when the database reports an already-processed batch key",async()=>{
+ const calls=[];
+ const db=paperDb(async(name,args)=>{
+  calls.push(name);
+  if(name==="open_demo_scalping_paper_trade_batch_with_lease")return {data:{ok:false,reason:"SCALPING_ENTRY_ALREADY_PROCESSED"},error:null};
+  return {data:{ok:true,trade_ids:["existing-a","existing-b"],opened_count:2,recovered:true,batch_key:args.p_entry_key},error:null};
+ });
+ const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,leaseToken:"lease-token-1",now});
+ assert.equal(result.ok,true);
+ assert.equal(result.recovered,true);
+ assert.deepEqual(result.trade_ids,["existing-a","existing-b"]);
+ assert.deepEqual(calls,["open_demo_scalping_paper_trade_batch_with_lease","get_demo_scalping_entry_batch_with_lease"]);
+});
