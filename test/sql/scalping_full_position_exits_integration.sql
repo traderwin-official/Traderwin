@@ -37,7 +37,9 @@ begin
      or position('NOT_A_SCALPING_BOT_POSITION' in v_inner_def)=0
      or position('STOP_LOSS_NOT_REACHED' in v_inner_def)=0
      or position('TAKE_PROFIT_NOT_REACHED' in v_inner_def)=0
-     or position('TRADE_NOT_OPEN' in v_inner_def)=0 then
+     or position('TRADE_NOT_OPEN' in v_inner_def)=0
+     or position('p_reason is null' in lower(v_inner_def))=0
+     or position('session_id' in v_inner_def)=0 then
     raise exception 'Scalping close RPC lacks full-close, strategy isolation, quote or target guards';
   end if;
 
