@@ -407,6 +407,24 @@ begin
 
   select public.claim_traderwin_scalping_worker(v_lease_token,90) into v_saved;
   if v_saved is not true then raise exception 'Expected lease owner to renew its own lease'; end if;
+  select public.open_demo_scalping_paper_trade_with_lease(
+    v_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '4 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_DEMO_OPT_IN_REQUIRED' then
+    raise exception 'Expected current lease to pass fencing and then respect paper-execution consent: %',v_result;
+  end if;
+
+  select public.open_demo_scalping_paper_trade_with_lease(
+    v_other_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '3 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
+    raise exception 'Expected mismatched worker token to be blocked: %',v_result;
+  end if;
+
 
   select public.release_traderwin_scalping_worker(v_other_lease_token) into v_saved;
   if v_saved is not false then raise exception 'Expected non-owner lease release to fail'; end if;
@@ -417,6 +435,15 @@ begin
 
   select public.claim_traderwin_scalping_worker(v_other_lease_token,90) into v_saved;
   if v_saved is not true then raise exception 'Expected expired lease takeover'; end if;
+
+  select public.open_demo_scalping_paper_trade_with_lease(
+    v_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '2 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
+    raise exception 'Expected displaced worker token to be fenced after takeover: %',v_result;
+  end if;
 
   select public.release_traderwin_scalping_worker(v_lease_token) into v_saved;
   if v_saved is not false then raise exception 'Expected expired lease owner to be unable to release new lease'; end if;
