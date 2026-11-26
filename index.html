@@ -895,12 +895,14 @@ calculateRisk();
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||"Status unavailable");
     if(result.connected){
-     derivStatus.textContent="Deriv connected · DEMO account "+String(result.demoAccountId||"not selected").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". REAL account "+(result.realAccountId?"found but still locked":"not detected")+". Token storage is encrypted server-side.";
+     derivStatus.textContent="Deriv connected · verified DEMO account "+String(result.demoAccountId||"").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". "+(result.realAccountAvailable?"A REAL account exists but remains locked.":"No active REAL account detected.")+" Token storage is encrypted server-side.";
      connectButton.disabled=true;connectButton.textContent="Deriv Connected";disconnectButton.style.display="inline-block";
      await refreshDerivAccounts(session.session.access_token);
     }else{
-     derivStatus.textContent="Deriv is not connected yet.";connectButton.disabled=false;connectButton.textContent="Connect Deriv";
-     disconnectButton.style.display="none";derivAccountPicker.style.display="none";
+     const state=result.connectionState;
+     derivStatus.textContent=state==="AUTHORIZATION_EXPIRED"?"Deriv authorization has expired. Reconnect to refresh account verification.":state==="DEMO_ACCOUNT_REQUIRES_REVERIFICATION"?"The selected DEMO account is no longer verified. Reconnect and select an active DEMO account.":"Deriv is not connected yet.";
+     connectButton.disabled=false;connectButton.textContent="Connect Deriv";
+     disconnectButton.style.display=result.hasConnection?"inline-block":"none";derivAccountPicker.style.display="none";
     }
    }catch(error){
     console.warn("Deriv status could not be loaded:",error.message);
