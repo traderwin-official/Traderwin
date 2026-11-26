@@ -73,3 +73,14 @@ test("quarantines a position after a transient database write failure",()=>{
 test("rejects quarantine requests without a durable trade identifier",()=>{
  assert.throws(()=>quarantineTradeForRefresh({activeTrades:new Map(),pendingRefresh:new Map()}),/trade ID/);
 });
+
+test("new batch positions stay fenced from an older in-flight snapshot until confirmed",()=>{
+ const active=new Map(),pending=new Map(),locks=new Set();
+ quarantineTradeForRefresh({tradeId:"new-position",activeTrades:active,pendingRefresh:pending,snapshotGeneration:5});
+ applyOpenTradeSnapshot({trades:[],activeTrades:active,locks,pendingRefresh:pending,snapshotGeneration:5});
+ assert.equal(active.has("new-position"),false);
+ assert.equal(pending.get("new-position"),6);
+ applyOpenTradeSnapshot({trades:[{id:"new-position",status:"OPEN"}],activeTrades:active,locks,pendingRefresh:pending,snapshotGeneration:6});
+ assert.equal(active.get("new-position").status,"OPEN");
+ assert.equal(pending.has("new-position"),false);
+});
