@@ -38,7 +38,7 @@ begin
         select exists (select 1 from public.admin_users where user_id = auth.uid())
       $function$
     $sql$;
-    execute 'revoke all on function public.is_traderwin_admin() from public, anon';
+    execute 'revoke all on function public.is_traderwin_admin() from public, anon, service_role';
     execute 'grant execute on function public.is_traderwin_admin() to authenticated';
   end if;
 
