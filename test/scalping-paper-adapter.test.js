@@ -70,17 +70,17 @@ test("paper adapter refuses spot-only or invalid bid/ask quotes before any datab
  assert.equal(called,false);
 });
 
-test("paper adapter closes only tagged scalping BOT positions through the existing staged-exit RPC",async()=>{
+test("paper adapter closes tagged scalping BOT positions through the single full-position exit RPC",async()=>{
  let call;
- const db=paperDb(async(name,args)=>{call={name,args};return {data:{ok:true,stage:args.p_stage},error:null};});
+ const db=paperDb(async(name,args)=>{call={name,args};return {data:{ok:true,reason:args.p_reason,closed:true},error:null};});
  const trade={id:"trade-1",user_id:"user-1",status:"OPEN",trade_origin:"BOT",
   metadata:{strategy:"TIGER_SCHEME_QUANTUM_SCALPING"},side:"BUY",stop_loss:"1990",
-  tp1_price:"2007.5",tp2_price:"2011",tp3_price:"2016",tp1_done:false,tp2_done:false,tp3_done:false,quote_to_usd:"1"};
+  take_profit:"2016",tp3_price:"2016",quote_to_usd:"1"};
  const exit=await manageScalpingPaperPosition({db,trade,tick:{...tick,bid:2008,ask:2008.1},now});
- assert.equal(exit.stage,"TP1");
- assert.equal(call.name,"manage_demo_scalping_paper_exit_with_lease");
+ assert.equal(exit.reason,"TAKE_PROFIT");
+ assert.equal(call.name,"close_demo_scalping_paper_trade_with_lease");
  assert.equal(call.args.p_lease_token,"lease-token-1");
- assert.equal(call.args.p_stage,"TP1");
+ assert.equal(call.args.p_reason,"TAKE_PROFIT");
 });
 
 test("paper adapter leaves other bot positions and stale quotes untouched",async()=>{
@@ -88,7 +88,7 @@ test("paper adapter leaves other bot positions and stale quotes untouched",async
  const db=paperDb(async()=>{calls++;return {data:{ok:true},error:null};});
  const trade={id:"trade-2",user_id:"user-1",status:"OPEN",trade_origin:"BOT",metadata:{strategy:"OTHER"},side:"BUY"};
  const other=await manageScalpingPaperPosition({db,trade,tick,now});
- const tagged={...trade,metadata:{strategy:"TIGER_SCHEME_QUANTUM_SCALPING"},stop_loss:1990,tp1_price:2007,tp2_price:2011,tp3_price:2016,tp1_done:false,tp2_done:false,tp3_done:false,quote_to_usd:1};
+ const tagged={...trade,metadata:{strategy:"TIGER_SCHEME_QUANTUM_SCALPING"},stop_loss:1990,take_profit:2016,tp3_price:2016,quote_to_usd:1};
  const stale=await manageScalpingPaperPosition({db,trade:tagged,tick:{...tick,receivedAt:new Date(now-5000).toISOString()},now});
  assert.equal(other.reason,"NOT_A_SCALPING_BOT_POSITION");
  assert.equal(stale.reason,"EXIT_QUOTE_STALE");
