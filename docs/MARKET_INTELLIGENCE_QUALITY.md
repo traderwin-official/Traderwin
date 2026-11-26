@@ -38,3 +38,15 @@ Consequently, a single Deriv candidate is not sufficient to produce an approved 
 The non-secret configuration values MARKET_ANALYST_MAX_SPREAD_BPS and SCALPING_MAX_SPREAD_BPS must be set to positive, reviewed thresholds before their respective spread checks can pass. These settings do not replace provider evidence or the news gate.
 
 Passing this analysis gate still does not authorize broker execution. REAL execution remains subject to the separate platform-wide release switch, account authorization, subscription, broker verification, risk controls, and explicit user approval.
+
+
+## Analyst endpoint news and calendar wiring (2026-11-26)
+
+The authenticated market analyst now requests three separate context streams in parallel:
+- Instrument-mapped 24-hour GDELT headline context for dashboard display. Its keyword labels are descriptive only.
+- The existing GDELT adverse-headline tripwire, which can return BLACKOUT for a recent potentially high-impact headline, otherwise UNKNOWN.
+- The existing BiQuote high-impact economic-calendar adapter, which can return BLACKOUT for a matching release window, otherwise UNKNOWN.
+
+The analyst combines the two risk adapters conservatively: either BLACKOUT makes the combined news status BLACKOUT; all other combinations remain UNKNOWN. The analyst does not promote a quiet or empty provider response to CLEAR. This means the existing market-intelligence gate remains blocked until a separately verified clearance mechanism exists. Calendar events and adverse headlines are returned to the dashboard with provider reasons for transparency.
+
+This change wires existing adapters into the analyst route; it does not establish the completeness, licensing, latency SLA or independent correctness of either external provider. No order execution is added. The runtime-gate regression test asserts both providers are called and the combined status is passed to the gate.
