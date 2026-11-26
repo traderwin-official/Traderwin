@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { checkScalpingRuntimeReadiness } from "../scripts/check-scalping-runtime-readiness.js";
 
 const tables = [
-  "scalping_market_ticks","demo_scalping_preferences","scalping_worker_leases",
+  "scalping_market_ticks","scalping_signal_events","demo_scalping_preferences","scalping_worker_leases",
   "demo_paper_sessions","demo_paper_trades","trader_profiles","trading_instrument_approvals"
 ];
 const rpcs = [
