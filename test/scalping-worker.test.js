@@ -36,7 +36,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/async function shutdown\(\)/);
  assert.match(s,/await db\.rpc\("release_traderwin_scalping_worker"/);
  assert.match(s,/if\(stopping\)return;/);
- assert.match(s,/catch\(e\)\{leaseOwned=false;closeSocket\(\);logError\(e\);scheduleReconnect\(\);\}/);
+ assert.match(s,/catch\(e\)\{leaseOwned=false;state\.leaseOwned=false;state\.leaseLastError=String\(e\?\.message\|\|e\)\.slice\(0,180\);closeSocket\(\);logError\(e\);scheduleReconnect\(\);\}/);
  assert.match(s,/if\(sessionError\)throw sessionError;/);
  assert.match(s,/if\(preferenceError\)throw preferenceError;/);
  assert.match(s,/if\(profileError\)throw profileError;/);
