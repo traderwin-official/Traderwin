@@ -26,7 +26,7 @@ test("DEMO status returns all open positions while preserving the legacy primary
  assert.match(s,/order\("opened_at",\{ascending:false\}\)/);
  assert.match(s,/openTrades:compatibleTrades/);
  assert.match(s,/compatibleTrades\.find\(t=>t\.trade_origin==="BOT"\)/);
- assert.match(s,/eq\("trade_origin","BOT"\)\.maybeSingle\(\)/);
+ assert.match(s,/eq\("trade_origin","BOT"\)\.limit\(1\)\.maybeSingle\(\)/);
 });
 test("DEMO sessions persist a bounded multi-position count and aggregate risk ceiling",async()=>{
  const s=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
@@ -48,4 +48,11 @@ test("public account and onboarding pages use the Young Tiger FX brand", async (
   assert.match(html,/Young Tiger FX|YOUNG TIGER FX/);
   assert.doesNotMatch(html,/Traderwin|TRADERWIN/);
  }
+});
+
+
+test("stopping AUTO sessions safely detects one or more open BOT positions",async()=>{
+ const s=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
+ assert.match(s,/AUTO sessions may hold several BOT positions/);
+ assert.match(s,/eq\("trade_origin","BOT"\)\.limit\(1\)\.maybeSingle\(\)/);
 });
