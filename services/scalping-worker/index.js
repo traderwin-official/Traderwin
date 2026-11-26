@@ -8,6 +8,7 @@ import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.j
 import { evaluateMarketCandidate } from "./lib/market-intelligence-gate.js";
 import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
 import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
+import { getXausGoldReference, compareGoldReference } from "./lib/xaus-gold-reference.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
@@ -209,6 +210,17 @@ async function publishTick(wanted,tick){
   const configuredMaxSpreadBps=Number(process.env.SCALPING_MAX_SPREAD_BPS);
   const newsRisk=await getGdeltNewsRiskStatus();
   state.newsRisk=newsRisk;
+  if(wanted.instrument==="XAUUSD"){
+   const goldReference=await getXausGoldReference();
+   const referenceLimit=Number(process.env.SCALPING_XAUUSD_MAX_REFERENCE_DEVIATION_BPS||50);
+   const goldGuard=compareGoldReference({brokerMid:mid,reference:goldReference,maxDeviationBps:referenceLimit});
+   state.goldReference={...goldReference,guard:goldGuard};
+   if(goldGuard.status!=="PASS"){
+    state.lastMarketIntelligence={decision:"NO_TRADE",direction:"WAIT",executionAuthorized:false,goldReference:goldGuard,evaluatedAt:new Date().toISOString()};
+    state.lastEntryReason=("GOLD_REFERENCE_WAIT:"+goldGuard.reason).slice(0,180);
+    return;
+   }
+  }
   const gate=evaluateMarketCandidate({
    instrument:wanted.instrument,timeframe:"M1",direction:result.direction,
    confidence:result.confidence,source:"DERIV",asOf:result.signalAsOf,
