@@ -242,7 +242,7 @@ async function publishTick(wanted,tick){
   // Fetch all independent external vetoes concurrently so XAUUSD does not
   // wait for news/calendar checks before starting its independent gold reference.
   const [gdeltRisk,calendarRisk,goldReference]=await Promise.all([
-   getGdeltNewsRiskStatus(),
+   getGdeltNewsRiskStatus({instrument:wanted.instrument}),
    getBiQuoteCalendarRiskStatus({instrument:wanted.instrument}),
    wanted.instrument==="XAUUSD"?getXausGoldReference():Promise.resolve(null)
   ]);
