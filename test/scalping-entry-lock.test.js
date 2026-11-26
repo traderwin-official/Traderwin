@@ -26,3 +26,23 @@ test("different instruments can analyse concurrently and failed analysis release
  await assert.rejects(runInstrumentEntryAnalysis({instrument:"XAUUSD",locks,analyse:async()=>{throw new Error("failed");}}),/failed/);
  assert.equal(locks.size,0);
 });
+
+test("open positions keep exiting while a separate instrument entry analysis is awaiting intelligence",async()=>{
+ const entryLocks=new Set(),positionLocks=new Set();let releaseAnalysis;
+ const analysisPending=new Promise(resolve=>{releaseAnalysis=resolve;});
+ const entry=runInstrumentEntryAnalysis({instrument:"XAUUSD",locks:entryLocks,analyse:()=>analysisPending});
+ await new Promise(resolve=>setImmediate(resolve));
+ const exits=[];
+ const {manageTradesIndependently}=await import("../lib/scalping-trade-concurrency.js");
+ const managed=await manageTradesIndependently({
+  trades:[{id:"position-1"},{id:"position-2"}],locks:positionLocks,
+  manage:async trade=>{exits.push(trade.id);}
+ });
+ assert.equal(managed,true);
+ assert.deepEqual(exits,["position-1","position-2"]);
+ assert.equal(entryLocks.has("XAUUSD"),true);
+ assert.equal(positionLocks.size,0);
+ releaseAnalysis("candidate");
+ assert.deepEqual(await entry,{skipped:false,result:"candidate"});
+ assert.equal(entryLocks.size,0);
+});
