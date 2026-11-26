@@ -18,9 +18,10 @@ const signal={instrument:"XAUUSD",direction:"BUY",entry:2000.1,stopLoss:1990,tak
 test("paper adapter opens only through the strict server-side DEMO RPC and sizes at 0.25 percent",async()=>{
  let call;
  const db=paperDb(async(name,args)=>{call={name,args};return {data:{ok:true,trade_id:"trade-1"},error:null};});
- const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
+ const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,leaseToken:"lease-token-1",now});
  assert.equal(result.ok,true);
- assert.equal(call.name,"open_demo_scalping_paper_trade");
+ assert.equal(call.name,"open_demo_scalping_paper_trade_with_lease");
+ assert.equal(call.args.p_lease_token,"lease-token-1");
  assert.equal(call.args.p_user_id,session.user_id);
  assert.equal(call.args.p_side,"BUY");
  assert.ok(call.args.p_risk_pct<=0.25);
@@ -42,7 +43,7 @@ test("paper adapter refuses a non-opted-in or REAL session without calling the d
 test("paper adapter refuses unsupported quote conversion and stale entry quotes",async()=>{
  let called=false;
  const db={rpc:async()=>{called=true;return {data:{ok:true},error:null};}};
- const conversion=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:null,now});
+ const conversion=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:null,leaseToken:"lease-token-1",now});
  const staleTick={...tick,receivedAt:new Date(now-5000).toISOString()};
  const stale=await openScalpingPaperPosition({db,session,preference,signal,tick:staleTick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
  assert.equal(conversion.reason,"USD_CONVERSION_UNAVAILABLE");
