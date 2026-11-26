@@ -311,7 +311,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss.</p>
   </div>
   <div class="grid">
-   <p class="muted">The optional combined DEMO portfolio guard activates at USD 20 peak unrealised profit and protects 80% of the peak. It is separate from manual entries and requires its own tested server-side monitoring setup. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
+   <p class="muted">The scheduled DEMO worker checks the combined portfolio using fresh market quotes and USD-normalised profit. Protection activates at USD 20 peak unrealised profit and protects 80% of that peak. The check runs on the worker schedule, so fast price moves, quote gaps and slippage can affect exit timing. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
   </div>
   <button type="button" class="secondary" id="markPaperTrade" disabled>Check Live Quote &amp; SL/TP</button>
   <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
