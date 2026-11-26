@@ -53,3 +53,14 @@ test("health check treats connected quote service as healthy during candle warm-
  assert.match(worker,/state\.socket==="CONNECTED"&&state\.subscribed\.length>0/);
  assert.doesNotMatch(worker,/state\.socket==="CONNECTED"&&state\.readySymbols\.length>0/);
 });
+
+test("worker records reconnect gaps and never synthesizes an exit price from missing history",()=>{
+ assert.match(worker,/detectMarketDataGap\(/);
+ assert.match(worker,/lastMarketDataGap:null/);
+ const start=worker.indexOf("async function publishTick(");
+ const end=worker.indexOf("\\nfunction closeSocket",start);
+ const publish=worker.slice(start,end);
+ assert.ok(publish.indexOf("detectMarketDataGap(")<publish.indexOf("manageOpenTrades("));
+ assert.ok(publish.indexOf("manageOpenTrades(")<publish.indexOf("const h=history.get(wanted.instrument)"));
+ assert.match(publish,/if\(!h\|\|h\.m1\.length<35\)return/);
+});
