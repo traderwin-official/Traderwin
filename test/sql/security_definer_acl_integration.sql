@@ -17,6 +17,7 @@ begin
   end if;
   if to_regprocedure('public.is_traderwin_admin()') is not null then
     if has_function_privilege('anon','public.is_traderwin_admin()','EXECUTE')
+       or has_function_privilege('service_role','public.is_traderwin_admin()','EXECUTE')
        or not has_function_privilege('authenticated','public.is_traderwin_admin()','EXECUTE') then
       raise exception 'Admin helper must be callable only by authenticated users';
     end if;
