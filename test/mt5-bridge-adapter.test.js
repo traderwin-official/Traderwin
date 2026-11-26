@@ -129,6 +129,21 @@ test("server environment config is optional but rejects partial MT5 credentials"
   assert.equal(closeEnabled.broker, "MT5");
 });
 
+test("caps bridge-reported heartbeat tolerance at the server-configured maximum", async () => {
+  const permissiveBridge = {
+    ...portfolio,
+    emergency: {
+      ...portfolio.emergency,
+      brokerHeartbeatAsOf: new Date(990_000).toISOString(),
+      maxBrokerHeartbeatAgeMs: 60_000
+    }
+  };
+  await assert.rejects(
+    () => makeAdapter(permissiveBridge).loadSnapshot(scope),
+    /emergency state or broker heartbeat/
+  );
+});
+
 test("rejects missing, malformed or stale MT5 emergency heartbeat state", async () => {
   const missing = { ...portfolio, emergency: { marketDataConnected: true } };
   await assert.rejects(() => makeAdapter(missing).loadSnapshot(scope), /emergency state or broker heartbeat/);
