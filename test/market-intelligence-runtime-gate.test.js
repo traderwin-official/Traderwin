@@ -105,3 +105,35 @@ test("the analyst route and DEMO scalping worker both invoke the runtime gate", 
   assert.match(docker, /COPY lib\/market-intelligence\.js/);
   assert.match(docker, /COPY lib\/market-intelligence-gate\.js/);
 });
+
+test("wide spreads, weak reward/risk, news blackout and stale quote context all force WAIT", () => {
+  const wideSpread = evaluateMarketCandidate({
+    ...base,
+    risk: { ...base.risk, spreadBps: 8 }
+  });
+  assert.equal(wideSpread.direction, "WAIT");
+  assert.ok(wideSpread.reasons.includes("SPREAD_TOO_WIDE"));
+
+  const weakRewardRisk = evaluateMarketCandidate({
+    ...base,
+    risk: { ...base.risk, riskReward: 1.1 }
+  });
+  assert.equal(weakRewardRisk.direction, "WAIT");
+  assert.ok(weakRewardRisk.reasons.includes("RISK_REWARD_BELOW_MINIMUM"));
+
+  const newsBlackout = evaluateMarketCandidate({
+    ...base,
+    risk: { ...base.risk, newsStatus: "BLACKOUT", highImpactNewsWindow: true }
+  });
+  assert.equal(newsBlackout.direction, "WAIT");
+  assert.ok(newsBlackout.reasons.includes("HIGH_IMPACT_NEWS_BLACKOUT"));
+
+  const staleQuote = evaluateMarketCandidate({
+    ...base,
+    market: { ...base.market, quoteFresh: false, candleClosed: false }
+  });
+  assert.equal(staleQuote.direction, "WAIT");
+  assert.ok(staleQuote.reasons.includes("QUOTE_NOT_FRESH"));
+  assert.ok(staleQuote.reasons.includes("ENTRY_CANDLE_NOT_CLOSED"));
+  assert.equal(staleQuote.executionAuthorized, false);
+});
