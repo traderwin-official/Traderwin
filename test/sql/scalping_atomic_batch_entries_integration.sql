@@ -47,6 +47,8 @@ begin
      or position('scalping_batch_index' in v_definition)=0
      or position('demo_paper_emergency_controls' in v_definition)=0
      or position('entries_blocked' in v_definition)=0
+     or position('bot_emergency_controls' in v_definition)=0
+     or position('kill_switch_active' in v_definition)=0
      or position('KILL_SWITCH_ACTIVE' in v_definition)=0
      or position('for v_entry in' in lower(v_definition))=0
      or position('demo_scalping_entry_batches' in v_definition)=0
