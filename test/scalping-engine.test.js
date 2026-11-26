@@ -193,3 +193,9 @@ test("higher timeframe context requires contiguous M15 H1 and H4 candles",()=>{
  const broken=make(3600,100,0.3);broken[10].epoch+=3600;
  assert.equal(higherTimeframeTrendContext({M15:make(900,100,0.2),H1:broken,H4:make(14400,100,0.4)}),null);
 });
+
+test("scalping engine fails closed when M15 H1 or H4 context is missing",()=>{
+ const result=analyseScalping({instrument:"XAUUSD",candles:candles(),trendCandles:undefined,contextCandles:{M15:[],H1:[],H4:[]},tick:tick(),now});
+ assert.equal(result.direction,"WAIT");
+ assert.equal(result.reason,"HIGHER_TIMEFRAME_CONTEXT_UNAVAILABLE");
+});
