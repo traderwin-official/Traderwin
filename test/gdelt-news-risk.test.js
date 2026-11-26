@@ -60,3 +60,35 @@ test("failed requests never authorize news clearance",async()=>{
  assert.equal(result.status,"UNKNOWN");
  assert.equal(result.reason,"NEWS_PROVIDER_REQUEST_FAILED");
 });
+
+
+test("instrument-scoped query includes relevant gold context and identifies the instrument", async () => {
+ resetGdeltNewsRiskCacheForTests();
+ let requested;
+ const result=await getGdeltNewsRiskStatus({
+  instrument:"XAUUSD",
+  now:Date.UTC(2026,10,26),
+  fetchImpl:async url=>{
+   requested=new URL(url);
+   return response({articles:[]});
+  }
+ });
+ assert.match(requested.searchParams.get("query"),/gold/i);
+ assert.match(requested.searchParams.get("query"),/Federal Reserve/i);
+ assert.equal(result.instrument,"XAUUSD");
+ assert.equal(result.status,"UNKNOWN");
+});
+
+test("instrument news results are cached independently and unsupported symbols stay unknown", async () => {
+ resetGdeltNewsRiskCacheForTests();
+ let calls=0;
+ const fetchImpl=async()=>{calls++;return response({articles:[]});};
+ const now=Date.UTC(2026,10,26);
+ await getGdeltNewsRiskStatus({instrument:"XAUUSD",now,fetchImpl});
+ await getGdeltNewsRiskStatus({instrument:"EURUSD",now:now+1000,fetchImpl});
+ assert.equal(calls,2);
+ const unsupported=await getGdeltNewsRiskStatus({instrument:"R_100",now,fetchImpl});
+ assert.equal(unsupported.status,"UNKNOWN");
+ assert.equal(unsupported.reason,"NEWS_INSTRUMENT_NOT_MAPPED");
+ assert.equal(calls,2);
+});
