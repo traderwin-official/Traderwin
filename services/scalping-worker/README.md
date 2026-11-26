@@ -32,7 +32,7 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - Position size uses the verified USD value of the instrument's quote currency. Unsupported or stale conversions fail closed.
 - Paper positions use staged exits: TP1 0.75R, TP2 1.1R, TP3 at the engine's 1.5R–3R target, with the existing 40/30/30 staged-close ledger and stop-loss.
 - Exit decisions use the correct side of the spread: bid for BUY positions and ask for SELL positions. Missing bid/ask or stale quotes never trigger an exit.
-- Database RPCs are the only entry/exit path. They are service-role-only and preserve the existing daily-realization and portfolio-protection ledger.
+- Database RPCs are the only entry/exit path. Worker entry, mark and staged-exit writes are fenced by the current singleton lease and limited to tagged scalping BOT positions; the underlying shared DEMO ledger RPCs retain their existing callers and protections.
 
 ## Data path and health
 
