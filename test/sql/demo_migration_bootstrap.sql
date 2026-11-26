@@ -37,11 +37,11 @@ grant execute on function auth.role() to anon, authenticated, service_role;
 -- Existing SECURITY DEFINER helpers represented in the isolated migration test.
 create or replace function public.is_traderwin_admin()
 returns boolean language sql stable security definer set search_path=public
-as $ select false $;
+as $bootstrap$ select false $bootstrap$;
 
 create or replace function public.traderwin_audit_account_mode()
 returns trigger language plpgsql security definer set search_path=public
-as $ begin return new; end $;
+as $bootstrap$ begin return new; end $bootstrap$;
 
 create table public.service_catalog (
   id uuid primary key default gen_random_uuid(),
