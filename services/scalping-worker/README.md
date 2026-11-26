@@ -75,6 +75,14 @@ The numeric cost inputs are price units for that instrument and must come from
 realistic broker conditions. Do not copy the example assumptions as actual XAUUSD
 spread or slippage values.
 
+For a chronological 70/30 training and holdout evaluation, the library also exports
+`runScalpingWalkForward({ instrument, candles, spreadPriceUnits, slippagePriceUnits,`
+`commissionPriceUnitsRoundTrip, trainFraction: 0.7 })` from
+`lib/scalping-backtest.js`. It reports training and later out-of-sample metrics
+separately. Each period has an independent warm-up and no positions or indicator
+state carry across the split. Keep the holdout untouched when choosing strategy
+parameters; use a new later period for any subsequent confirmation.
+
 Deriv's public market-data WebSocket can download recent M1 candles without an account token.
 Check the current active symbol name first (for example, do not assume a display label is the API symbol):
 
