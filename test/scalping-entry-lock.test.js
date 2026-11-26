@@ -46,3 +46,26 @@ test("open positions keep exiting while a separate instrument entry analysis is 
  assert.deepEqual(await entry,{skipped:false,result:"candidate"});
  assert.equal(entryLocks.size,0);
 });
+
+
+test("all 15 positions receive same-tick exit checks concurrently without one failure blocking siblings",async()=>{
+ const {manageTradesIndependently}=await import("../lib/scalping-trade-concurrency.js");
+ const trades=Array.from({length:15},(_,i)=>({id:`batch-position-${i+1}`}));
+ const locks=new Set(),started=[],released=[];
+ let active=0,maxActive=0;
+ const result=await manageTradesIndependently({
+  trades,locks,
+  manage:async trade=>{
+   active++;maxActive=Math.max(maxActive,active);started.push(trade.id);
+   await new Promise(resolve=>setImmediate(resolve));
+   active--;released.push(trade.id);
+   if(trade.id==="batch-position-4")throw new Error("simulated isolated close failure");
+  },
+  onError:()=>{}
+ });
+ assert.equal(result,false);
+ assert.equal(started.length,15);
+ assert.equal(released.length,15);
+ assert.equal(maxActive,15);
+ assert.equal(locks.size,0);
+});
