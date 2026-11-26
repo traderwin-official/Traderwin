@@ -42,11 +42,10 @@ The summary is a presentation/aggregation layer. It does not change the executio
 
 ## Current validation checkpoint
 
-- The unified analyst aggregation/API/UI implementation passed **607/607 Node tests** on commit `57201d19c658b5457ffaf743f490f2624b24bc3b`.
-- Full Traderwin workflow [#1967](https://github.com/traderwin-official/Traderwin/actions/runs/45823096205) was running against the combined research-summary implementation at last check; its steps include Node tests, serverless syntax, inline page scripts, worker image build and isolated PostgreSQL migration/integration checks.
-- A further regression assertion was added to verify that the authenticated analyst route actually wires the summary into its API response. Fresh Node and full workflow runs are triggered for the latest head.
+- The unified analyst aggregation/API/UI implementation passed **607/607 Node tests** on commit `f4503fe21674fb440e1ec11e2157a68864c1ba41`.
+- Full Traderwin workflow [#1968](https://github.com/traderwin-official/Traderwin/actions/runs/45823125424) passed on the preceding combined implementation: Node tests, serverless syntax, inline page scripts, worker image build and isolated PostgreSQL migration/integration checks.
+- A further analyst-route regression assertion verifies that the authenticated API actually wires `researchSummary`. The latest full workflow [#1969](https://github.com/traderwin-official/Traderwin/actions/runs/45823232851) is running against the newer integration head; it must pass before that exact head is considered fully validated.
 - Vercel preview checks remain blocked by the account build-rate limit. No preview deployment is claimed.
-
 ## Not deployed / not yet verified
 
 - No PR merge, production deployment or production Supabase migration has been performed.
