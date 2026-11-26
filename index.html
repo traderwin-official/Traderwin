@@ -674,8 +674,11 @@ smartButton.addEventListener("click",async()=>{
   const calendarEvents=(calendar.events||[]).slice(0,3).map(e=>e.name+" "+(e.currency||"")+" "+(e.time||"")).join(" | ");
   const riskHeadlines=(newsRisk.articles||[]).slice(0,2).map(a=>a.title+" ("+(a.domain||"source unknown")+")").join(" | ");
   const newsText=" · News gate "+(newsRisk.status||"UNKNOWN")+" ("+(newsRisk.reason||"not verified")+") · Economic calendar "+(calendar.status||"UNKNOWN")+" ("+(calendar.reason||"not verified")+") "+(calendarEvents||"No confirmed matching event returned")+". Adverse headlines: "+(riskHeadlines||"none detected in provider window; this is not clearance")+". Context: "+(headlines||"No contextual headlines available")+". Headline labels are not a validated sentiment model.";
+  const gold=result.goldReference||{};
+  const goldCheck=result.goldReferenceComparison||{};
+  const goldText=result.instrument==="XAUUSD"?" · Independent gold reference "+(gold.status||"UNKNOWN")+" "+(gold.price!=null?"$"+gold.price+"/oz":"unavailable")+"; broker discrepancy "+(goldCheck.deviationBps!=null?goldCheck.deviationBps+" bps":"unavailable")+" ("+(goldCheck.status||"UNKNOWN")+"). Indicative reference only, not executable.":"";
   output.hidden=false;
-  output.textContent="Profile: "+document.getElementById("profileMode").value+" · Decision: "+r.direction+" · Technical score "+(r.candidateConfidence??r.confidence)+"/95 (not win probability) · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+gateText+" "+newsText+" "+planText+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Research only; no trade was executed.";
+  output.textContent="Profile: "+document.getElementById("profileMode").value+" · Decision: "+r.direction+" · Technical score "+(r.candidateConfidence??r.confidence)+"/95 (not win probability) · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+gateText+" "+newsText+" "+goldText+" "+planText+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Research only; no trade was executed.";
   status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
  }catch(error){status.textContent=error.message||"Could not analyse the market.";}
  finally{smartButton.disabled=false;}
