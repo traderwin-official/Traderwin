@@ -21,6 +21,22 @@ begin
       raise exception 'Admin helper must be callable only by authenticated users';
     end if;
   end if;
+  if to_regprocedure('public.is_traderwin_admin()') is not null then
+    if (select prosecdef from pg_proc where oid='public.is_traderwin_admin()'::regprocedure) then
+      raise exception 'Admin helper must run as SECURITY INVOKER';
+    end if;
+    if has_function_privilege('anon','public.is_traderwin_admin()','EXECUTE')
+       or not has_function_privilege('authenticated','public.is_traderwin_admin()','EXECUTE') then
+      raise exception 'Admin helper must be callable only by authenticated users';
+    end if;
+    if has_table_privilege('anon','public.admin_users','SELECT')
+       or has_table_privilege('authenticated','public.admin_users','INSERT')
+       or has_table_privilege('authenticated','public.admin_users','UPDATE')
+       or has_table_privilege('authenticated','public.admin_users','DELETE')
+       or not has_table_privilege('authenticated','public.admin_users','SELECT') then
+      raise exception 'Admin table must expose self-read only to authenticated users';
+    end if;
+  end if;
   if to_regclass('public.trading_instrument_approval_audit') is not null then
     if has_table_privilege('service_role','public.trading_instrument_approval_audit','UPDATE')
        or has_table_privilege('service_role','public.trading_instrument_approval_audit','DELETE')
