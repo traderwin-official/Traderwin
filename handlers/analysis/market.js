@@ -41,18 +41,19 @@ export default async function handler(req, res) {
     if (!["AUTO_SELECT_V1", "MULTI_CONFIRMATION_V1", "TIGER_FIBONACCI_PSYCHOLOGY_V1", "MANUAL_REVIEW"].includes(strategy)) {
       return res.status(400).json({ error: "Choose a supported strategy." });
     }
-    const market = await getDerivCandles(instrument, timeframe);
-    const trendMarket = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) && timeframe !== "H1"
-      ? await getDerivCandles(instrument, "H1")
-      : market;
+    const marketPromise = getDerivCandles(instrument, timeframe, { timeoutMs: 6000 });
+    const trendPromise = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) && timeframe !== "H1"
+      ? getDerivCandles(instrument, "H1", { timeoutMs: 6000 })
+      : marketPromise;
+    const quotePromise = getDerivPublicQuote(instrument, { timeoutMs: 4000 }).catch(() => null);
+    const [market, trendMarket, quote] = await Promise.all([marketPromise, trendPromise, quotePromise]);
     const result = analyseStrategy(market.candles, strategy, {
       trendCandles: trendMarket.candles,
       instrument
     });
-    const [approval, quote] = await Promise.all([
-      loadApprovedInstrument(admin, { broker: "DERIV", instrument, providerSymbol: market.providerSymbol }),
-      getDerivPublicQuote(instrument).catch(() => null)
-    ]);
+    const approval = await loadApprovedInstrument(admin, {
+      broker: "DERIV", instrument, providerSymbol: market.providerSymbol
+    });
     const quoteStamp = Date.parse(quote?.quoteAsOf || "");
     const quoteFresh = Boolean(
       quote && quote.source === "DERIV" && quote.providerSymbol === market.providerSymbol &&
