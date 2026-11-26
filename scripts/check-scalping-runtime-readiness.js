@@ -1,5 +1,6 @@
 const REQUIRED_TABLES = [
   "scalping_market_ticks",
+  "scalping_signal_events",
   "demo_scalping_preferences",
   "scalping_worker_leases",
   "demo_paper_sessions",
