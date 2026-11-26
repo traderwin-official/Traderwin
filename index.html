@@ -572,6 +572,7 @@ function marketContextSymbol(label){
 function setSharedMarketContext(instrument){
  const symbol=String(instrument||"").trim().toUpperCase();
  if(!/^[A-Z0-9_]{2,24}$/.test(symbol))return false;
+ if(!Object.prototype.hasOwnProperty.call(marketContextSymbols,symbol))return false;
  const chartSymbol=marketContextSymbols[symbol];
  if(chartSymbol){
   const chart=document.getElementById("symbol");
