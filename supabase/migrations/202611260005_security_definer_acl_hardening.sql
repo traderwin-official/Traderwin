@@ -9,6 +9,10 @@ begin
   if to_regprocedure('public.traderwin_audit_account_mode()') is not null then
     execute 'revoke all on function public.traderwin_audit_account_mode() from public, anon, authenticated, service_role';
   end if;
+  if to_regclass('public.trading_instrument_approval_audit') is not null then
+    execute 'revoke all on table public.trading_instrument_approval_audit from service_role';
+    execute 'grant select, insert on table public.trading_instrument_approval_audit to service_role';
+  end if;
   if to_regprocedure('public.is_traderwin_admin()') is not null then
     execute 'revoke all on function public.is_traderwin_admin() from public, anon';
     execute 'grant execute on function public.is_traderwin_admin() to authenticated';
