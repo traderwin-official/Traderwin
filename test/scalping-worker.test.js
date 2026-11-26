@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
+import {manageTradesIndependently} from "../lib/scalping-trade-concurrency.js";
 
 test("continuous worker executes only opted-in DEMO paper trades and never sends broker orders",async()=>{
  const s=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
@@ -140,4 +141,60 @@ test("scalping position mark and exit writes are fenced by the active worker lea
  assert.match(sql,/lease_until <= clock_timestamp\(\)/);
  assert.match(sql,/trade_origin='BOT'/);
  assert.match(sql,/metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING'/);
+});
+
+
+test("open positions are managed concurrently with independent locks", async () => {
+  const locks = new Set();
+  const completed = [];
+  let releaseSlow;
+  const slow = new Promise(resolve => { releaseSlow = resolve; });
+  const trades = [{ id: "A" }, { id: "B" }, { id: "B" }];
+  const running = manageTradesIndependently({
+    trades,
+    locks,
+    manage: async trade => {
+      if (trade.id === "A") await slow;
+      completed.push(trade.id);
+    }
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(completed, ["B"]);
+  assert.deepEqual([...locks].sort(), ["A"]);
+  releaseSlow();
+  assert.equal(await running, true);
+  assert.deepEqual(completed.sort(), ["A", "B"]);
+  assert.equal(locks.size, 0);
+});
+
+test("one failed position does not block sibling exits and all locks are released", async () => {
+  const locks = new Set();
+  const completed = [];
+  const errors = [];
+  const result = await manageTradesIndependently({
+    trades: [{ id: "A" }, { id: "B" }, { id: "C" }],
+    locks,
+    manage: async trade => {
+      completed.push(trade.id);
+      if (trade.id === "B") throw new Error("isolated exit failure");
+    },
+    onError: (error, trade) => errors.push([trade.id, error.message])
+  });
+  assert.equal(result, false);
+  assert.deepEqual(completed.sort(), ["A", "B", "C"]);
+  assert.deepEqual(errors, [["B", "isolated exit failure"]]);
+  assert.equal(locks.size, 0);
+});
+
+test("a position already being managed is skipped without locking sibling positions", async () => {
+  const locks = new Set(["A"]);
+  const completed = [];
+  const result = await manageTradesIndependently({
+    trades: [{ id: "A" }, { id: "B" }],
+    locks,
+    manage: async trade => completed.push(trade.id)
+  });
+  assert.equal(result, true);
+  assert.deepEqual(completed, ["B"]);
+  assert.deepEqual([...locks], ["A"]);
 });
