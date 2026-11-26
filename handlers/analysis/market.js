@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getDerivCandles } from "../../lib/deriv-candles.js";
-import { analyseStrategy } from "../../lib/strategy-engine.js";
+import { analyseStrategy, analyseCandles } from "../../lib/strategy-engine.js";
+import { buildAnalystTradePlan } from "../../lib/analyst-trade-plan.js";
 import { getDerivPublicQuote } from "../../lib/deriv-public-quote.js";
 import { loadApprovedInstrument } from "../../lib/deriv/load-approved-instrument.js";
 import { evaluateMarketCandidate } from "../../lib/market-intelligence-gate.js";
@@ -41,16 +42,42 @@ export default async function handler(req, res) {
     if (!["AUTO_SELECT_V1", "MULTI_CONFIRMATION_V1", "TIGER_FIBONACCI_PSYCHOLOGY_V1", "MANUAL_REVIEW"].includes(strategy)) {
       return res.status(400).json({ error: "Choose a supported strategy." });
     }
+    const higherTimeframe = ({ M5: "M15", M15: "H1", H1: "H4" })[timeframe] || null;
     const marketPromise = getDerivCandles(instrument, timeframe, { timeoutMs: 6000 });
-    const trendPromise = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) && timeframe !== "H1"
-      ? getDerivCandles(instrument, "H1", { timeoutMs: 6000 })
-      : marketPromise;
+    const trendPromise = higherTimeframe
+      ? getDerivCandles(instrument, higherTimeframe, { timeoutMs: 6000 })
+      : Promise.resolve(null);
     const quotePromise = getDerivPublicQuote(instrument, { timeoutMs: 4000 }).catch(() => null);
     const [market, trendMarket, quote] = await Promise.all([marketPromise, trendPromise, quotePromise]);
-    const result = analyseStrategy(market.candles, strategy, {
-      trendCandles: trendMarket.candles,
+    const candidate = analyseStrategy(market.candles, strategy, {
+      trendCandles: trendMarket?.candles || market.candles,
+      trendTimeframe: higherTimeframe || timeframe,
       instrument
     });
+    const higherResult = trendMarket ? analyseCandles(trendMarket.candles) : null;
+    const mtfAgrees = Boolean(higherResult &&
+      ["BUY", "SELL"].includes(candidate.direction) &&
+      higherResult.direction === candidate.direction);
+    const mtfStatus = !higherResult ? "HIGHER_TIMEFRAME_UNAVAILABLE"
+      : mtfAgrees ? "ALIGNED"
+      : ["BUY", "SELL"].includes(candidate.direction) && ["BUY", "SELL"].includes(higherResult.direction)
+        ? "CONFLICT" : "NO_HIGHER_TIMEFRAME_SIGNAL";
+    const result = {
+      ...candidate,
+      direction: mtfAgrees ? candidate.direction : "WAIT",
+      confidence: mtfAgrees ? Math.min(candidate.confidence, higherResult.confidence) : 0,
+      multiTimeframe: {
+        signalTimeframe: timeframe,
+        higherTimeframe: higherTimeframe || null,
+        status: mtfStatus,
+        signalDirection: candidate.direction,
+        higherTimeframeDirection: higherResult?.direction || "UNAVAILABLE",
+        higherTimeframeConfidence: higherResult?.confidence ?? null
+      },
+      explanation: mtfAgrees
+        ? candidate.explanation + ` Higher-timeframe ${higherTimeframe} confirmation agrees.`
+        : "WAIT: selected-timeframe and higher-timeframe evidence are not aligned or the higher timeframe is unavailable."
+    };
     const approval = await loadApprovedInstrument(admin, {
       broker: "DERIV", instrument, providerSymbol: market.providerSymbol
     });
@@ -81,15 +108,23 @@ export default async function handler(req, res) {
         spreadBps,
         maxSpreadBps: Number.isFinite(configuredMaxSpreadBps) && configuredMaxSpreadBps > 0
           ? configuredMaxSpreadBps : null,
-        riskReward: result.riskReward,
+        riskReward: tradePlan.status === "INDICATIVE_ONLY" ? tradePlan.riskReward1 : null,
         minimumRiskReward: 1.5,
-        entryTriggerConfirmed: ["BUY", "SELL"].includes(String(result.direction || "").toUpperCase()),
+        entryTriggerConfirmed: mtfAgrees && ["BUY", "SELL"].includes(String(candidate.direction || "").toUpperCase()),
         newsStatus: "UNKNOWN"
       },
       maxAgeMs: Math.max(120000, Number(market.granularity || 0) * 2000)
     });
+    const tradePlan = buildAnalystTradePlan({
+      direction: candidate.direction,
+      quote,
+      atr: candidate.indicators?.atr14,
+      instrument,
+      timeframe
+    });
     const gatedResult = {
       ...result,
+      tradePlan,
       direction: marketIntelligence.direction,
       candidateDirection: result.direction,
       candidateConfidence: result.confidence,
@@ -104,7 +139,7 @@ export default async function handler(req, res) {
       source: market.source,
       strategy,
       accountMode,
-      trendTimeframe: ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) ? "H1" : timeframe,
+      trendTimeframe: higherTimeframe,
       latestCandleAsOf: market.latestCandleAsOf,
       analysedAt: new Date().toISOString(),
       result: gatedResult,
@@ -114,7 +149,10 @@ export default async function handler(req, res) {
         quoteStatus: quoteFresh ? "FRESH" : "UNAVAILABLE_OR_UNVERIFIED",
         quoteAsOf: quote?.quoteAsOf || null,
         approvalStatus: approval.status || "BLOCKED",
-        spreadBps
+        spreadBps,
+        multiTimeframeStatus: mtfStatus,
+        higherTimeframeDirection: higherResult?.direction || null,
+        tradePlanStatus: tradePlan.status
       },
       execution: "NONE",
       executionAuthorized: false,
