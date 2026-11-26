@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
+import {manageTradesIndependently} from "../lib/scalping-trade-concurrency.js";
 
 test("continuous worker executes only opted-in DEMO paper trades and never sends broker orders",async()=>{
  const s=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
@@ -11,6 +12,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/scalpingSessionPermissions/);
  const dockerfile=await readFile(new URL("../services/scalping-worker/Dockerfile",import.meta.url),"utf8");
  assert.match(dockerfile,/COPY lib\/scalping-session-eligibility\.js \.\/lib\/scalping-session-eligibility\.js/);
+ assert.match(dockerfile,/COPY lib\/scalping-trade-concurrency\.js \.\/lib\/scalping-trade-concurrency\.js/);
  assert.match(s,/hasOpenTrade:openSessionSet\.has\(session\.id\)/);
  assert.match(permissions,/preference\?\.paper_execution_enabled === true/);
  assert.match(permissions,/preference\?\.account_mode === "DEMO"/);
@@ -33,7 +35,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/claim_traderwin_scalping_worker/);
  assert.match(s,/release_traderwin_scalping_worker/);
  assert.match(s,/manageOpen/);
- assert.match(s,/Promise\.all\(trades\.map\(async trade/);
+ assert.match(s,/manageTradesIndependently\(/);
  assert.match(s,/Promise\.all\(ready\.map\(async item/);
  assert.match(s,/if\(!tradeLocks\.has\(trade\.id\)\)activeTrades\.set/);
  assert.match(s,/OPEN_SCALPING_POSITION_PROVIDER_MAPPING_MISSING/);
@@ -52,8 +54,8 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/latestContiguousCandles\(candles,interval,240\)/);
  assert.match(s,/async function manageOpenTrades\(instrument,tick\)\{\s*const trades=/);
  assert.match(s,/Promise\.all\(trades\.map\(async trade/);
- assert.match(s,/catch\(e\)\{logError\(e\);return false;\}/);
- assert.match(s,/if\(!managementHealthy\)return;/);
+
+
  assert.match(s,/bidAskMissingTicks:0,marketDataQuality:\{\}/);
  assert.match(s,/bidAskAvailable=payload\.bid!==null&&payload\.ask!==null/);
  assert.match(s,/status:bidAskAvailable\?"BID_ASK_READY":"SPOT_ONLY"/);
@@ -134,4 +136,35 @@ test("scalping position mark and exit writes are fenced by the active worker lea
  assert.match(sql,/lease_until <= clock_timestamp\(\)/);
  assert.match(sql,/trade_origin='BOT'/);
  assert.match(sql,/metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING'/);
+});
+
+
+test("market-gated worker manages each open DEMO position independently", async () => {
+ const locks=new Set(),finished=[];
+ let releaseA;
+ const waitA=new Promise(resolve=>{releaseA=resolve;});
+ const run=manageTradesIndependently({
+  trades:[{id:"A"},{id:"B"},{id:"B"}],locks,
+  manage:async trade=>{if(trade.id==="A")await waitA;finished.push(trade.id);}
+ });
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(finished,["B"]);
+ assert.deepEqual([...locks],["A"]);
+ releaseA();
+ assert.equal(await run,true);
+ assert.deepEqual(finished.sort(),["A","B"]);
+ assert.equal(locks.size,0);
+});
+
+test("one position-management error is isolated from other open positions", async () => {
+ const locks=new Set(),finished=[],errors=[];
+ const ok=await manageTradesIndependently({
+  trades:[{id:"A"},{id:"B"},{id:"C"}],locks,
+  manage:async trade=>{finished.push(trade.id);if(trade.id==="B")throw new Error("isolated exit failure");},
+  onError:(error,trade)=>errors.push([trade.id,error.message])
+ });
+ assert.equal(ok,false);
+ assert.deepEqual(finished.sort(),["A","B","C"]);
+ assert.deepEqual(errors,[["B","isolated exit failure"]]);
+ assert.equal(locks.size,0);
 });
