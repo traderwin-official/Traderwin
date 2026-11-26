@@ -183,7 +183,9 @@ async function publishTick(wanted,tick){
   if(wanted.sessions.some(x=>x.entryEnabled))state.lastEntryReason="DERIV_BID_ASK_UNAVAILABLE:"+wanted.instrument;
  }
  // Start exits immediately, but do not block candle ingestion on database round-trips.
- const managementPromise=manageOpenTrades(wanted.instrument,payload);
+ const managementPromise=manageOpenTrades(wanted.instrument,payload).catch(e=>{logError(e);return false;});
+ // Exit failures are isolated; M1 ingestion and new-entry analysis keep running.
+ void managementPromise;
  if(Date.now()-(lastPersisted.get(wanted.instrument)||0)>=1000){
   lastPersisted.set(wanted.instrument,Date.now());
   db.from("scalping_market_ticks").upsert({instrument:wanted.instrument,provider_symbol:providerSymbol,quote,bid:payload.bid,ask:payload.ask,quote_as_of:quoteAsOf,received_at:receivedAt,source:"DERIV",updated_at:receivedAt},{onConflict:"instrument"})
