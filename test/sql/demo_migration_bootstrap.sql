@@ -34,6 +34,13 @@ grant execute on function auth.uid() to anon, authenticated, service_role;
 
 grant execute on function auth.role() to anon, authenticated, service_role;
 
+-- Existing admin membership table: authenticated users may read only their own row.
+create table public.admin_users (user_id uuid primary key);
+alter table public.admin_users enable row level security;
+create policy "Users can check their own admin status" on public.admin_users
+  for select to authenticated using (user_id = auth.uid());
+grant select on public.admin_users to authenticated;
+
 -- Existing SECURITY DEFINER helpers represented in the isolated migration test.
 create or replace function public.is_traderwin_admin()
 returns boolean language sql stable security definer set search_path=public
