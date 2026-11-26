@@ -671,7 +671,7 @@ smartButton.addEventListener("click",async()=>{
   const newsRisk=result.newsRisk||{};
   const calendar=result.calendarRisk||{};
   const headlines=(news.articles||[]).slice(0,3).map(a=>"["+a.tone+"] "+a.title+" ("+a.domain+")").join(" | ");
-  const calendarEvents=(calendar.events||[]).map(e=>({...e,upcoming:false})).concat((calendar.upcomingEvents||[]).map(e=>({...e,upcoming:true}))).slice(0,4).map(e=>(e.upcoming?"Upcoming ":"")+e.name+" ["+(e.category||"macro")+"/"+(e.currency||"")+(e.relevance?" · relevance "+e.relevance.level+" "+e.relevance.score+"/100":"")+"] "+(e.time||"")).join(" | ");
+  const calendarEvents=(calendar.events||[]).map(e=>({...e,upcoming:false})).concat((calendar.upcomingEvents||[]).map(e=>({...e,upcoming:true}))).slice(0,4).map(e=>(e.upcoming?"Upcoming ":"")+e.name+" ["+(e.category||"macro")+"/"+(e.currency||"")+(e.relevance?" · relevance "+e.relevance.level+" "+e.relevance.score+"/100":"")+"] "+(e.time||"")+" · source "+(e.source||"unavailable")+" · time "+(e.timeMode||"unknown")).join(" | ");
   const riskHeadlines=(newsRisk.articles||[]).slice(0,2).map(a=>a.title+" ("+(a.domain||"source unknown")+")").join(" | ");
   const newsText=" · News gate "+(newsRisk.status||"UNKNOWN")+" ("+(newsRisk.reason||"not verified")+") · Economic calendar "+(calendar.status||"UNKNOWN")+" ("+(calendar.reason||"not verified")+") "+(calendarEvents||"No confirmed matching event returned")+". Adverse headlines: "+(riskHeadlines||"none detected in provider window; this is not clearance")+". Context: "+(headlines||"No contextual headlines available")+". Headline labels are not a validated sentiment model.";
   const gold=result.goldReference||{};
