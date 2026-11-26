@@ -19,7 +19,7 @@ Only `service_role` receives table privileges. RLS is enabled and browser roles 
 
 ## Administrative controls now in place
 
-`api/admin/instruments.js` authenticates a bearer session with Supabase, then checks `traderwin_admin_roles` and requires the exact `ADMIN` role. SUPPORT and ANALYST cannot mutate the registry. The endpoint supports:
+`api/router.js` routes `/api/admin/instruments` to `handlers/admin/instruments.js`, which authenticates a bearer session with Supabase, then checks `traderwin_admin_roles` and requires the exact `ADMIN` role. SUPPORT and ANALYST cannot mutate the registry. The endpoint supports:
 
 - `GET`: list registry entries; `GET ?audit=1` returns the latest 100 audit events.
 - `POST action=register`: create a PENDING, inactive row only.
