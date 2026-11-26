@@ -45,7 +45,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/p_price:markPrice/);
  assert.match(s,/catch\(e\) \{ closeSocket\(\);logError\(e\);scheduleReconnect\(\); \}/);
  assert.match(s,/if\(msg\.error\)\{logError\(new Error\("Deriv rejected the public streaming request\."\)\);closeSocket\(\);scheduleReconnect\(\);return;\}/);
- assert.match(s,/mergeCompletedM5\(h\.m5,h\.m1\)\.length<25/);
+ assert.match(s,/m5\.length<25/);
  assert.match(s,/\["M15",900,60\]/);
  assert.match(s,/\["H1",3600,60\]/);
  assert.match(s,/\["H4",14400,60\]/);
