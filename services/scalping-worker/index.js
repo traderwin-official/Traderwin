@@ -21,8 +21,8 @@ const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastMarketIntelligence:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},newsRisk:{status:"UNKNOWN",reason:"NOT_CHECKED"},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map(),entryAnalysisLocks=new Set(),latestTickEpoch=new Map(),tradeRefreshPending=new Set();
-let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[];
+const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map(),entryAnalysisLocks=new Set(),latestTickEpoch=new Map(),tradeRefreshPending=new Map();
+let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[],tradeRefreshGeneration=0,tradeRefreshInFlight=null,tradeStateReady=false;
 const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
  if(req.url==="/healthz"){const leaseRenewedAt=Date.parse(state.leaseLastRenewedAt);const leaseAgeMs=Date.now()-leaseRenewedAt;const leaseFresh=Number.isFinite(leaseRenewedAt)&&leaseAgeMs>=0&&leaseAgeMs<=30000;const healthy=leaseOwned&&leaseFresh&&!stopping&&!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
@@ -101,15 +101,22 @@ async function eligibleSymbols(){
 }
 
 async function refreshOpenTrades(){
- const {data,error}=await db.from("demo_paper_trades")
-  .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
-  .eq("status","OPEN").eq("trade_origin","BOT")
-  .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(1000);
- if(error)throw error;
- applyOpenTradeSnapshot({
-  trades:data||[],activeTrades,locks:tradeLocks,pendingRefresh:tradeRefreshPending,
-  onRemoved:id=>lastMarked.delete(id)
- });
+ if(tradeRefreshInFlight)return tradeRefreshInFlight;
+ const generation=++tradeRefreshGeneration;
+ tradeRefreshInFlight=(async()=>{
+  const {data,error}=await db.from("demo_paper_trades")
+   .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
+   .eq("status","OPEN").eq("trade_origin","BOT")
+   .contains("metadata",{strategy:SCALPING_STRATEGY}).limit(1000);
+  if(error)throw error;
+  applyOpenTradeSnapshot({
+   trades:data||[],activeTrades,locks:tradeLocks,pendingRefresh:tradeRefreshPending,
+   snapshotGeneration:generation,onRemoved:id=>lastMarked.delete(id)
+  });
+  tradeStateReady=true;
+ })();
+ try{return await tradeRefreshInFlight;}
+ finally{tradeRefreshInFlight=null;}
 }
 
 async function manageOpenTrades(instrument,tick){
@@ -123,7 +130,7 @@ async function manageOpenTrades(instrument,tick){
    } catch(error) {
     // A transport failure may have happened after PostgreSQL committed.
     // Quarantine the local snapshot until a fresh DB read resolves the state.
-    tradeRefreshPending.add(trade.id);
+    tradeRefreshPending.set(trade.id,tradeRefreshGeneration+1);
     activeTrades.delete(trade.id);
     throw error;
    }
@@ -348,15 +355,16 @@ async function reconcile(){
   const {data:claimed,error:leaseError}=await db.rpc("claim_traderwin_scalping_worker",{p_lease_token:leaseToken,p_lease_seconds:90});
   if(leaseError)throw leaseError;
   leaseOwned=claimed===true;state.leaseOwned=leaseOwned;
-  if(!leaseOwned){state.leaseLastError="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
+  if(!leaseOwned){tradeStateReady=false;state.leaseLastError="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
   state.leaseLastRenewedAt=new Date().toISOString();state.leaseLastError=null;
+  // Rehydrate the durable open-position ledger before reconnecting market data.
+  await refreshOpenTrades();
   const desired=await eligibleSymbols();await subscribeSet(desired);state.lastError=null;
- }catch(e){leaseOwned=false;state.leaseOwned=false;state.leaseLastError=String(e?.message||e).slice(0,180);closeSocket();logError(e);scheduleReconnect();}
+ }catch(e){leaseOwned=false;state.leaseOwned=false;tradeStateReady=false;state.leaseLastError=String(e?.message||e).slice(0,180);closeSocket();logError(e);scheduleReconnect();}
 }
 server.listen(PORT,()=>console.log("Young Tiger continuous DEMO scalping paper worker listening on",PORT));
 reconcile().catch(logError);
 reconcileTimer=setInterval(()=>reconcile().catch(logError),10000);
-refreshOpenTrades().catch(logError);
 tradeRefreshTimer=setInterval(()=>refreshOpenTrades().catch(logError),1000);
 async function shutdown(){
  if(stopping)return;
