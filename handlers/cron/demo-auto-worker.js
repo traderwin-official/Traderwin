@@ -217,7 +217,7 @@ async function processSession(db,raw){
    const selected=await getDerivCandles(raw.instrument,raw.timeframe||"M15");
    const higherTimeframe=({M5:"M15",M15:"H1",H1:"H4"})[String(raw.timeframe||"M15").toUpperCase()];
    const trend=higherTimeframe?await getDerivCandles(raw.instrument,higherTimeframe):selected;
-   market={...selected,trendCandles:trend.candles,trendTimeframe:higherTimeframe||"H4"};
+   market={...selected,trendCandles:trend.candles,trendTimeframe:higherTimeframe||"H4",trendCandleAsOf:trend.latestCandleAsOf};
   }catch(e){return {sessionId:raw.id,action:"BLOCK",reason:"CANDLE_HISTORY_UNAVAILABLE",detail:safeError(e)};}
  }
  let decision;
