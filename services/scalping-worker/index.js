@@ -16,7 +16,7 @@ const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAt
 let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[];
 const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
- if(req.url==="/healthz"){const healthy=leaseOwned&&!stopping&&!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
+ if(req.url==="/healthz"){const leaseRenewedAt=Date.parse(state.leaseLastRenewedAt);const leaseAgeMs=Date.now()-leaseRenewedAt;const leaseFresh=Number.isFinite(leaseRenewedAt)&&leaseAgeMs>=0&&leaseAgeMs<=30000;const healthy=leaseOwned&&leaseFresh&&!stopping&&!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
  res.writeHead(404);res.end();
 });
 function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.error("scalping-worker:",state.lastError);}
