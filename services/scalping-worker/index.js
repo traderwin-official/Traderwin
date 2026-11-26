@@ -7,7 +7,7 @@ import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/sc
 import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.js";
 import { evaluateMarketCandidate } from "./lib/market-intelligence-gate.js";
 import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
-import { acceptMonotonicMarketTick } from "./lib/scalping-tick-order.js";
+import { acceptMonotonicMarketTick } from "../../lib/scalping-tick-order.js";
 import { runInstrumentEntryAnalysis } from "./lib/scalping-entry-lock.js";
 import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
 import { getBiQuoteCalendarRiskStatus } from "./lib/biquote-calendar-risk.js";
