@@ -229,7 +229,9 @@ async function subscribeSet(desired){
    const kind=req.kind,interval=intervals[kind];
    const h=history.get(req.instrument)||{m1:[],m5:[],m15:[],h1:[],h4:[],current:null,loadedM1:false,loadedM5:false,loadedM15:false,loadedH1:false,loadedH4:false};
    const key=kind.toLowerCase(),loadedKey="loaded"+kind;
-   h[key]=latestContiguousCandles(candles,interval,240);h[loadedKey]=true;history.set(req.instrument,h);
+   h[key]=latestContiguousCandles(candles,interval,240);
+   if(kind==="M1")h.current=null;
+   h[loadedKey]=true;history.set(req.instrument,h);
    if(h.loadedM1&&h.loadedM5&&h.loadedM15&&h.loadedH1&&h.loadedH4){
     const m5=mergeCompletedM5(h.m5,h.m1);
     if(h.m1.length<35||m5.length<25||h.m15.length<25||h.h1.length<25||h.h4.length<25){
@@ -242,7 +244,10 @@ async function subscribeSet(desired){
      if(!contextRefreshTimers.has(wanted.instrument)){
       const timer=setInterval(()=>{
        if(socket!==ws||ws.readyState!==WebSocket.OPEN)return;
-       const intervals={M15:900,H1:3600,H4:14400};
+       // Refresh fast and context histories so a session/weekend gap can re-warm
+       // M1/M5 without waiting for a socket reconnect. Each response replaces only
+       // completed history; resetting current M1 avoids carrying a pre-refresh bar.
+       const intervals={M1:60,M5:300,M15:900,H1:3600,H4:14400};
        for(const [kind,granularity] of Object.entries(intervals)){
         const id=nextId++;requestMap.set(id,{instrument:wanted.instrument,kind});
         ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:60,end:"latest",style:"candles",granularity,req_id:id}));
