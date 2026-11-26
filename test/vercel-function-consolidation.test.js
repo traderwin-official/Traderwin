@@ -4,12 +4,12 @@ import { readdir, readFile } from "node:fs/promises";
 
 test("Vercel API stays within the Hobby function limit using one catch-all entry point", async () => {
   const entries = await readdir(new URL("../api/", import.meta.url));
-  assert.deepEqual(entries.filter(name => name.endsWith(".js")), ["[...path].js"]);
+  assert.deepEqual(entries.filter(name => name.endsWith(".js")), ["router.js"]);
   assert.equal(entries.some(name => name.includes("encryption")), false);
 });
 
 test("catch-all dispatcher registers every legacy and scalping API route", async () => {
-  const source = await readFile(new URL("../api/[...path].js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../api/router.js", import.meta.url), "utf8");
   const imports = [...source.matchAll(/^import (h\d+) from ["']\.\.\/handlers\/([^"']+)["'];$/gm)];
   const routeBlock = source.match(/const ROUTES = \{([\s\S]*?)\n\};/)?.[1] || "";
   const routes = [...routeBlock.matchAll(/["'](\/api\/[^"']+)["']\s*:\s*(h\d+)/g)];
@@ -25,4 +25,12 @@ test("catch-all dispatcher registers every legacy and scalping API route", async
     "/api/admin/instruments",
     "/api/cron/demo-auto-worker"
   ]) assert.ok(routes.some(match => match[1] === route), "missing route " + route);
+});
+
+test("Vercel rewrite sends every API path to the single router function", async () => {
+  const config = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
+  assert.deepEqual(config.rewrites, [{
+    source: "/api/:path*",
+    destination: "/api/router?__vercel_route=:path*"
+  }]);
 });
