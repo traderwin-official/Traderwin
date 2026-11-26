@@ -65,7 +65,7 @@ evidence of trading performance. This harness does not connect to a broker or ex
 
 To run the research harness against a local CSV file, use a header containing
 `epoch,open,high,low,close` (or `timestamp` / `time` / `date` instead of epoch),
-with one completed M1 candle per row in ascending, contiguous minute order:
+with one completed M1 candle per row in ascending time order. Session and weekend gaps are allowed; the backtester resets its warm-up after each gap and never bridges missing minutes:
 
 ```sh
 node scripts/run-scalping-backtest.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xauusd-report.json
@@ -74,3 +74,15 @@ node scripts/run-scalping-backtest.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xa
 The numeric cost inputs are price units for that instrument and must come from
 realistic broker conditions. Do not copy the example assumptions as actual XAUUSD
 spread or slippage values.
+
+Deriv's public market-data WebSocket can download recent M1 candles without an account token.
+Check the current active symbol name first (for example, do not assume a display label is the API symbol):
+
+```sh
+node scripts/fetch-deriv-m1-history.js frxXAUUSD 14 ./xauusd-m1.csv
+node scripts/run-scalping-backtest.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xauusd-report.json
+```
+
+The sample cost values above are placeholders only. Use actual broker spread,
+slippage and commission assumptions before interpreting any result. The Deriv
+download is Deriv market data, not an MT5 broker execution record.
