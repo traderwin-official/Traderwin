@@ -118,8 +118,26 @@ test("base scalping execution guard retains DEMO-only consent and daily risk pro
 test("paper adapter requires and forwards the worker lease token to the fenced database RPC",async()=>{
  const s=await readFile(new URL("../lib/scalping-paper-adapter.js",import.meta.url),"utf8");
  assert.match(s,/typeof leaseToken !== "string" \|\| !leaseToken/);
- assert.match(s,/open_demo_scalping_paper_trade_with_lease/);
+ assert.match(s,/open_demo_scalping_paper_trade_batch_with_lease/);
+ assert.match(s,/p_entries:entries/);
  assert.match(s,/p_lease_token:leaseToken/);
+});
+test("atomic scalping batch RPC creates up to 15 positions with portfolio-wide checks",async()=>{
+ const sql=await readFile(new URL("../supabase/migrations/202611260008_scalping_atomic_batch_entries.sql",import.meta.url),"utf8");
+ assert.match(sql,/open_demo_scalping_paper_trade_batch_with_lease/);
+ assert.match(sql,/jsonb_array_length\(p_entries\) > 15/);
+ assert.match(sql,/pg_advisory_xact_lock/);
+ assert.match(sql,/SCALPING_MAX_OPEN_POSITIONS/);
+ assert.match(sql,/SCALPING_TOTAL_OPEN_RISK_LIMIT/);
+ assert.match(sql,/SCALPING_DAILY_LOSS_LIMIT/);
+ assert.match(sql,/scalping_batch_index/);
+ assert.match(sql,/to service_role/);
+});
+test("worker registers every trade ID returned by one atomic entry batch",async()=>{
+ const source=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
+ assert.match(source,/Array\.isArray\(opened\.trade_ids\)/);
+ assert.match(source,/\.in\("id",tradeIds\)/);
+ assert.match(source,/state\.paperEntries\+=Number\(opened\.opened_count\)/);
 });
 test("lease-fenced database entry locks and validates the live lease before opening a paper trade",async()=>{
  const sql=await readFile(new URL("../supabase/migrations/202611260003_scalping_worker_lease_fencing.sql",import.meta.url),"utf8");
