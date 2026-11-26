@@ -262,10 +262,10 @@ begin
   ) into v_scalping_active;
 
   if v_scalping_active then
-    if new.trade_origin <> 'BOT'
-       or new.metadata->>'strategy' <> 'TIGER_SCHEME_QUANTUM_SCALPING' then
-      raise exception 'SCALPING_ACTIVE_BOT_ONLY_NEW_ENTRIES';
-    end if;
+    -- Manual DEMO trades remain available while Quantum Scalping is active.
+    -- They share the same 15-position portfolio ceiling; the worker manages
+    -- only bot-origin positions unless the separate manual-management consent
+    -- is explicitly enabled.
     select count(*) into v_open_count from public.demo_paper_trades
      where user_id=new.user_id and status='OPEN';
     if v_open_count >= 15 then
