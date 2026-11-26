@@ -25,6 +25,17 @@ test("matching high-impact exact release triggers a conservative blackout window
   assert.equal(result.events[0].currency, "USD");
 });
 
+test("exposes upcoming instrument-relevant macro events without falsely activating blackout", () => {
+  const upcoming = event({ time: new Date(now + 2 * 60 * 60_000).toISOString(), name: "US CPI inflation release" });
+  const result = evaluateBiQuoteCalendarRisk({ events: [upcoming], instrument: "XAUUSD", now });
+  assert.equal(result.status, "UNKNOWN");
+  assert.equal(result.events.length, 0);
+  assert.equal(result.upcomingEvents.length, 1);
+  assert.equal(result.upcomingEvents[0].category, "INFLATION");
+  assert.equal(result.upcomingEvents[0].impact, "HIGH");
+  assert.equal(result.upcomingEvents[0].currency, "USD");
+});
+
 test("nonmatching currency does not create a false instrument-specific blackout", () => {
   const result = evaluateBiQuoteCalendarRisk({ events: [event({ currency: "JPY", countryCode: "JP" })], instrument: "EURUSD", now });
   assert.equal(result.status, "UNKNOWN");
