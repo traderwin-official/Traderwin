@@ -3,6 +3,23 @@
 -- in one transaction. All positions share one signal/tick but retain independent
 -- quantities, risk, stops, targets and ledger rows. DEMO paper only.
 
+create table if not exists public.demo_scalping_entry_batches (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.demo_paper_sessions(id) on delete cascade,
+  user_id uuid not null,
+  entry_key text not null check (length(trim(entry_key)) between 1 and 160),
+  entry_as_of timestamptz not null,
+  trade_ids jsonb not null default '[]'::jsonb,
+  opened_count integer not null default 0 check (opened_count between 0 and 15),
+  batch_risk_usd numeric(18,2) not null default 0 check (batch_risk_usd >= 0),
+  created_at timestamptz not null default now(),
+  unique(session_id,entry_key)
+);
+create index if not exists demo_scalping_entry_batches_user_created_idx
+  on public.demo_scalping_entry_batches(user_id,created_at desc);
+alter table public.demo_scalping_entry_batches enable row level security;
+revoke all on public.demo_scalping_entry_batches from public,anon,authenticated,service_role;
+
 create or replace function public.open_demo_scalping_paper_trade_batch(
   p_user_id uuid,
   p_session_id uuid,
@@ -28,6 +45,7 @@ declare
   v_max_positions integer;
   v_ids jsonb := '[]'::jsonb;
   v_id uuid;
+  v_batch_id uuid;
   v_index integer := 0;
   v_instrument text;
   v_side text;
@@ -185,6 +203,16 @@ begin
       'portfolio_risk_limit_usd',v_total_risk_limit);
   end if;
 
+  -- Durable idempotency: a retry cannot recreate a batch after a later batch
+  -- has updated the preference's last-entry key.
+  insert into public.demo_scalping_entry_batches(session_id,user_id,entry_key,entry_as_of)
+  values(p_session_id,p_user_id,p_entry_key,p_entry_as_of)
+  on conflict(session_id,entry_key) do nothing
+  returning id into v_batch_id;
+  if v_batch_id is null then
+    return jsonb_build_object('ok',false,'reason','SCALPING_ENTRY_ALREADY_PROCESSED');
+  end if;
+
   v_index := 0;
   for v_entry in
     select * from jsonb_to_recordset(p_entries) as x(
@@ -213,6 +241,10 @@ begin
      set last_candle_as_of=greatest(coalesce(last_candle_as_of,'epoch'::timestamptz),v_candle_latest),
          last_entry_as_of=p_entry_as_of,last_entry_key=p_entry_key,updated_at=now()
    where session_id=p_session_id and user_id=p_user_id;
+
+  update public.demo_scalping_entry_batches
+     set trade_ids=v_ids,opened_count=v_entry_count,batch_risk_usd=v_batch_risk
+   where id=v_batch_id;
 
   return jsonb_build_object('ok',true,'trade_ids',v_ids,'opened_count',v_entry_count,
     'batch_key',p_entry_key,'status','OPEN','instrument',v_instrument,'side',v_side,
