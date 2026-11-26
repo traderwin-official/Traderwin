@@ -50,6 +50,18 @@ test("paper adapter refuses unsupported quote conversion and stale entry quotes"
  assert.equal(called,false);
 });
 
+test("paper adapter refuses spot-only or invalid bid/ask quotes before any database access",async()=>{
+ let called=false;
+ const db=paperDb(async()=>{called=true;return {data:{ok:true},error:null};});
+ const noBid=await openScalpingPaperPosition({db,session,preference,signal,tick:{...tick,bid:undefined},candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
+ const noAsk=await openScalpingPaperPosition({db,session,preference,signal,tick:{...tick,ask:undefined},candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
+ const crossed=await openScalpingPaperPosition({db,session,preference,signal,tick:{...tick,bid:2001,ask:2000},candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
+ assert.equal(noBid.reason,"FRESH_VERIFIED_DERIV_BID_ASK_REQUIRED");
+ assert.equal(noAsk.reason,"FRESH_VERIFIED_DERIV_BID_ASK_REQUIRED");
+ assert.equal(crossed.reason,"FRESH_VERIFIED_DERIV_BID_ASK_REQUIRED");
+ assert.equal(called,false);
+});
+
 test("paper adapter closes only tagged scalping BOT positions through the existing staged-exit RPC",async()=>{
  let call;
  const db=paperDb(async(name,args)=>{call={name,args};return {data:{ok:true,stage:args.p_stage},error:null};});
