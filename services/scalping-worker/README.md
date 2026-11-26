@@ -42,6 +42,10 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - Open scalping positions are refreshed without replacing in-flight trade state and managed concurrently from the same tick stream; each position can take profit or stop out independently while the others remain open.
 - `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error.
 
+## Pre-deployment readiness check
+
+Before starting the service, run `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/check-scalping-runtime-readiness.js` from the repository root. The check is read-only: it verifies that the required tables and service RPCs are exposed to the service role and that at least one DERIV instrument has an explicit active approval. It never creates approvals or trades. Keep the service stopped if it reports any missing prerequisite.
+
 ## Safety and rollout
 
 - DEMO virtual paper ledger only. The public Deriv WebSocket is read-only; no account token, OTP, broker order, or REAL execution is used.
