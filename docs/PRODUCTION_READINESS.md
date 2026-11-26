@@ -78,3 +78,12 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - Candidate technical score is distinct from the final market-intelligence gate. Missing independent evidence, spread limits, or verified news status keep the final decision at WAIT.
 - All results are research-only. The analyst never opens, modifies or closes broker or DEMO positions.
 - Unit coverage added for plan direction, side-specific entry, quote freshness and higher-timeframe labeling. CI verification pending.
+
+
+## 2026-11-26 market news context update
+
+- The research analyst now optionally retrieves 24-hour headline context from the public GDELT DOC API for mapped FX, metals and crypto instruments. Results are timestamp-checked, deduplicated and shown with publisher domains.
+- Headline labels use a small transparent keyword lexicon (positive/negative/mixed/unclassified). They are not a validated sentiment model, do not infer causal market impact and are not presented as a probability or trade direction.
+- GDELT headline discovery is not an economic calendar. It cannot certify that no high-impact event is imminent. The analyst therefore continues to set the execution-quality news gate to UNKNOWN; no headline results never means CLEAR.
+- Unsupported instruments and provider failures return an unavailable context without fabricated headlines. The research endpoint remains non-executing.
+- A separate verified economic-calendar adapter, event importance/currency mapping, timezone validation, source redundancy and blackout-window tests remain outstanding. No generative-AI inference provider is connected yet.
