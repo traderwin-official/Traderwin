@@ -64,3 +64,11 @@ test("worker records reconnect gaps and never synthesizes an exit price from mis
  assert.ok(publish.indexOf("manageOpenTrades(")<publish.indexOf("const h=history.get(wanted.instrument)"));
  assert.match(publish,/if\(!h\|\|h\.m1\.length<35\)return/);
 });
+
+
+test("a position exposed to a reconnect gap latches new entries until DB reconciliation clears it",()=>{
+ assert.match(worker,/recordMarketDataGapReview\(\{gap,reviewRequiredByInstrument:marketDataReviewRequired\}\)/);
+ assert.match(worker,/resolveMarketDataGapReview\(\{instrument:wanted\.instrument,activeTrades,pendingRefresh:tradeRefreshPending,reviewRequiredByInstrument:marketDataReviewRequired\}\)/);
+ assert.match(worker,/if\(marketDataReviewRequired\.has\(wanted\.instrument\)\)\{state\.lastEntryReason="MARKET_DATA_GAP_MANUAL_REVIEW_REQUIRED:"\+wanted\.instrument;return;\}/);
+ assert.match(worker,/marketDataReviewRequired:new Map\(\)/);
+});
