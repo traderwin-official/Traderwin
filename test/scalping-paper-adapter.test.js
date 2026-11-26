@@ -29,6 +29,9 @@ test("paper adapter opens only through the strict server-side DEMO RPC and sizes
  assert.ok(call.args.p_risk_pct<=0.25);
  assert.ok(call.args.p_risk_amount<=25);
  assert.ok(call.args.p_tp1<call.args.p_tp2&&call.args.p_tp2<call.args.p_tp3);
+ assert.equal(call.args.p_entry_as_of,new Date(now).toISOString());
+ assert.equal(call.args.p_entry_key,`quantum:${session.id}:${signal.instrument}:${signal.direction}:${Math.floor(Date.parse(tick.quoteAsOf)/1000)}`);
+ assert.equal(call.args.p_candle_as_of,new Date(Math.floor(now/60000)*60*1000).toISOString());
 });
 
 test("paper adapter refuses a non-opted-in or REAL session without calling the database",async()=>{
