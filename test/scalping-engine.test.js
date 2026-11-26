@@ -187,7 +187,6 @@ test("scalping engine rejects malformed M5 trend candles",()=>{
 });
 
 test("higher timeframe context requires contiguous M15 H1 and H4 candles",()=>{
- const make=
  const make=(interval,base,step)=>Array.from({length:30},(_,i)=>{const close=base+i*step;return {epoch:Math.floor(now/1000/interval)*interval-(29-i)*interval,open:close-0.1,high:close+0.2,low:close-0.2,close};});
  const context=higherTimeframeTrendContext({M15:make(900,100,0.2),H1:make(3600,100,0.3),H4:make(14400,100,0.4)});
  assert.equal(context.M15.direction,"BUY");assert.equal(context.H1.direction,"BUY");assert.equal(context.H4.direction,"BUY");
