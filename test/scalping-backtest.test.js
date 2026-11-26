@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {runScalpingBacktest,summarizeScalpingBacktest,parseM1Csv,scalpingExitFillPrice} from "../lib/scalping-backtest.js";
+import {runScalpingBacktest,summarizeScalpingBacktest,parseM1Csv,scalpingExitFillPrice,scalpingStopFillPrice} from "../lib/scalping-backtest.js";
 
 function flatHistory(count=220){
  const base=Math.floor(Date.now()/60000)*60-count*60;
@@ -76,4 +76,11 @@ test("backtest exit fills charge the correct bid/ask spread and adverse slippage
  assert.equal(scalpingExitFillPrice("SELL",2000,0.05,0.02),2000.07);
  assert.throws(()=>scalpingExitFillPrice("HOLD",2000,0.05,0.02),/Direction must be BUY or SELL/);
  assert.throws(()=>scalpingExitFillPrice("BUY",2000,-0.05,0.02),/finite and non-negative/);
+});
+
+test("backtest stop fills worsen at gaps through the stop",()=>{
+ assert.equal(scalpingStopFillPrice("BUY",1999,1998,0.05,0.02),1997.93);
+ assert.equal(scalpingStopFillPrice("SELL",2001,2002,0.05,0.02),2002.07);
+ assert.equal(scalpingStopFillPrice("BUY",1999,2000,0.05,0.02),1998.93);
+ assert.equal(scalpingStopFillPrice("SELL",2001,2000,0.05,0.02),2001.07);
 });
