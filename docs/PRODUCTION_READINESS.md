@@ -128,3 +128,11 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - Headlines also receive an instrument-aware HIGH/MEDIUM/LOW relevance score. XAUUSD rate/yield/inflation and geopolitical headlines are elevated; crypto-specific headlines are elevated for BTCUSD/ETHUSD.
 - These are headline-keyword classifications only, not validated sentiment, causal impact or trade direction. They do not change the fail-closed news gate: GDELT cannot certify CLEAR and empty results remain UNKNOWN.
 - Fixed an invalid backspace character in the negative-keyword boundary for the word "ban"; regression tests cover macro-topic classification and direction-neutral relevance.
+
+
+## XAUUSD independent-reference gate correction (2026-11-26)
+
+- The Market Analyst previously displayed the independent XAUS gold comparison but did not pass its status into the final market-intelligence gate. That meant the comparison was informational rather than an actual veto.
+- The server-side analyst now requires the XAUS comparison to be `PASS` for XAUUSD before the market candidate can pass. A verified divergence returns `INDEPENDENT_REFERENCE_DIVERGENCE`; missing, stale or unverified reference data returns `INDEPENDENT_REFERENCE_NOT_VERIFIED`.
+- The independent reference remains indicative and is never substituted for Deriv bid/ask. Other instruments do not require a gold reference.
+- Regression tests cover PASS, BLOCK, UNKNOWN and non-gold behaviour. This is a research gate only; no execution is authorized.
