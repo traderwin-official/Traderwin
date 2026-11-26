@@ -29,7 +29,12 @@ export default async function handler(req, res) {
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: order, error: orderError } = await admin.from("payment_orders")
       .select("id,user_id,service_code,amount_kes,phone_number,status").eq("checkout_request_id", checkoutId).maybeSingle();
-    if (orderError || !order || order.status !== "PENDING") return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged" });
+    // A previously paid order remains eligible for idempotent entitlement repair.
+    // Do not short-circuit PAID rows: a prior callback may have recorded payment
+    // successfully but failed while activating the subscription.
+    if (orderError || !order || !["PENDING", "PAID"].includes(order.status)) {
+      return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged" });
+    }
     // The public callback is not trusted by itself. Verify the checkout with Daraja.
     const timestamp = createNairobiTimestamp();
     const password = buildStkPassword(MPESA_SHORTCODE, MPESA_PASSKEY, timestamp);
@@ -46,7 +51,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged; verification pending" });
     }
     if (String(callback.ResultCode) !== "0") {
-      await admin.from("payment_orders").update({ status: "FAILED" }).eq("id", order.id).eq("status", "PENDING");
+      if (order.status === "PENDING") {
+        await admin.from("payment_orders").update({ status: "FAILED" }).eq("id", order.id).eq("status", "PENDING");
+      }
       return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment result recorded" });
     }
     const items = metadataItems(callback);
@@ -57,13 +64,29 @@ export default async function handler(req, res) {
       console.error("M-Pesa callback metadata did not match the pending order.");
       return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged for manual review" });
     }
-    const { data: paidOrder, error: updateError } = await admin.from("payment_orders").update({
-      status: "PAID", provider_reference: receipt, confirmed_at: new Date().toISOString()
-    }).eq("id", order.id).eq("status", "PENDING")
-      .select("id,user_id,service_code").maybeSingle();
-    if (updateError) {
-      console.error("Verified M-Pesa payment could not be recorded:", updateError.message);
-      return res.status(200).json({ ResultCode: 0, ResultDesc: "Verified payment received; recording pending" });
+    let paidOrder = null;
+    if (order.status === "PAID") {
+      paidOrder = { id: order.id, user_id: order.user_id, service_code: order.service_code };
+    } else {
+      const { data, error: updateError } = await admin.from("payment_orders").update({
+        status: "PAID", provider_reference: receipt, confirmed_at: new Date().toISOString()
+      }).eq("id", order.id).eq("status", "PENDING")
+        .select("id,user_id,service_code").maybeSingle();
+      if (updateError) {
+        console.error("Verified M-Pesa payment could not be recorded:", updateError.message);
+        return res.status(200).json({ ResultCode: 0, ResultDesc: "Verified payment received; recording pending" });
+      }
+      paidOrder = data;
+      // Another callback may have won the PENDING -> PAID race. Reload only
+      // this exact order so either request can safely complete the entitlement.
+      if (!paidOrder) {
+        const { data: refreshed, error: refreshError } = await admin.from("payment_orders")
+          .select("id,user_id,service_code,status").eq("id", order.id).maybeSingle();
+        if (refreshError || refreshed?.status !== "PAID") {
+          return res.status(200).json({ ResultCode: 0, ResultDesc: "Verified payment received; entitlement update pending" });
+        }
+        paidOrder = { id: refreshed.id, user_id: refreshed.user_id, service_code: refreshed.service_code };
+      }
     }
     if (paidOrder) {
       const { data: service, error: serviceError } = await admin.from("service_catalog")
