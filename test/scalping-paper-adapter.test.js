@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {openScalpingPaperPosition,manageScalpingPaperPosition} from "../lib/scalping-paper-adapter.js";
+import {openScalpingPaperPosition as openPosition,manageScalpingPaperPosition} from "../lib/scalping-paper-adapter.js";
+const openScalpingPaperPosition = args => openPosition({leaseToken:"lease-token-1",...args});
 
 const session={id:"session-1",user_id:"user-1",broker:"DERIV",status:"RUNNING",instrument:"XAUUSD",starting_balance:10000,current_balance:10000,max_open_positions:15,max_total_open_risk_pct:5,risk_per_trade_pct:0.5,
  config_snapshot:{account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY"}};
