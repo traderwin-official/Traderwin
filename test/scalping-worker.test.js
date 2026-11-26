@@ -29,7 +29,8 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/Promise\.all\(ready\.map\(async item/);
  assert.match(s,/if\(!tradeLocks\.has\(trade\.id\)\)activeTrades\.set/);
  assert.match(s,/OPEN_SCALPING_POSITION_PROVIDER_MAPPING_MISSING/);
- assert.match(s,/leaseOwned&&!stopping&&!state\.lastError/);
+ assert.match(s,/leaseOwned&&leaseFresh&&!stopping&&!state\.lastError/);
+ assert.match(s,/leaseAgeMs<=30000/);
  assert.match(s,/leaseLastRenewedAt/);
  assert.match(s,/state\.leaseOwned=leaseOwned/);
  assert.match(s,/async function shutdown\(\)/);
