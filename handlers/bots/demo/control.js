@@ -48,8 +48,9 @@ export default async function handler(req,res){
     if((modeProfiles||[]).length>1)return res.status(409).json({error:"More than one matching DEMO risk profile exists; resolve the duplicate before starting automation."});
     modeProfile=modeProfiles?.[0]||null;
    }
-   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.risk_per_trade||p.max_risk_per_trade_pct));
-   const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss||p.max_daily_loss_pct));
+   // The DEMO paper ledger enforces these platform-wide ceilings in SQL as well.
+   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.risk_per_trade||p.max_risk_per_trade_pct),0.25);
+   const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss||p.max_daily_loss_pct),1.00);
    let selectedStrategy="MANUAL",timeframe=requestedTimeframe;
    if(executionMode==="AUTO"){
     const {data:botSettings,error:botSettingsError}=await db.from("bot_settings")
@@ -69,7 +70,7 @@ export default async function handler(req,res){
     if(!["AUTO_SELECT_V1","MULTI_CONFIRMATION_V1","TIGER_FIBONACCI_PSYCHOLOGY_V1"].includes(selectedStrategy))
      return res.status(400).json({error:"Choose Auto-select, Smart Multi-Confirmation or Tiger Fibonacci Psychology for automated trading. Manual review does not place automatic entries."});
    }
-   if(!Number.isFinite(risk)||risk<=0||risk>2||!Number.isFinite(daily)||daily<=0||daily>10)return res.status(409).json({error:"Your saved risk limits are invalid."});
+   if(!Number.isFinite(risk)||risk<=0||risk>0.25||!Number.isFinite(daily)||daily<=0||daily>1.00)return res.status(409).json({error:"Your saved risk limits are invalid."});
    const maxOpenPositions=3;
    const brokerAccountRef="DEMO:"+uid;
    const {data:emergency,error:emergencyError}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",brokerAccountRef).maybeSingle();
@@ -111,7 +112,7 @@ export default async function handler(req,res){
    const {data:session,error}=await db.from("demo_paper_sessions").insert({
     user_id:uid,broker:"DERIV",broker_account_ref:brokerAccountRef,instrument:requestedInstrument,
     strategy:selectedStrategy,timeframe,status:"RUNNING",starting_balance:carriedBalance,current_balance:carriedBalance,
-    risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:maxOpenPositions,max_total_open_risk_pct:2.00,
+    risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:maxOpenPositions,max_total_open_risk_pct:1.00,
      config_snapshot:{broker:"DERIV_PUBLIC_MARKET_DATA",instrument:requestedInstrument,strategy:selectedStrategy,timeframe,account_mode:"DEMO",execution:executionMode==="AUTO"?"WEBSITE_DEMO_AUTO_PAPER_ONLY":"WEBSITE_PAPER_ONLY"}
    }).select("*").single();
    if(error||!session){console.error("DEMO paper session start:",error?.message);return res.status(409).json({error:"Could not create the DEMO paper session."});}
