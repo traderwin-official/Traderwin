@@ -87,3 +87,11 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - GDELT headline discovery is not an economic calendar. It cannot certify that no high-impact event is imminent. The analyst therefore continues to set the execution-quality news gate to UNKNOWN; no headline results never means CLEAR.
 - Unsupported instruments and provider failures return an unavailable context without fabricated headlines. The research endpoint remains non-executing.
 - A separate verified economic-calendar adapter, event importance/currency mapping, timezone validation, source redundancy and blackout-window tests remain outstanding. No generative-AI inference provider is connected yet. The corrected integration head passed Node workflow #1040 (591/591 tests) and full Traderwin workflow #1919 (serverless syntax, inline scripts, worker image build and isolated PostgreSQL migration checks).
+
+
+### Instrument-scoped adverse headline checks
+
+- The GDELT adverse-news tripwire now scopes queries to mapped instruments (including XAUUSD gold/USD, major FX pairs, silver and selected crypto assets). Results are cached independently per instrument.
+- The continuous DEMO worker passes the active instrument into the same adapter; it no longer uses a single generic global headline cache for every market.
+- Unsupported instruments remain UNKNOWN. This is deliberate: no broad or unrelated news search is treated as instrument-specific clearance.
+- Provider headline timestamps are parsed and checked against the observation time before a headline can trigger BLACKOUT. Empty results, malformed timestamps, stale results and provider errors remain UNKNOWN.
