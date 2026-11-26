@@ -635,7 +635,9 @@ smartButton.addEventListener("click",async()=>{
  output.hidden=true;
  status.textContent="Fetching completed candles and analysing...";
  try{
-  const {data:sessionData,error:sessionError}=await client.auth.getSession();
+  const authClient=window.traderwinAuth;
+  if(!authClient) throw new Error("Authentication is still initializing. Please try again.");
+  const {data:sessionData,error:sessionError}=await authClient.auth.getSession();
   if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
   const response=await fetch("/api/analysis/market",{
    method:"POST",
