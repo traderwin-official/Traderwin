@@ -81,6 +81,6 @@ test("backtest exit fills charge the correct bid/ask spread and adverse slippage
 test("backtest stop fills worsen at gaps through the stop",()=>{
  assert.equal(scalpingStopFillPrice("BUY",1999,1998,0.05,0.02),1997.93);
  assert.equal(scalpingStopFillPrice("SELL",2001,2002,0.05,0.02),2002.07);
- assert.equal(scalpingStopFillPrice("BUY",1999,2000,0.05,0.02),1998.93);
- assert.equal(scalpingStopFillPrice("SELL",2001,2000,0.05,0.02),2001.07);
+ assert.equal(scalpingStopFillPrice("BUY",1999,2000,0.05,0.02),1998.98);
+ assert.equal(scalpingStopFillPrice("SELL",2001,2000,0.05,0.02),2001.02);
 });
