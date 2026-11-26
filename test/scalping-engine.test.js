@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {analyseScalping, mergeCompletedM5, fibonacciBands, marketStructureContext, latestContiguousCandles} from "../lib/scalping-engine.js";
+import {analyseScalping, mergeCompletedM5, fibonacciBands, marketStructureContext, latestContiguousCandles, higherTimeframeTrendContext} from "../lib/scalping-engine.js";
 const now=Date.now();
 function candles({trend="up",count=60}={}){
  let price=2000;const rows=[];
@@ -184,4 +184,13 @@ test("scalping engine rejects malformed M5 trend candles",()=>{
  const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:t,now});
  assert.equal(result.direction,"WAIT");
  assert.equal(result.reason,"TREND_CONFIRMATION_UNAVAILABLE");
+});
+
+test("higher timeframe context requires contiguous M15 H1 and H4 candles",()=>{
+ const make=
+ const make=(interval,base,step)=>Array.from({length:30},(_,i)=>{const close=base+i*step;return {epoch:Math.floor(now/1000/interval)*interval-(29-i)*interval,open:close-0.1,high:close+0.2,low:close-0.2,close};});
+ const context=higherTimeframeTrendContext({M15:make(900,100,0.2),H1:make(3600,100,0.3),H4:make(14400,100,0.4)});
+ assert.equal(context.M15.direction,"BUY");assert.equal(context.H1.direction,"BUY");assert.equal(context.H4.direction,"BUY");
+ const broken=make(3600,100,0.3);broken[10].epoch+=3600;
+ assert.equal(higherTimeframeTrendContext({M15:make(900,100,0.2),H1:broken,H4:make(14400,100,0.4)}),null);
 });
