@@ -53,6 +53,10 @@ Before starting the service, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE
 - Do not add the service-role key to a browser environment, GitHub source, or chat.
 - Keep the service stopped until code checks are green and the Railway trial credit balance has been checked. Do not upgrade to a paid Railway plan without the account owner's explicit approval.
 
+## Reconnect gap handling
+
+The worker records per-instrument quote-stream gaps longer than 30 seconds. After reconnect it manages existing DEMO positions only from the first fresh, validated bid/ask quote and keeps new entries blocked while the required contiguous candle history warms. Historical spot ticks or OHLC candles are not treated as executable bid/ask prices and are never used to invent a missed stop/target fill. If an open position existed during a detected gap, the health payload flags the gap for manual review; this diagnostic does not claim that a missed exit has been reconstructed.
+
 ## Historical strategy research
 
 The repository also contains an offline research harness at `lib/scalping-backtest.js`.
