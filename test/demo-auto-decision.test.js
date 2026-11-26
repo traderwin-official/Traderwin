@@ -34,6 +34,36 @@ test("opens a virtual position only on a new confirmed BUY/SELL candle", () => {
   assert.ok(result.riskAmount <= 50.01);
 });
 
+test("blocks a new entry during the post-loss cooldown", () => {
+  const input = structuredClone(base);
+  input.session.lossCooldownUntil = new Date(now + 10 * 60_000).toISOString();
+  input.session.consecutiveBotLosses = 1;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "WAIT");
+  assert.equal(result.reason, "POST_LOSS_COOLDOWN");
+});
+
+test("requires independent higher-timeframe EMA agreement before opening", () => {
+  const input = structuredClone(base);
+  input.market.trendTimeframe = "H1";
+  input.market.trendCandles = Array.from({ length: 40 }, (_, i) => {
+    const open = 140 - i * 0.5;
+    return { epoch: now / 1000 - (40 - i) * 3600, open, high: open + 0.2, low: open - 0.6, close: open - 0.5 };
+  });
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "WAIT");
+  assert.equal(result.reason, "HIGHER_TIMEFRAME_TREND_MISMATCH");
+  assert.equal(result.higherTimeframeDirection, "SELL");
+});
+
+test("does not chase an entry after price has stretched from the signal candle", () => {
+  const input = structuredClone(base);
+  input.quote.quote = 125;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "WAIT");
+  assert.equal(result.reason, "ENTRY_TOO_EXTENDED_FROM_SIGNAL_CANDLE");
+});
+
 test("AUTO_SELECT chooses the strongest validated strategy and still waits on unconfirmed setups", () => {
   const input = structuredClone(base);
   input.settings.strategy = "AUTO_SELECT_V1";
