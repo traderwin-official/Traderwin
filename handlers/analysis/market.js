@@ -135,7 +135,10 @@ export default async function handler(req, res) {
         minimumRiskReward: 1.5,
         entryTriggerConfirmed: mtfAgrees && ["BUY", "SELL"].includes(String(candidate.direction || "").toUpperCase()),
         newsStatus: combinedNewsStatus,
-        highImpactNewsWindow: combinedNewsStatus === "BLACKOUT"
+        highImpactNewsWindow: combinedNewsStatus === "BLACKOUT",
+        independentReferenceRequired: instrument === "XAUUSD",
+        independentReferenceStatus: instrument === "XAUUSD"
+          ? (goldReferenceComparison?.status || "UNKNOWN") : "NOT_APPLICABLE"
       },
       maxAgeMs: Math.max(120000, Number(market.granularity || 0) * 2000)
     });
