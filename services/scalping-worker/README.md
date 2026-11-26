@@ -44,7 +44,7 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 
 ## Pre-deployment readiness check
 
-Before starting the service, run `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/check-scalping-runtime-readiness.js` from the repository root. The check is read-only: it verifies that the required tables and service RPCs are exposed to the service role and that at least one DERIV instrument has an explicit active approval. It never creates approvals or trades. Keep the service stopped if it reports any missing prerequisite.
+Before starting the service, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in a secure local environment (never commit the service-role key or put it in browser variables), then run `node scripts/check-scalping-runtime-readiness.js` from the repository root. The check is read-only: it verifies that the required tables and service RPCs are exposed to the service role and that at least one DERIV instrument has an explicit active approval. It never creates approvals or trades. Keep the service stopped if it reports any missing prerequisite.
 
 ## Safety and rollout
 
