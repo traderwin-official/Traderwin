@@ -58,7 +58,7 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - DEMO paper scalping uses a continuous Deriv public quote feed, lease-fenced server-side paper execution, atomic batch entry, idempotent recovery, stale-feed safeguards and full-position stop-loss/final-take-profit exits.
 - DEMO manual and bot positions share a portfolio capacity limit while manual positions remain outside bot management unless the account owner separately grants the relevant permissions.
 - Deriv connection health now requires both an unexpired authorization token and a matching active DEMO account in the provider-verified account list. REAL account metadata does not unlock REAL trading.
-- Latest integration CI at this checkpoint passed 575 tests, dashboard script checks, worker image build and disposable PostgreSQL DEMO/portfolio migration validation. Subsequent account-profile query scoping changes are being revalidated in CI. This is branch validation only; it is not a production deployment or live-broker certification.
+- Latest integration CI at this checkpoint passed 576 tests, dashboard script checks, worker image build and disposable PostgreSQL DEMO/portfolio migration validation, including authenticated user-scoped account-mode profile reads. This is branch validation only; it is not a production deployment or live-broker certification.
 - Vercel preview builds are currently blocked by the account build-rate limit. Do not upgrade the plan or incur costs to bypass it without explicit approval.
 - M-Pesa settlement/entitlement lifecycle, a broker-authorized MT5 bridge, independent AI inference service, production operational review and all REAL execution approvals remain outstanding.
 
