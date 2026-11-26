@@ -4,7 +4,7 @@ This document describes the isolated integration branch `integration/young-tiger
 
 ## Current verified progress
 
-- Young Tiger FX branding is applied across the public dashboard, authentication, onboarding and bot-shop pages.
+- Young Tiger Forex Platform branding is applied across the public dashboard, authentication, onboarding and bot-shop pages.
 - Supabase authentication and the DEMO/REAL onboarding preference flow remain in the platform foundation.
 - Deriv public quote and OHLC adapters provide verified market data for a limited supported-instrument allow-list. Unsupported instruments or unavailable USD conversions fail closed.
 - The authenticated technical analyst (EMA, RSI, ATR, momentum and breakout confirmations) remains research-only; it does not execute trades.
