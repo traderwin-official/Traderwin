@@ -68,6 +68,7 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260007_scalping_tick_entry_idempotency.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_tick_entry_idempotency_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260008_scalping_atomic_batch_entries.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260009_scalping_batch_response_recovery.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_atomic_batch_entries_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/security_definer_acl_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/trading_instrument_approval_integration.sql
