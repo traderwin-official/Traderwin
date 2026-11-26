@@ -32,3 +32,10 @@ test("member payment-status polling retries paid entitlement recovery for that m
   assert.match(source, /fulfill_paid_subscription_order/);
   assert.match(source, /entitlementStatus/);
 });
+
+test("payment UI keeps a paid order retryable until its entitlement is active", async () => {
+  const source = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(source, /entitlementPending=status==="PAID"&&result\.entitlementStatus==="PENDING"/);
+  assert.match(source, /status!=="PENDING"&&!entitlementPending/);
+  assert.match(source, /Service activation is still processing/);
+});
