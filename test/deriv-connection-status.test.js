@@ -52,5 +52,14 @@ test("Deriv status marks expired authorization disconnected and does not expose 
   assert.equal(status.connected, false);
   assert.equal(status.connectionState, "AUTHORIZATION_EXPIRED");
   assert.equal(status.tokenValid, false);
+  assert.equal(status.hasConnection, true);
   assert.equal(status.demoAccountId, null);
+});
+
+test("Deriv dashboard renders verified REAL-account availability without relying on raw account IDs", async () => {
+  const html = await (await import("node:fs/promises")).readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /result\.realAccountAvailable/);
+  assert.match(html, /result\.connectionState/);
+  assert.match(html, /result\.hasConnection\?"inline-block":"none"/);
+  assert.doesNotMatch(html, /result\.realAccountId/);
 });
