@@ -190,7 +190,7 @@ async function publishTick(wanted,tick){
  if(!wanted.sessions.some(x=>x.entryEnabled))return;
  const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
- const result=analyseScalping({instrument:wanted.instrument,candles:h.m1.slice(-180),trendCandles:m5,tick:payload,now:Date.now()});
+ const result=analyseScalping({instrument:wanted.instrument,candles:h.m1.slice(-180),trendCandles:m5,contextCandles:{M15:h.m15,H1:h.h1,H4:h.h4},tick:payload,now:Date.now()});
  if(result.direction==="BUY"||result.direction==="SELL")await saveSignal(wanted,result,h.m1.at(-1).epoch,payload);
 }
 
@@ -216,18 +216,27 @@ async function subscribeSet(desired){
    for(const wanted of desiredSymbols){
     const found=active.find(a=>String(a.underlying_symbol||a.symbol||"")===wanted.providerSymbol);
     if(!found){logError(new Error("Approved provider symbol is not currently active on Deriv."));closeSocket();scheduleReconnect();return;}
-    const m1Id=nextId++,m5Id=nextId++;requestMap.set(m1Id,{instrument:wanted.instrument,kind:"M1"});requestMap.set(m5Id,{instrument:wanted.instrument,kind:"M5"});
-    ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:180,end:"latest",style:"candles",granularity:60,req_id:m1Id}));
-    ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:60,end:"latest",style:"candles",granularity:300,req_id:m5Id}));
+    const requests=[["M1",60,180],["M5",300,60],["M15",900,60],["H1",3600,60],["H4",14400,60]];
+    for(const [kind,granularity,count] of requests){
+     const id=nextId++;requestMap.set(id,{instrument:wanted.instrument,kind});
+     ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count,end:"latest",style:"candles",granularity,req_id:id}));
+    }
    }
   }
   if(msg.msg_type==="candles"&&requestMap.has(Number(msg.req_id))){
    const req=requestMap.get(Number(msg.req_id));const candles=(msg.candles||[]).map(c=>({epoch:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(validCandle).filter(c=>(c.epoch+(req.kind==="M1"?60:300))*1000<=Date.now());
-   const h=history.get(req.instrument)||{m1:[],m5:[],current:null,loadedM1:false,loadedM5:false};
-   h[req.kind.toLowerCase()]=latestContiguousCandles(candles,req.kind==="M1"?60:300,240);h[req.kind.toLowerCase()==="m1"?"loadedM1":"loadedM5"]=true;history.set(req.instrument,h);
-   if(h.loadedM1&&h.loadedM5){
-    if(h.m1.length<35||mergeCompletedM5(h.m5,h.m1).length<25){logError(new Error("Deriv did not provide enough completed M1/M5 history to warm up the scalping engine."));closeSocket();scheduleReconnect();return;}
-    if(!h.subscribed){h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted) return;ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);}
+   const intervals={M1:60,M5:300,M15:900,H1:3600,H4:14400};
+   const kind=req.kind,interval=intervals[kind];
+   const h=history.get(req.instrument)||{m1:[],m5:[],m15:[],h1:[],h4:[],current:null,loadedM1:false,loadedM5:false,loadedM15:false,loadedH1:false,loadedH4:false};
+   const key=kind.toLowerCase(),loadedKey="loaded"+kind;
+   h[key]=latestContiguousCandles(candles,interval,240);h[loadedKey]=true;history.set(req.instrument,h);
+   if(h.loadedM1&&h.loadedM5&&h.loadedM15&&h.loadedH1&&h.loadedH4){
+    const m5=mergeCompletedM5(h.m5,h.m1);
+    if(h.m1.length<35||m5.length<25||h.m15.length<25||h.h1.length<25||h.h4.length<25){
+     logError(new Error("Deriv did not provide enough contiguous completed M1/M5/M15/H1/H4 candles to warm up the scalping engine."));
+     closeSocket();scheduleReconnect();return;
+    }
+    if(!h.subscribed){h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted)return;ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);}
    }
   }
   if(msg.msg_type==="tick"&&msg.tick){
