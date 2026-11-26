@@ -1,6 +1,6 @@
-# Young Tiger FX
+# Young Tiger Forex Platform
 
-Young Tiger FX is the rebranded continuation of the existing Traderwin project. It retains the same GitHub repository, Supabase project, Vercel project connection and existing user database. No new project or database is created.
+Young Tiger Forex Platform is the rebranded continuation of the existing Traderwin project. It retains the same GitHub repository, Supabase project, Vercel project connection and existing user database. No new project or database is created.
 
 ## Current verified baseline
 - Supabase email/password authentication and DEMO/REAL preference onboarding.
