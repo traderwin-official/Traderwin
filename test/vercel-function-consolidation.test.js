@@ -18,7 +18,7 @@ test("router registers every legacy and scalping API route", async () => {
   assert.deepEqual(routes.map(match => match[2]).sort(), imports.map(match => match[1]).sort());
   const handlerFiles = (await readdir(new URL("../handlers/", import.meta.url), {recursive:true}))
     .filter(path => path.endsWith(".js")).map(path => "handlers/" + path).sort();
-  assert.deepEqual(imports.map(match => match[2]).sort(), handlerFiles, "every handler file must be reachable through the router");
+  assert.deepEqual(imports.map(match => "handlers/" + match[2]).sort(), handlerFiles, "every handler file must be reachable through the router");
   assert.match(source, /req\.query\?\.__vercel_route/);
   for (const route of [
     "/api/bots/demo/pending-batches",
