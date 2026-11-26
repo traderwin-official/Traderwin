@@ -184,7 +184,7 @@ async function saveSignal(wanted,result,candleEpoch,tick){
       .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
       .in("id",tradeIds);
      if(tradeLoadError)logError(tradeLoadError);
-     else for(const trade of trades||[])if(trade.status==="OPEN")activeTrades.set(trade.id,trade);
+     else for(const trade of trades||[])if(trade.status==="OPEN")quarantineTradeForRefresh({tradeId:trade.id,activeTrades,pendingRefresh:tradeRefreshPending,snapshotGeneration:tradeRefreshGeneration,onRemoved:id=>lastMarked.delete(id)});
     }
    }else state.lastEntryReason=opened?.reason||"SCALPING_ENTRY_NOT_ACCEPTED";
   }catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);}
