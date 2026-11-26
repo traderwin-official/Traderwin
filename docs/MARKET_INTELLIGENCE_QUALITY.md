@@ -24,6 +24,17 @@ Confidence is a quality score, not a probability of profit. Directional agreemen
 
 The module only validates supplied evidence. It does not prove that external news, sentiment, liquidity or order-flow feeds are connected or licensed. Do not claim institutional order flow from retail tick volume. Do not connect this module to automatic execution until every source adapter, instrument mapping, timeframe mapping, timestamp and risk input is independently verified.
 
-The current development Deriv candle adapter supports M5, M15, H1 and H4; M1 is not yet verified through that adapter. Therefore M1 must not be advertised as available through it until a verified M1 feed is implemented and tested.
+The general Deriv candle-history adapter supports M5, M15, H1 and H4. The separate DEMO scalping worker builds completed M1 candles from its timestamped Deriv tick stream; this does not make M1 available through the general candle-history adapter.
 
 A ready analysis is not broker authorization. Account ownership, explicit REAL opt-in, subscription, broker permission, position sizing, protective stops, idempotency, daily loss/drawdown limits and emergency stop remain separate mandatory checks. No return or profit is guaranteed.
+
+
+## Runtime wiring and current provider coverage
+
+The market analyst endpoint and the DEMO scalping worker now call the shared server-side runtime gate. The current candidate evidence is from Deriv only. No independently verified economic-news, sentiment, institutional order-flow, or external liquidity provider is currently wired into these runtime paths.
+
+Consequently, a single Deriv candidate is not sufficient to produce an approved direction. M1/M5 scalping remains WAIT until the required categories, at least three independent providers, a fresh acceptable spread, a confirmed entry trigger, and verified CLEAR news status are supplied. Missing news status is UNKNOWN, never CLEAR. The worker records the gate reasons in its health state and does not save a candidate signal or open a DEMO paper position when the gate blocks.
+
+The non-secret configuration values MARKET_ANALYST_MAX_SPREAD_BPS and SCALPING_MAX_SPREAD_BPS must be set to positive, reviewed thresholds before their respective spread checks can pass. These settings do not replace provider evidence or the news gate.
+
+Passing this analysis gate still does not authorize broker execution. REAL execution remains subject to the separate platform-wide release switch, account authorization, subscription, broker verification, risk controls, and explicit user approval.

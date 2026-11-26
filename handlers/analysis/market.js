@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { getDerivCandles } from "../../lib/deriv-candles.js";
 import { analyseStrategy } from "../../lib/strategy-engine.js";
+import { getDerivPublicQuote } from "../../lib/deriv-public-quote.js";
+import { loadApprovedInstrument } from "../../lib/deriv/load-approved-instrument.js";
+import { evaluateMarketCandidate } from "../../lib/market-intelligence-gate.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -38,14 +41,61 @@ export default async function handler(req, res) {
     if (!["AUTO_SELECT_V1", "MULTI_CONFIRMATION_V1", "TIGER_FIBONACCI_PSYCHOLOGY_V1", "MANUAL_REVIEW"].includes(strategy)) {
       return res.status(400).json({ error: "Choose a supported strategy." });
     }
-    const market = await getDerivCandles(instrument, timeframe);
-    const trendMarket = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) && timeframe !== "H1"
-      ? await getDerivCandles(instrument, "H1")
-      : market;
+    const marketPromise = getDerivCandles(instrument, timeframe, { timeoutMs: 6000 });
+    const trendPromise = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) && timeframe !== "H1"
+      ? getDerivCandles(instrument, "H1", { timeoutMs: 6000 })
+      : marketPromise;
+    const quotePromise = getDerivPublicQuote(instrument, { timeoutMs: 4000 }).catch(() => null);
+    const [market, trendMarket, quote] = await Promise.all([marketPromise, trendPromise, quotePromise]);
     const result = analyseStrategy(market.candles, strategy, {
       trendCandles: trendMarket.candles,
       instrument
     });
+    const approval = await loadApprovedInstrument(admin, {
+      broker: "DERIV", instrument, providerSymbol: market.providerSymbol
+    });
+    const quoteStamp = Date.parse(quote?.quoteAsOf || "");
+    const quoteFresh = Boolean(
+      quote && quote.source === "DERIV" && quote.providerSymbol === market.providerSymbol &&
+      Number.isFinite(quoteStamp) && Date.now() - quoteStamp >= 0 && Date.now() - quoteStamp <= 30000
+    );
+    const bid = Number(quote?.bid), ask = Number(quote?.ask), mid = (bid + ask) / 2;
+    const spreadBps = quoteFresh && Number.isFinite(bid) && Number.isFinite(ask) &&
+      bid > 0 && ask >= bid && Number.isFinite(mid) && mid > 0
+      ? ((ask - bid) / mid) * 10000
+      : null;
+    const configuredMaxSpreadBps = Number(process.env.MARKET_ANALYST_MAX_SPREAD_BPS);
+    const marketIntelligence = evaluateMarketCandidate({
+      instrument: market.instrument,
+      timeframe: market.timeframe,
+      direction: result.direction,
+      confidence: result.confidence,
+      source: market.source,
+      asOf: market.latestCandleAsOf,
+      market: {
+        tradable: approval.approved === true,
+        quoteFresh,
+        candleClosed: true
+      },
+      risk: {
+        spreadBps,
+        maxSpreadBps: Number.isFinite(configuredMaxSpreadBps) && configuredMaxSpreadBps > 0
+          ? configuredMaxSpreadBps : null,
+        riskReward: result.riskReward,
+        minimumRiskReward: 1.5,
+        entryTriggerConfirmed: ["BUY", "SELL"].includes(String(result.direction || "").toUpperCase()),
+        newsStatus: "UNKNOWN"
+      },
+      maxAgeMs: Math.max(120000, Number(market.granularity || 0) * 2000)
+    });
+    const gatedResult = {
+      ...result,
+      direction: marketIntelligence.direction,
+      candidateDirection: result.direction,
+      candidateConfidence: result.confidence,
+      confidence: marketIntelligence.confidence,
+      marketIntelligence
+    };
     return res.status(200).json({
       ok: true,
       instrument: market.instrument,
@@ -57,9 +107,20 @@ export default async function handler(req, res) {
       trendTimeframe: ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) ? "H1" : timeframe,
       latestCandleAsOf: market.latestCandleAsOf,
       analysedAt: new Date().toISOString(),
-      result,
+      result: gatedResult,
+      candidate: result,
+      marketIntelligence,
+      marketData: {
+        quoteStatus: quoteFresh ? "FRESH" : "UNAVAILABLE_OR_UNVERIFIED",
+        quoteAsOf: quote?.quoteAsOf || null,
+        approvalStatus: approval.status || "BLOCKED",
+        spreadBps
+      },
       execution: "NONE",
-      message: "Smart strategy analysis only. No order was opened, modified or closed."
+      executionAuthorized: false,
+      message: marketIntelligence.direction === "WAIT"
+        ? "WAIT: verified independent evidence, news status or spread approval is incomplete. No order was opened, modified or closed."
+        : "Analysis passed the market-intelligence quality gate but still requires separate risk and broker authorization. No order was opened, modified or closed."
     });
   } catch (error) {
     console.error("Market analysis failed:", error.message);

@@ -1,7 +1,7 @@
 name: Traderwin checks
 on:
   pull_request:
-    branches: [main, upgrade/full-platform-build, "integration/**"]
+    branches: [main, upgrade/full-platform-build, feat/continuous-demo-scalping-feed, "integration/**"]
   push:
     branches: [main, upgrade/full-platform-build, integration/young-tiger-platform, "feature/**"]
 permissions:

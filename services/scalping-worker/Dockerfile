@@ -10,6 +10,8 @@ COPY lib/scalping-paper-adapter.js ./lib/scalping-paper-adapter.js
 COPY lib/scalping-session-eligibility.js ./lib/scalping-session-eligibility.js
 COPY lib/usd-conversion.js ./lib/usd-conversion.js
 COPY lib/deriv-public-quote.js ./lib/deriv-public-quote.js
+COPY lib/market-intelligence.js ./lib/market-intelligence.js
+COPY lib/market-intelligence-gate.js ./lib/market-intelligence-gate.js
 EXPOSE 8080
 USER node
 CMD ["node", "index.js"]
