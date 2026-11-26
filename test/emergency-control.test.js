@@ -40,6 +40,6 @@ test("DEMO emergency status reports blocked if either safety latch remains activ
 
 test("atomic scalping batch RPC honors both DEMO emergency-stop tables",async()=>{
  const sql=await readFile(new URL("../supabase/migrations/202611260008_scalping_atomic_batch_entries.sql",import.meta.url),"utf8");
- assert.match(sql,/demo_paper_emergency_controls e[\\s\\S]*?e\\.entries_blocked/);
- assert.match(sql,/bot_emergency_controls e[\\s\\S]*?e\\.account_mode='DEMO'[\\s\\S]*?e\\.kill_switch_active/);
+ assert.match(sql,/demo_paper_emergency_controls e[\s\S]*?e\.entries_blocked/);
+ assert.match(sql,/bot_emergency_controls e[\s\S]*?e\.account_mode='DEMO'[\s\S]*?e\.kill_switch_active/);
 });
