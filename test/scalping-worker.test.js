@@ -8,6 +8,8 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/config_snapshot/);
  assert.match(s,/trader_profiles/);
  assert.match(s,/scalpingSessionPermissions/);
+ const dockerfile=await readFile(new URL("../services/scalping-worker/Dockerfile",import.meta.url),"utf8");
+ assert.match(dockerfile,/COPY lib\/scalping-session-eligibility\.js \.\/lib\/scalping-session-eligibility\.js/);
  assert.match(s,/hasOpenTrade:openSessionSet\.has\(session\.id\)/);
  assert.match(s,/preference\.paper_execution_enabled===true/);
  assert.match(s,/preference\.account_mode==="DEMO"/);
