@@ -9,7 +9,7 @@ begin
   if v_inner is null or v_wrapper is null or v_old_wrapper is null then
     raise exception 'Expected current and legacy scalping RPC signatures to exist';
   end if;
-  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='demo_scalping_preferences' and column_name='last_entry_quote_as_of')
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='demo_scalping_preferences' and column_name='last_entry_as_of')
      or not exists (select 1 from information_schema.columns where table_schema='public' and table_name='demo_scalping_preferences' and column_name='last_entry_key') then
     raise exception 'Tick-level entry idempotency columns are missing';
   end if;
