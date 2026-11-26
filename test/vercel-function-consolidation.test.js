@@ -16,6 +16,9 @@ test("router registers every legacy and scalping API route", async () => {
   assert.equal(imports.length, 36, "all API handlers must be imported once");
   assert.equal(routes.length, 36, "all API handlers must have one public route");
   assert.deepEqual(routes.map(match => match[2]).sort(), imports.map(match => match[1]).sort());
+  const handlerFiles = (await readdir(new URL("../handlers/", import.meta.url), {recursive:true}))
+    .filter(path => path.endsWith(".js")).map(path => "handlers/" + path).sort();
+  assert.deepEqual(imports.map(match => match[2]).sort(), handlerFiles, "every handler file must be reachable through the router");
   assert.match(source, /req\.query\?\.__vercel_route/);
   for (const route of [
     "/api/bots/demo/pending-batches",
