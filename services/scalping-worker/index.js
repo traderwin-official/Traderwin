@@ -163,12 +163,15 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   try{
    const opened=await openScalpingPaperPosition({db,leaseToken,session:item.session,preference:item.preference,signal:{...result,instrument:wanted.instrument},tick,candleEpoch,quoteToUsd:conversion.rate,now:Date.now()});
    if(opened?.ok===true){
-    state.paperEntries++;state.lastPaperEntryAt=new Date().toISOString();state.lastEntryReason=null;
-    if(opened.trade_id){
-     const {data:trade,error:tradeLoadError}=await db.from("demo_paper_trades")
+    const tradeIds=Array.isArray(opened.trade_ids)?opened.trade_ids:(opened.trade_id?[opened.trade_id]:[]);
+    state.paperEntries+=Number(opened.opened_count)||tradeIds.length||1;
+    state.lastPaperEntryAt=new Date().toISOString();state.lastEntryReason=null;
+    if(tradeIds.length){
+     const {data:trades,error:tradeLoadError}=await db.from("demo_paper_trades")
       .select("id,user_id,session_id,instrument,side,entry_price,stop_loss,tp1_price,tp2_price,tp3_price,tp1_done,tp2_done,tp3_done,quantity,remaining_quantity,quote_to_usd,quote_as_of,trade_origin,status,metadata")
-      .eq("id",opened.trade_id).maybeSingle();
-     if(tradeLoadError)logError(tradeLoadError);else if(trade?.status==="OPEN")activeTrades.set(trade.id,trade);
+      .in("id",tradeIds);
+     if(tradeLoadError)logError(tradeLoadError);
+     else for(const trade of trades||[])if(trade.status==="OPEN")activeTrades.set(trade.id,trade);
     }
    }else state.lastEntryReason=opened?.reason||"SCALPING_ENTRY_NOT_ACCEPTED";
   }catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);}
