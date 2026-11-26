@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {runScalpingBacktest,summarizeScalpingBacktest,parseM1Csv,scalpingExitFillPrice,scalpingStopFillPrice} from "../lib/scalping-backtest.js";
+import {runScalpingBacktest,runScalpingWalkForward,summarizeScalpingBacktest,parseM1Csv,scalpingExitFillPrice,scalpingStopFillPrice} from "../lib/scalping-backtest.js";
 
 function flatHistory(count=220){
  const base=Math.floor(Date.now()/60000)*60-count*60;
@@ -83,4 +83,21 @@ test("backtest stop fills worsen at gaps through the stop",()=>{
  assert.equal(scalpingStopFillPrice("SELL",2001,2002,0.05,0.02),2002.07);
  assert.equal(scalpingStopFillPrice("BUY",1999,2000,0.05,0.02),1998.98);
  assert.equal(scalpingStopFillPrice("SELL",2001,2000,0.05,0.02),2001.02);
+});
+
+test("walk-forward evaluation keeps the later holdout separate and reports both periods",()=>{
+ const rows=flatHistory(600);
+ const report=runScalpingWalkForward({instrument:"XAUUSD",candles:rows,spreadPriceUnits:0.1,trainFraction:0.7});
+ assert.equal(report.method,"CHRONOLOGICAL_HOLDOUT_NO_STATE_CARRY");
+ assert.equal(report.training.data.candles,420);
+ assert.equal(report.outOfSample.data.candles,180);
+ assert.equal(report.training.totalTrades,0);
+ assert.equal(report.outOfSample.totalTrades,0);
+ assert.equal(report.data.candles,600);
+ assert.ok(Date.parse(report.splitAt)>Date.parse(report.data.from));
+});
+test("walk-forward evaluation rejects invalid ratios and undersized holdouts",()=>{
+ const rows=flatHistory(600);
+ assert.throws(()=>runScalpingWalkForward({instrument:"XAUUSD",candles:rows,spreadPriceUnits:0.1,trainFraction:0.95}),/between 0.5 and 0.9/);
+ assert.throws(()=>runScalpingWalkForward({instrument:"XAUUSD",candles:flatHistory(300),spreadPriceUnits:0.1}),/Both chronological/);
 });
