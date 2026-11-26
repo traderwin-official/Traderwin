@@ -61,8 +61,11 @@ begin
      or has_table_privilege('authenticated','public.demo_paper_sessions','DELETE')
      or has_table_privilege('authenticated','public.demo_paper_worker_heartbeats','INSERT')
      or has_table_privilege('authenticated','public.demo_paper_worker_heartbeats','UPDATE')
-     or has_table_privilege('authenticated','public.demo_paper_worker_heartbeats','DELETE') then
-    raise exception 'Authenticated users must not directly mutate worker-owned DEMO records';
+     or has_table_privilege('authenticated','public.demo_paper_worker_heartbeats','DELETE')
+     or has_table_privilege('authenticated','public.demo_paper_trades','INSERT')
+     or has_table_privilege('authenticated','public.demo_paper_trades','UPDATE')
+     or has_table_privilege('authenticated','public.demo_paper_trades','DELETE') then
+    raise exception 'Authenticated users must not directly mutate worker-owned DEMO records or paper trades';
   end if;
 end
 $$;
