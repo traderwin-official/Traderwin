@@ -8,7 +8,7 @@ declare
  v_qty numeric(28,12);v_pnl numeric(18,2);v_balance numeric(18,2);
 begin
  if auth.role() is distinct from 'service_role' then raise exception 'Service role required'; end if;
- if p_reason not in('TAKE_PROFIT','STOP_LOSS') or p_exit_price is null or p_exit_price<=0
+ if p_reason is null or p_reason not in('TAKE_PROFIT','STOP_LOSS') or p_exit_price is null or p_exit_price<=0
    or p_quote_to_usd is null or p_quote_to_usd<=0 or p_quote_source is distinct from 'DERIV'
    or p_quote_as_of is null or p_quote_as_of>now() or p_quote_as_of<now()-interval '30 seconds'
  then raise exception 'Invalid or stale full-position scalping exit'; end if;
@@ -34,7 +34,7 @@ begin
  if not found then return jsonb_build_object('ok',false,'reason','TRADE_NOT_OPEN'); end if;
  update public.demo_paper_sessions set current_balance=greatest(0,current_balance+v_pnl),
   status=case when greatest(0,-(select coalesce(sum(realized_pnl_usd),0) from public.demo_paper_trades
-   where user_id=p_user_id and closed_at>=date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'))
+   where session_id=v_trade.session_id and closed_at>=date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'))
    >=starting_balance*max_daily_loss_pct/100 then 'RISK_LOCKED' else status end,
   risk_locked_at=case when greatest(0,-(select coalesce(sum(realized_pnl_usd),0) from public.demo_paper_trades
    where user_id=p_user_id and closed_at>=date_trunc('day',now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi'))
