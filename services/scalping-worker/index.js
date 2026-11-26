@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { analyseScalping, mergeCompletedM5, latestContiguousCandles } from "./lib/scalping-engine.js";
 import { getDerivQuoteToUsd } from "./lib/usd-conversion.js";
 import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/scalping-paper-adapter.js";
+import { scalpingSessionPermissions } from "../../lib/scalping-session-eligibility.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
@@ -55,14 +56,17 @@ async function eligibleSymbols(){
  const openSessionSet=new Set(openSessionIds);
  const wantedByInstrument=new Map();
  for(const session of allSessions){
-  const config=session.config_snapshot&&typeof session.config_snapshot==="object"?session.config_snapshot:{};
   if(session.broker!=="DERIV"||!session.instrument)continue;
   const preference=preferenceBySession.get(session.id)||null;
-  const entryEnabled=config.account_mode==="DEMO"&&session.status==="RUNNING"&&preference?.enabled===true&&preference.paper_execution_enabled===true&&preference.account_mode==="DEMO"&&profileByUser.get(session.user_id)?.account_mode==="DEMO"&&preference.execution==="WEBSITE_PAPER_ONLY";
-  const manageOpen=openSessionSet.has(session.id);
-  if(!entryEnabled&&!manageOpen)continue;
+  const permissions=scalpingSessionPermissions({
+   session,
+   preference,
+   profile:profileByUser.get(session.user_id),
+   hasOpenTrade:openSessionSet.has(session.id)
+  });
+  if(!permissions.include)continue;
   const instrument=norm(session.instrument);
-  const row={session,preference,entryEnabled,manageOpen};
+  const row={session,preference,entryEnabled:permissions.entryEnabled,manageOpen:permissions.manageOpen};
   const group=wantedByInstrument.get(instrument)||{instrument,sessions:[]};
   group.sessions.push(row);wantedByInstrument.set(instrument,group);
  }
