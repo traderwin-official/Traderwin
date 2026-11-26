@@ -97,12 +97,12 @@ test("paper adapter leaves other bot positions and stale quotes untouched",async
 
 test("paper adapter respects a stricter saved session risk ceiling",async()=>{
  let args;
- const db=paperDb(async(name,value)=>{args=value;return {data:{ok:true,trade_id:"trade-2"},error:null};});
+ const db=paperDb(async(name,value)=>{args=value;return {data:{ok:true,trade_ids:["trade-2"],opened_count:1},error:null};});
  const stricter={...session,risk_per_trade_pct:0.1};
  const result=await openScalpingPaperPosition({db,session:stricter,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
  assert.equal(result.ok,true);
- assert.ok(args.p_risk_pct<=0.1);
- assert.ok(args.p_risk_amount<=10);
+ assert.ok(args.p_entries.every(entry=>entry.risk_pct<=0.1));
+ assert.ok(args.p_entries.every(entry=>entry.risk_amount<=10));
 });
 
 test("paper adapter refuses automatic entries unless the separate paper-execution switch is enabled",async()=>{
