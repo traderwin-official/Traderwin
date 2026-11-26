@@ -301,6 +301,15 @@ async function subscribeSet(desired){
     const found=active.find(a=>String(a.underlying_symbol||a.symbol||"")===wanted.providerSymbol);
     if(!found){logError(new Error("Approved provider symbol is not currently active on Deriv."));closeSocket();scheduleReconnect();return;}
     const requests=[["M1",60,180],["M5",300,60],["M15",900,60],["H1",3600,60],["H4",14400,60]];
+    // Resume live quotes immediately after reconnect. Open DEMO positions can
+    // be checked while candle history warms; publishTick keeps new entries
+    // blocked until all required histories are ready.
+    const liveHistory=history.get(wanted.instrument)||{m1:[],m5:[],m15:[],h1:[],h4:[],current:null,loadedM1:false,loadedM5:false,loadedM15:false,loadedH1:false,loadedH4:false,subscribed:false};
+    history.set(wanted.instrument,liveHistory);
+    if(!liveHistory.subscribed){
+     liveHistory.subscribed=true;
+     ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));
+    }
     for(const [kind,granularity,count] of requests){
      const id=nextId++;requestMap.set(id,{instrument:wanted.instrument,kind});
      ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count,end:"latest",style:"candles",granularity,req_id:id}));
@@ -322,9 +331,9 @@ async function subscribeSet(desired){
      logError(new Error("Deriv did not provide enough contiguous completed M1/M5/M15/H1/H4 candles to warm up the scalping engine."));
      closeSocket();scheduleReconnect();return;
     }
-    if(!h.subscribed){
-     h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted)return;
-     ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);
+    if(!state.readySymbols.includes(req.instrument))state.readySymbols.push(req.instrument);
+    if(!h.warmupComplete){
+     h.warmupComplete=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted)return;
      if(!contextRefreshTimers.has(wanted.instrument)){
       const timer=setInterval(()=>{
        if(socket!==ws||ws.readyState!==WebSocket.OPEN)return;
