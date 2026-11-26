@@ -58,6 +58,13 @@ grant execute on function public.open_demo_scalping_paper_trade_with_lease(
   numeric,numeric,numeric,numeric,timestamptz,timestamptz
 ) to service_role;
 
+-- Prevent service-role callers from bypassing the lease wrapper. The wrapper runs
+-- as its SECURITY DEFINER owner, which retains permission to call the inner RPC.
+revoke all on function public.open_demo_scalping_paper_trade(
+  uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,
+  numeric,numeric,numeric,numeric,timestamptz,timestamptz
+) from public, anon, authenticated, service_role;
+
 comment on function public.open_demo_scalping_paper_trade_with_lease(
   uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,
   numeric,numeric,numeric,numeric,timestamptz,timestamptz
