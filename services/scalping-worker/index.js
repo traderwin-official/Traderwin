@@ -197,8 +197,6 @@ async function publishTick(wanted,tick){
   if(h.current&&h.current.epoch+60<=minute){h.m1.push(h.current);h.m1=latestContiguousCandles(h.m1,60,240);}
   h.current={epoch:minute,open:quote,high:quote,low:quote,close:quote};
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
- const managementHealthy=await managementPromise;
- if(!managementHealthy)return;
  if(!leaseOwned||stopping||!wanted.sessions.some(x=>x.entryEnabled))return;
  const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
