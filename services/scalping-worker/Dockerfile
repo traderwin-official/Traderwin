@@ -18,3 +18,4 @@ COPY lib/xaus-gold-reference.js ./lib/xaus-gold-reference.js
 EXPOSE 8080
 USER node
 CMD ["node", "index.js"]
+COPY lib/biquote-calendar-risk.js ./lib/biquote-calendar-risk.js
