@@ -79,7 +79,7 @@ const ROUTES = {
 export default async function handler(req, res) {
   const routeParam = req.query?.__vercel_route;
   const routePath = Array.isArray(routeParam) ? routeParam.join("/") : String(routeParam || "");
-  const pathname = routePath ? "/api/" + routePath.replace(/^\\/+|\\/+$/g, "") : "";
+  const pathname = routePath ? "/api/" + routePath.split("/").filter(Boolean).join("/") : "";
   const route = ROUTES[pathname];
   if (!route) return res.status(404).json({ error: "API route not found." });
   return route(req, res);
