@@ -31,7 +31,33 @@ $$;
 
 grant usage on schema auth to anon, authenticated, service_role;
 grant execute on function auth.uid() to anon, authenticated, service_role;
+
 grant execute on function auth.role() to anon, authenticated, service_role;
+
+-- Existing admin membership table: authenticated users may read only their own row.
+create table public.admin_users (user_id uuid primary key);
+alter table public.admin_users enable row level security;
+create policy "Users can check their own admin status" on public.admin_users
+  for select to authenticated using (user_id = auth.uid());
+grant select on public.admin_users to authenticated;
+
+-- Existing SECURITY DEFINER helpers represented in the isolated migration test.
+create or replace function public.is_traderwin_admin()
+returns boolean language sql stable security definer set search_path=public
+as $bootstrap$ select false $bootstrap$;
+
+create or replace function public.traderwin_audit_account_mode()
+returns trigger language plpgsql security definer set search_path=public
+as $bootstrap$ begin return new; end $bootstrap$;
+
+create table public.service_catalog (
+  id uuid primary key default gen_random_uuid(),
+  active boolean not null default true
+);
+alter table public.service_catalog enable row level security;
+create policy "Public read active services" on public.service_catalog
+  for select to anon, authenticated using (active = true or is_traderwin_admin());
+
 
 -- Minimal shape of the already-deployed foundation table. The migrations under
 -- test must add to this table without replacing or dropping its existing data.
