@@ -210,3 +210,13 @@ test("one position-management error is isolated from other open positions", asyn
  assert.deepEqual(errors,[["B","isolated exit failure"]]);
  assert.equal(locks.size,0);
 });
+
+
+test("emergency kill switch blocks new atomic entries while the worker still manages existing open positions",async()=>{
+ const worker=await readFile(new URL("../services/scalping-worker/index.js",import.meta.url),"utf8");
+ const migration=await readFile(new URL("../supabase/migrations/202611260008_scalping_atomic_batch_entries.sql",import.meta.url),"utf8");
+ const tick=worker.slice(worker.indexOf("async function publishTick("),worker.indexOf("\nfunction closeSocket"));
+ assert.ok(tick.indexOf("manageOpenTrades(wanted.instrument,payload)")<tick.indexOf("if(!leaseOwned||stopping||!wanted.sessions.some(x=>x.entryEnabled))return"),"open-position management must start before the new-entry gate");
+ assert.match(migration,/from public\.demo_paper_emergency_controls e[\s\S]*?e\.entries_blocked[\s\S]*?KILL_SWITCH_ACTIVE/);
+ assert.match(migration,/where e\.user_id=p_user_id[\s\S]*?e\.broker_account_ref=v_session\.broker_account_ref/);
+});
