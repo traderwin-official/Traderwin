@@ -127,10 +127,10 @@ async function manageOpenTrades(instrument,tick){
     activeTrades.delete(trade.id);
     throw error;
    }
-   if(result.action==="EXIT"&&result.result?.ok===true){
-    state.paperExits++;state.lastPaperExitAt=new Date().toISOString();
-    // Never infer TP progress from a response alone. Re-read the ledger before
-    // allowing another tick to manage this position.
+   if(result.action==="EXIT"){
+    if(result.result?.ok===true){state.paperExits++;state.lastPaperExitAt=new Date().toISOString();}
+    // Success, conflict, or an ambiguous stage response all require an
+    // authoritative ledger read before another tick may manage this position.
     tradeRefreshPending.add(trade.id);
     activeTrades.delete(trade.id);
     lastMarked.delete(trade.id);
