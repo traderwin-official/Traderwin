@@ -6,13 +6,13 @@ MetaQuotes' official Python integration communicates with an installed MetaTrade
 
 ## Implemented in Traderwin
 
-- A server-only HTTPS client in `lib/mt5-bridge-adapter.js`.
+- A server-only HTTPS client in `lib/mt5-bridge-adapter.js`, with optional server-environment configuration through `MT5_BRIDGE_URL` and `MT5_BRIDGE_API_TOKEN`.
 - Account/mode identity checks before accepting portfolio data.
 - Strictly verified USD-normalized P&L; unknown conversion blocks protection.
 - Position source classification (`BOT` / `MANUAL`) supplied by the trusted bridge.
 - Idempotency key on close requests.
 - Shared broker-neutral snapshot validation and adapter registry.
-- Unit tests for account mismatch, valuation failure, HTTPS, and close routing.
+- Unit tests for account mismatch, valuation failure, HTTPS, quote freshness, DEMO-only mode, default-disabled close requests and server-environment configuration.
 
 ## DEMO-only adapter safeguards
 
@@ -40,4 +40,4 @@ MetaQuotes' official Python integration communicates with an installed MetaTrade
 
 ## Not yet operational
 
-The bridge host/terminal, MT5 account verification flow, API credentials, server environment, and end-to-end DEMO tests still need to be provisioned. This repository client is an integration component, not proof of a connected or trading MT5 account.
+The bridge host/terminal, MT5 account verification flow, API credentials, server environment, and end-to-end DEMO tests still need to be provisioned. The repository adapter is a tested client boundary only; it does not create or connect an MT5 terminal. This repository client is an integration component, not proof of a connected or trading MT5 account.
