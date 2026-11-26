@@ -55,6 +55,15 @@ The summary is a presentation/aggregation layer. It does not change the executio
 - Full Traderwin workflow [#1979](https://github.com/traderwin-official/Traderwin/actions/runs/45839298858) passed Node tests, serverless JavaScript syntax, inline page-script checks, worker Docker image build and isolated PostgreSQL DEMO/portfolio migration checks.
 - Validated branch head: `6d7eb319b81ec8a55cbe6ff6471e9ba0d5ea13e4`. This is still branch validation only; no production deployment, database migration, Railway worker deployment, PR merge or REAL trading activation occurred.
 
+## DEMO journey safety regression update (2026-11-26)
+
+- Added a regression asserting that the continuous DEMO worker starts management of existing open positions before its new-entry gate. A user emergency stop therefore blocks new automated entries without silently abandoning already-open positions.
+- Strengthened the disposable PostgreSQL atomic-entry contract check to require the server-side batch RPC to inspect `demo_paper_emergency_controls`, scope the control to the exact user and broker account, and return `KILL_SWITCH_ACTIVE` when entries are blocked.
+- This supplements existing checks for verified Deriv DEMO account status, user-scoped account-mode profiles, fresh bid/ask and candle data, strategy consent, portfolio risk/position limits, daily-loss lock, lease ownership, batch idempotency/recovery, stop/target exits, manual-position permissions and reconnect-gap reconciliation.
+- Node workflow [#1174](https://github.com/traderwin-official/Traderwin/actions/runs/45840412430) passed **611/611 tests** (0 failed).
+- Full Traderwin workflow [#1981](https://github.com/traderwin-official/Traderwin/actions/runs/45840412352) passed Node tests, serverless syntax, inline page-script checks, worker Docker image build and isolated PostgreSQL DEMO/portfolio migration checks.
+- Validated application-code head: `04bfee92dcca788f44ab04c92e6a441ec05af7a9`. These are automated branch checks, not a live browser journey or production certification. No production migration, deployment, Railway worker deployment, PR merge or REAL trading activation occurred.
+
 ## Not deployed / not yet verified
 
 - No PR merge, production deployment or production Supabase migration has been performed.
