@@ -4,6 +4,10 @@ WORKDIR /app
 COPY services/scalping-worker/package.json ./package.json
 RUN npm install --omit=dev --no-audit --no-fund && mkdir -p /app/lib
 COPY services/scalping-worker/index.js ./index.js
+# Shared modules imported from ../../lib by the source worker path.
+COPY lib/scalping-tick-order.js /lib/scalping-tick-order.js
+COPY lib/scalping-market-data-gap.js /lib/scalping-market-data-gap.js
+COPY lib/scalping-trade-refresh.js /lib/scalping-trade-refresh.js
 COPY lib/scalping-engine.js ./lib/scalping-engine.js
 COPY lib/scalping-execution.js ./lib/scalping-execution.js
 COPY lib/scalping-paper-adapter.js ./lib/scalping-paper-adapter.js
