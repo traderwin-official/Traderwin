@@ -83,7 +83,7 @@ test("stale and unverified additional evidence cannot clear the gate", () => {
         confidence: 95, adapterVerified: false, instrument: "XAUUSD",
         timeframe: "M1", asOf
       }
-    ].map(attestMarketEvidence),
+    ].map((item, index) => index === 1 ? item : attestMarketEvidence(item)),
     maxAgeMs: 120000
   });
   assert.equal(result.direction, "WAIT");
