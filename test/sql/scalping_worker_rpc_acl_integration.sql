@@ -9,6 +9,7 @@ declare
   v_proc regprocedure;
   v_config text[];
   v_count integer;
+  v_service_role_count integer;
 begin
   foreach v_name in array array[
     'open_demo_scalping_paper_trade_with_lease',
@@ -27,6 +28,8 @@ begin
       raise exception 'Required worker RPC is missing: %', v_name;
     end if;
 
+    v_service_role_count := 0;
+
     for v_proc, v_config in
       select p.oid::regprocedure, p.proconfig
         from pg_proc p
@@ -41,8 +44,8 @@ begin
         raise exception 'Worker RPC overload % must pin search_path to public, pg_temp; found %', v_proc, v_config;
       end if;
 
-      if not has_function_privilege('service_role', v_proc, 'EXECUTE') then
-        raise exception 'service_role must be able to execute worker RPC overload %', v_proc;
+      if has_function_privilege('service_role', v_proc, 'EXECUTE') then
+        v_service_role_count := v_service_role_count + 1;
       end if;
 
       if has_function_privilege('anon', v_proc, 'EXECUTE')
@@ -56,6 +59,10 @@ begin
         raise exception 'Worker RPC overload % must not be executable by PUBLIC, anon, or authenticated', v_proc;
       end if;
     end loop;
+
+    if v_service_role_count <> 1 then
+      raise exception 'Worker RPC % must expose exactly one service_role-executable overload; found %', v_name, v_service_role_count;
+    end if;
   end loop;
 end
 $$;
