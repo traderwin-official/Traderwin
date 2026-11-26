@@ -38,6 +38,11 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/Promise\.all\(trades\.map\(async trade/);
  assert.match(s,/catch\(e\)\{logError\(e\);return false;\}/);
  assert.match(s,/if\(!managementHealthy\)return;/);
+ assert.match(s,/bidAskMissingTicks:0,marketDataQuality:\{\}/);
+ assert.match(s,/bidAskAvailable=payload\.bid!==null&&payload\.ask!==null/);
+ assert.match(s,/status:bidAskAvailable\?"BID_ASK_READY":"SPOT_ONLY"/);
+ assert.match(s,/DERIV_BID_ASK_UNAVAILABLE:/);
+
  assert.match(s,/const ws=new WebSocket\(ENDPOINT\);socket=ws;/);
  assert.match(s,/if\(socket!==ws\)return;/);
  assert.match(s,/old\.onmessage=null;old\.onerror=null;old\.onclose=null/);
