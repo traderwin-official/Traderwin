@@ -30,6 +30,21 @@ test("nonmatching currency does not create a false instrument-specific blackout"
   assert.equal(result.status, "UNKNOWN");
 });
 
+test("currency crosses only match their own currencies, not unrelated USD releases", () => {
+  const unrelatedUsd = evaluateBiQuoteCalendarRisk({
+    events: [event({ currency: "USD", countryCode: "US" })],
+    instrument: "GBPJPY",
+    now
+  });
+  assert.equal(unrelatedUsd.status, "UNKNOWN");
+  const relevantJpy = evaluateBiQuoteCalendarRisk({
+    events: [event({ currency: "JPY", countryCode: "JP" })],
+    instrument: "GBPJPY",
+    now
+  });
+  assert.equal(relevantJpy.status, "BLACKOUT");
+});
+
 test("date-only and tentative high-impact rows block the matching UTC day", () => {
   const result = evaluateBiQuoteCalendarRisk({
     events: [event({ time: "2026-11-26T00:00:00.000Z", timeMode: "date" })],
