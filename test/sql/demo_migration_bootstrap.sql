@@ -31,7 +31,26 @@ $$;
 
 grant usage on schema auth to anon, authenticated, service_role;
 grant execute on function auth.uid() to anon, authenticated, service_role;
+
 grant execute on function auth.role() to anon, authenticated, service_role;
+
+-- Existing SECURITY DEFINER helpers represented in the isolated migration test.
+create or replace function public.is_traderwin_admin()
+returns boolean language sql stable security definer set search_path=public
+as $ select false $;
+
+create or replace function public.traderwin_audit_account_mode()
+returns trigger language plpgsql security definer set search_path=public
+as $ begin return new; end $;
+
+create table public.service_catalog (
+  id uuid primary key default gen_random_uuid(),
+  active boolean not null default true
+);
+alter table public.service_catalog enable row level security;
+create policy "Public read active services" on public.service_catalog
+  for select to anon, authenticated using (active = true or is_traderwin_admin());
+
 
 -- Minimal shape of the already-deployed foundation table. The migrations under
 -- test must add to this table without replacing or dropping its existing data.
