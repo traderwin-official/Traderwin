@@ -7,7 +7,7 @@ test("market analyst wires the verified XAUS comparison into the final XAUUSD ga
   assert.match(handler, /compareGoldReference\(\{ brokerMid: quoteFresh \? mid : null, reference: goldReference \}\)/);
   assert.match(handler, /independentReferenceRequired: instrument === "XAUUSD"/);
   assert.match(handler, /independentReferenceStatus: instrument === "XAUUSD"\s*\? \(goldReferenceComparison\?\.status \|\| "UNKNOWN"\) : "NOT_APPLICABLE"/);
-  assert.match(handler, /marketIntelligence: marketIntelligence/);
+  assert.match(handler, /\n      marketIntelligence,\n/);
 });
 
 test("gold reference gate is research-only and does not authorize order execution", async () => {
