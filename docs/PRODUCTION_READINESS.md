@@ -112,3 +112,11 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - The continuous DEMO worker passes the active instrument into the same adapter; it no longer uses a single generic global headline cache for every market.
 - Unsupported instruments remain UNKNOWN. This is deliberate: no broad or unrelated news search is treated as instrument-specific clearance.
 - Provider headline timestamps are parsed and checked against the observation time before a headline can trigger BLACKOUT. Empty results, malformed timestamps, stale results and provider errors remain UNKNOWN.
+
+
+## 2026-11-26 instrument-specific macro relevance update
+
+- Upcoming calendar events now include a deterministic relevance score and HIGH/MEDIUM/LOW label based on event category and the selected instrument's currency exposure.
+- USD monetary-policy, inflation and bond/yield releases are marked highly relevant to XAUUSD; employment and growth releases are also elevated. Other events use transparent category weights.
+- Relevance is explicitly labelled as context only: it does not infer bullish/bearish direction, probability of profit or permission to trade. Existing blackout timing and UNKNOWN/fail-closed behaviour are unchanged.
+- Regression tests cover gold sensitivity and lower-sensitivity housing context. This is still provider-limited calendar context, not a complete central-bank statement, bond-yield or geopolitical research feed.
