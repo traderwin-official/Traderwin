@@ -295,3 +295,30 @@ test("blocks DEMO entries and position management when USD conversion is unavail
   delete input.quote.quoteToUsd;
   assert.equal(decideDemoAutoAction({ ...input, now }).reason, "USD_CONVERSION_UNAVAILABLE");
 });
+
+
+test("honours a verified stop loss even when a legacy open position has no complete take-profit plan", () => {
+  for (const [direction, stop, quote] of [["BUY", 118, 117.9], ["SELL", 122, 122.1]]) {
+    const input = structuredClone(base);
+    input.market = null;
+    input.openTrade = {
+      id: "legacy-no-tp-" + direction, symbol: "XAUUSD", direction,
+      entry_price: 120, stop_loss: stop, virtual_units: 2, status: "OPEN"
+    };
+    input.quote.quote = quote;
+    const result = decideDemoAutoAction({ ...input, now });
+    assert.equal(result.action, "CLOSE");
+    assert.equal(result.reason, "STOP_LOSS");
+    assert.equal(result.tradeId, input.openTrade.id);
+  }
+});
+
+test("blocks open-position management when the protective stop itself is invalid", () => {
+  const input = structuredClone(base);
+  input.market = null;
+  input.openTrade = {
+    id: "missing-stop", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, virtual_units: 2, status: "OPEN"
+  };
+  assert.equal(decideDemoAutoAction({ ...input, now }).reason, "STOP_LOSS_UNAVAILABLE");
+});
