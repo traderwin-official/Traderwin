@@ -43,4 +43,7 @@ test("paid M-Pesa callbacks can retry incomplete subscription fulfillment", () =
   assert.match(source, /if \(order\.status === "PAID"\)/);
   assert.match(source, /Another callback may have won the PENDING -> PAID race/);
   assert.match(source, /refreshed\?\.status !== "PAID"/);
+  assert.match(source, /select\("ends_at,status,payment_order_id"\)/);
+  assert.match(source, /existingSubscription\?\.payment_order_id === paidOrder\.id/);
+  assert.match(source, /Payment entitlement already active/);
 });
