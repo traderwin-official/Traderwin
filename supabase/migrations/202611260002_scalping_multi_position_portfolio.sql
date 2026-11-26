@@ -121,6 +121,19 @@ begin
   if not exists (select 1 from public.trader_profiles where user_id=p_user_id and account_mode='DEMO') then
     return jsonb_build_object('ok',false,'reason','CURRENT_ACCOUNT_MODE_NOT_DEMO');
   end if;
+
+  -- Enforce the server-managed provider allowlist inside the atomic entry RPC,
+  -- not only in the worker's symbol-discovery layer.
+  if not exists (
+    select 1 from public.trading_instrument_approvals a
+     where a.broker='DERIV' and a.provider='DERIV'
+       and upper(a.instrument)=upper(p_instrument)
+       and nullif(trim(a.provider_symbol),'') is not null
+       and a.status='APPROVED' and a.is_active=true
+       and a.approved_at is not null and a.approved_by is not null
+  ) then
+    return jsonb_build_object('ok',false,'reason','SCALPING_INSTRUMENT_NOT_APPROVED');
+  end if;
   if exists (
     select 1 from public.demo_paper_emergency_controls e
      where e.user_id=p_user_id and e.broker='DERIV'
