@@ -46,6 +46,7 @@ test("blocks a new entry during the post-loss cooldown", () => {
 test("requires independent higher-timeframe EMA agreement before opening", () => {
   const input = structuredClone(base);
   input.market.trendTimeframe = "H1";
+  input.market.trendCandleAsOf = new Date(now).toISOString();
   input.market.trendCandles = Array.from({ length: 40 }, (_, i) => {
     const open = 140 - i * 0.5;
     return { epoch: now / 1000 - (40 - i) * 3600, open, high: open + 0.2, low: open - 0.6, close: open - 0.5 };
