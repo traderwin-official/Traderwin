@@ -6,9 +6,16 @@ function flatHistory(count=220){
  const base=Math.floor(Date.now()/60000)*60-count*60;
  return Array.from({length:count},(_,i)=>({epoch:base+i*60,open:2000,high:2000.1,low:1999.9,close:2000}));
 }
-test("backtest requires a long, contiguous completed M1 history",()=>{
- const rows=flatHistory(220);rows[150].epoch+=60;
- assert.throws(()=>runScalpingBacktest({instrument:"XAUUSD",candles:rows,spreadPriceUnits:0.1}),/valid, aligned and strictly contiguous/);
+test("backtest rejects malformed or unsorted historical candles",()=>{
+ const rows=flatHistory(220);rows[150].high=0;
+ assert.throws(()=>runScalpingBacktest({instrument:"XAUUSD",candles:rows,spreadPriceUnits:0.1}),/valid, minute-aligned and sorted/);
+});
+test("backtest accepts market session gaps and resets its indicator warm-up",()=>{
+ const rows=flatHistory(220);
+ for(let i=150;i<rows.length;i++)rows[i].epoch+=60;
+ const result=runScalpingBacktest({instrument:"XAUUSD",candles:rows,spreadPriceUnits:0.1});
+ assert.equal(result.data.candles,220);
+ assert.equal(result.totalTrades,0);
 });
 test("backtest rejects unrealistic or missing cost assumptions",()=>{
  assert.throws(()=>runScalpingBacktest({instrument:"XAUUSD",candles:flatHistory(),spreadPriceUnits:0}),/positive fixed spread/);
@@ -56,10 +63,10 @@ test("CSV loader accepts epoch and ISO timestamps with CRLF and BOM",()=>{
  const iso="time,open,high,low,close\n"+[0,1].map(i=>[new Date((base+i*60)*1000).toISOString(),2000,2001,1999,2000.5].join(",")).join("\n");
  assert.equal(parseM1Csv(iso).length,2);
 });
-test("CSV loader rejects gaps and malformed OHLC",()=>{
+test("CSV loader accepts session gaps but rejects malformed OHLC",()=>{
  const base=Math.floor(Date.now()/60000)*60;
  const gap="epoch,open,high,low,close\n"+[0,2].map(i=>[base+i*60,2000,2001,1999,2000].join(",")).join("\n");
- assert.throws(()=>parseM1Csv(gap),/strictly contiguous/);
+ assert.equal(parseM1Csv(gap).length,2);
  const malformed="epoch,open,high,low,close\n"+[base,2000,1990,1999,2000].join(",");
- assert.throws(()=>parseM1Csv(malformed),/strictly contiguous/);
+ assert.throws(()=>parseM1Csv(malformed),/valid, minute-aligned and sorted/);
 });
