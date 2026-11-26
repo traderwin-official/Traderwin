@@ -32,7 +32,9 @@ test("DEMO sessions persist a bounded multi-position count and aggregate risk ce
  const s=await readFile(new URL("../handlers/bots/demo/control.js",import.meta.url),"utf8");
  assert.match(s,/max_open_positions/);
  assert.match(s,/const maxOpenPositions=3/);
- assert.match(s,/max_total_open_risk_pct:2\.00/);
+ assert.match(s,/const risk=Math\.min\([^\n]+,0\.25\)/);
+ assert.match(s,/const daily=Math\.min\([^\n]+,1\.00\)/);
+ assert.match(s,/max_total_open_risk_pct:1\.00/);
 });
 test("dashboard lets members select one of their open DEMO positions",async()=>{
  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
