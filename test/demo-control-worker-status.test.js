@@ -58,3 +58,13 @@ test("stopping AUTO sessions safely detects one or more open BOT positions",asyn
  assert.match(s,/AUTO sessions may hold several BOT positions/);
  assert.match(s,/eq\("trade_origin","BOT"\)\.limit\(1\)\.maybeSingle\(\)/);
 });
+
+test("dashboard profile inputs enforce DEMO risk ceilings while keeping REAL preferences separate",async()=>{
+ const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
+ assert.match(html,/id="profileRisk" type="number" min="0\.01" max="0\.25"/);
+ assert.match(html,/id="profileDailyLoss" type="number" min="0\.1" max="1"/);
+ assert.match(html,/function applyModeRiskLimits\(\)/);
+ assert.match(html,/riskMax=demo\?0\.25:2/);
+ assert.match(html,/dailyMax=demo\?1:10/);
+ assert.match(html,/REAL settings are preferences only/);
+});
