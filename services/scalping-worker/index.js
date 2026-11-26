@@ -13,7 +13,7 @@ const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
-let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,desiredSymbols=[];
+let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimer=null,desiredSymbols=[];
 const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
  if(req.url==="/healthz"){const healthy=!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
@@ -194,7 +194,7 @@ async function publishTick(wanted,tick){
  if(result.direction==="BUY"||result.direction==="SELL")await saveSignal(wanted,result,h.m1.at(-1).epoch,payload);
 }
 
-function closeSocket(){if(socket){const old=socket;socket=null;try{old.onopen=null;old.onmessage=null;old.onerror=null;old.onclose=null;old.close();}catch{}}state.socket="DISCONNECTED";}
+function closeSocket(){if(contextRefreshTimer){clearInterval(contextRefreshTimer);contextRefreshTimer=null;}if(socket){const old=socket;socket=null;try{old.onopen=null;old.onmessage=null;old.onerror=null;old.onclose=null;old.close();}catch{}}state.socket="DISCONNECTED";}
 async function subscribeSet(desired){
  desiredSymbols=desired;
  const list=desired.map(x=>x.providerSymbol).sort();
@@ -224,7 +224,7 @@ async function subscribeSet(desired){
    }
   }
   if(msg.msg_type==="candles"&&requestMap.has(Number(msg.req_id))){
-   const req=requestMap.get(Number(msg.req_id));const candles=(msg.candles||[]).map(c=>({epoch:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(validCandle).filter(c=>(c.epoch+(req.kind==="M1"?60:300))*1000<=Date.now());
+   const req=requestMap.get(Number(msg.req_id));requestMap.delete(Number(msg.req_id));const candles=(msg.candles||[]).map(c=>({epoch:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(validCandle).filter(c=>(c.epoch+({M1:60,M5:300,M15:900,H1:3600,H4:14400}[req.kind]||60))*1000<=Date.now());
    const intervals={M1:60,M5:300,M15:900,H1:3600,H4:14400};
    const kind=req.kind,interval=intervals[kind];
    const h=history.get(req.instrument)||{m1:[],m5:[],m15:[],h1:[],h4:[],current:null,loadedM1:false,loadedM5:false,loadedM15:false,loadedH1:false,loadedH4:false};
@@ -236,7 +236,20 @@ async function subscribeSet(desired){
      logError(new Error("Deriv did not provide enough contiguous completed M1/M5/M15/H1/H4 candles to warm up the scalping engine."));
      closeSocket();scheduleReconnect();return;
     }
-    if(!h.subscribed){h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted)return;ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);}
+    if(!h.subscribed){
+     h.subscribed=true;const wanted=desiredSymbols.find(x=>x.instrument===req.instrument);if(!wanted)return;
+     ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}));state.readySymbols.push(req.instrument);
+     if(!contextRefreshTimer){
+      contextRefreshTimer=setInterval(()=>{
+       if(socket!==ws||ws.readyState!==WebSocket.OPEN)return;
+       const intervals={M15:900,H1:3600,H4:14400};
+       for(const [kind,granularity] of Object.entries(intervals)){
+        const id=nextId++;requestMap.set(id,{instrument:wanted.instrument,kind});
+        ws.send(JSON.stringify({ticks_history:wanted.providerSymbol,count:60,end:"latest",style:"candles",granularity,req_id:id}));
+       }
+      },60000);
+     }
+    }
    }
   }
   if(msg.msg_type==="tick"&&msg.tick){
