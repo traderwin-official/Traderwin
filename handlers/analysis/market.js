@@ -8,6 +8,7 @@ import { evaluateMarketCandidate } from "../../lib/market-intelligence-gate.js";
 import { getGdeltNewsContext } from "../../lib/gdelt-news-context.js";
 import { getGdeltNewsRiskStatus } from "../../lib/gdelt-news-risk.js";
 import { getBiQuoteCalendarRiskStatus } from "../../lib/biquote-calendar-risk.js";
+import { getXausGoldReference, compareGoldReference } from "../../lib/xaus-gold-reference.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -54,8 +55,9 @@ export default async function handler(req, res) {
     const newsPromise = getGdeltNewsContext(instrument);
     const newsRiskPromise = getGdeltNewsRiskStatus();
     const calendarRiskPromise = getBiQuoteCalendarRiskStatus({ instrument });
-    const [market, trendMarket, quote, newsContext, newsRisk, calendarRisk] = await Promise.all([
-      marketPromise, trendPromise, quotePromise, newsPromise, newsRiskPromise, calendarRiskPromise
+    const goldReferencePromise = instrument === "XAUUSD" ? getXausGoldReference() : Promise.resolve(null);
+    const [market, trendMarket, quote, newsContext, newsRisk, calendarRisk, goldReference] = await Promise.all([
+      marketPromise, trendPromise, quotePromise, newsPromise, newsRiskPromise, calendarRiskPromise, goldReferencePromise
     ]);
     const combinedNewsStatus = newsRisk.status === "BLACKOUT" || calendarRisk.status === "BLACKOUT"
       ? "BLACKOUT" : "UNKNOWN";
@@ -100,6 +102,9 @@ export default async function handler(req, res) {
     const spreadBps = quoteFresh && Number.isFinite(bid) && Number.isFinite(ask) &&
       bid > 0 && ask >= bid && Number.isFinite(mid) && mid > 0
       ? ((ask - bid) / mid) * 10000
+      : null;
+    const goldReferenceComparison = instrument === "XAUUSD"
+      ? compareGoldReference({ brokerMid: quoteFresh ? mid : null, reference: goldReference })
       : null;
     const configuredMaxSpreadBps = Number(process.env.MARKET_ANALYST_MAX_SPREAD_BPS);
     const tradePlan = buildAnalystTradePlan({
@@ -159,6 +164,8 @@ export default async function handler(req, res) {
       newsContext,
       newsRisk,
       calendarRisk,
+      goldReference,
+      goldReferenceComparison,
       marketData: {
         quoteStatus: quoteFresh ? "FRESH" : "UNAVAILABLE_OR_UNVERIFIED",
         quoteAsOf: quote?.quoteAsOf || null,
@@ -166,7 +173,9 @@ export default async function handler(req, res) {
         spreadBps,
         multiTimeframeStatus: mtfStatus,
         higherTimeframeDirection: higherResult?.direction || null,
-        tradePlanStatus: tradePlan.status
+        tradePlanStatus: tradePlan.status,
+        goldReferenceStatus: goldReferenceComparison?.status || "NOT_APPLICABLE",
+        goldReferenceDeviationBps: goldReferenceComparison?.deviationBps ?? null
       },
       execution: "NONE",
       executionAuthorized: false,
