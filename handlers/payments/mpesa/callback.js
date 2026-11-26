@@ -89,41 +89,19 @@ export default async function handler(req, res) {
       }
     }
     if (paidOrder) {
-      const { data: service, error: serviceError } = await admin.from("service_catalog")
-        .select("billing_period").eq("service_code", paidOrder.service_code).maybeSingle();
-      if (serviceError || !service) {
-        console.error("Paid service entitlement could not be resolved:", serviceError?.message || "Service missing");
-      } else {
-        const { data: existingSubscription, error: existingSubscriptionError } = await admin
-          .from("user_subscriptions").select("ends_at,status,payment_order_id")
-          .eq("user_id", paidOrder.user_id).eq("service_code", paidOrder.service_code).maybeSingle();
-        if (existingSubscriptionError) {
-          console.error("Existing subscription lookup failed:", existingSubscriptionError.message);
-          return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment verified; entitlement update pending" });
-        }
-        // A payment order may be delivered more than once. If it already
-        // owns the active subscription row, do not extend the term again.
-        if (existingSubscription?.payment_order_id === paidOrder.id) {
-          return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment entitlement already active" });
-        }
-        const now = new Date();
-        const existingEnd = existingSubscription?.ends_at ? new Date(existingSubscription.ends_at) : null;
-        const startsAt = existingEnd && existingEnd > now ? existingEnd : now;
-        const endsAt = new Date(startsAt);
-        if (service.billing_period === "MONTHLY") endsAt.setMonth(endsAt.getMonth() + 1);
-        else if (service.billing_period === "YEARLY") endsAt.setFullYear(endsAt.getFullYear() + 1);
-        else endsAt.setTime(0);
-        const { error: entitlementError } = await admin.from("user_subscriptions").upsert({
-          user_id: paidOrder.user_id,
-          service_code: paidOrder.service_code,
-          status: "ACTIVE",
-          starts_at: startsAt.toISOString(),
-          ends_at: service.billing_period === "ONE_TIME" ? null : endsAt.toISOString(),
-          payment_order_id: paidOrder.id
-        }, { onConflict: "user_id,service_code" });
-        if (entitlementError) {
-          console.error("Paid service entitlement activation failed:", entitlementError.message);
-        }
+      // Payment state and entitlement are separate recoverable steps. The
+      // database RPC applies each order exactly once in a single transaction,
+      // even if an old Daraja callback is replayed after later renewals.
+      const { data: entitlement, error: entitlementError } = await admin.rpc(
+        "fulfill_paid_subscription_order",
+        { p_order_id: paidOrder.id }
+      );
+      if (entitlementError) {
+        console.error("Paid service entitlement activation failed:", entitlementError.message);
+        return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment verified; entitlement update pending" });
+      }
+      if (entitlement?.status === "ALREADY_APPLIED") {
+        return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment entitlement already active" });
       }
     }
     return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment verification completed" });
