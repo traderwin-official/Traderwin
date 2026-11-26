@@ -185,7 +185,10 @@ async function publishTick(wanted,tick){
   if(wanted.sessions.some(x=>x.entryEnabled))state.lastEntryReason="DERIV_BID_ASK_UNAVAILABLE:"+wanted.instrument;
  }
  // Start exits immediately, but do not block candle ingestion on database round-trips.
- const managementPromise=manageOpenTrades(wanted.instrument,payload);
+ const managementPromise=manageOpenTrades(wanted.instrument,payload).catch(e=>{logError(e);return false;});
+ // Deliberately do not await this promise: every open trade has its own lock
+ // and exit task, while the signal/entry pipeline continues on this tick.
+ void managementPromise;
  if(Date.now()-(lastPersisted.get(wanted.instrument)||0)>=1000){
   lastPersisted.set(wanted.instrument,Date.now());
   db.from("scalping_market_ticks").upsert({instrument:wanted.instrument,provider_symbol:providerSymbol,quote,bid:payload.bid,ask:payload.ask,quote_as_of:quoteAsOf,received_at:receivedAt,source:"DERIV",updated_at:receivedAt},{onConflict:"instrument"})
@@ -197,8 +200,10 @@ async function publishTick(wanted,tick){
   if(h.current&&h.current.epoch+60<=minute){h.m1.push(h.current);h.m1=latestContiguousCandles(h.m1,60,240);}
   h.current={epoch:minute,open:quote,high:quote,low:quote,close:quote};
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
- const managementHealthy=await managementPromise;
- if(!managementHealthy)return;
+ // Entry analysis runs independently of the per-position exit tasks above.
+ // A slow close/mark for one position must not pause M1 signal scanning or
+ // prevent other positions from being managed concurrently. The database
+ // entry RPC still enforces the shared portfolio position and risk limits.
  if(!leaseOwned||stopping||!wanted.sessions.some(x=>x.entryEnabled))return;
  const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
