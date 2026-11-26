@@ -34,3 +34,17 @@ test("worker image contains both shared modules used by absolute import paths",(
  assert.match(docker,/COPY lib\/scalping-tick-order\.js \/lib\/scalping-tick-order\.js/);
  assert.match(docker,/COPY lib\/scalping-trade-refresh\.js \/lib\/scalping-trade-refresh\.js/);
 });
+
+test("worker resumes live quotes before history warm-up but gates new entries",()=>{
+ const active=worker.indexOf('if(msg.msg_type==="active_symbols")');
+ const tickSubscribe=worker.indexOf('ws.send(JSON.stringify({ticks:wanted.providerSymbol,subscribe:1}))',active);
+ const historyRequests=worker.indexOf('for(const [kind,granularity,count] of requests)',active);
+ assert.ok(active>=0&&tickSubscribe>active&&historyRequests>tickSubscribe,
+  "live quote subscription must start before requesting/waiting for candle history");
+ const publishStart=worker.indexOf("async function publishTick(");
+ const publishEnd=worker.indexOf("\\nasync function saveSignal",publishStart);
+ const publish=worker.slice(publishStart,publishEnd);
+ assert.ok(publish.indexOf("manageOpenTrades(")<publish.indexOf("const h=history.get(wanted.instrument)"),
+  "open positions must be managed before the history warm-up return");
+ assert.match(publish,/if\(!h\|\|h\.m1\.length<35\)return/);
+});
