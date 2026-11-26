@@ -1,5 +1,6 @@
 import {writeFileSync} from "node:fs";
 import {resolve} from "node:path";
+import {shouldFetchOlderHistory} from "../lib/deriv-history-pagination.js";
 
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const [symbolArg,daysArg="14",outputArg="deriv-m1-history.csv"]=process.argv.slice(2);
@@ -59,8 +60,8 @@ try{
   if(!candles.length)break;
   all.push(...candles);pages++;
   const first=candles.reduce((minimum,c)=>Math.min(minimum,c.epoch),Infinity);
-  if(first<=from||candles.length<1000||first>=oldest)break;
-  oldest=first;end=String(first-1);
+  if(!shouldFetchOlderHistory({receivedCount:response.candles.length,pageSize:1000,oldestEpoch:first,fromEpoch:from,previousOldestEpoch:oldest}))break;
+   oldest=first;end=String(first-1);
   await new Promise(resolve=>setTimeout(resolve,250));
  }
  if(pages>=maxPages)throw new Error("Historical pagination reached its safety limit before completing the requested date range.");
