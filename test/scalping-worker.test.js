@@ -52,6 +52,9 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/contextCandles:\{M15:h\.m15,H1:h\.h1,H4:h\.h4\}/);
  assert.match(s,/req\.kind\]\\|\\|60/);
  assert.match(s,/contextRefreshTimers\.set\(wanted\.instrument,timer\)/);
+ assert.match(s,/const intervals=\{M1:60,M5:300,M15:900,H1:3600,H4:14400\}/);
+ assert.match(s,/if\(kind==="M1"\)h\.current=null/);
+
  assert.match(s,/ticks_history:wanted\.providerSymbol,count:60,end:"latest",style:"candles",granularity,req_id:id/);
  assert.match(s,/h\.loadedM15&&h\.loadedH1&&h\.loadedH4/);
  assert.match(s,/h\.m1=latestContiguousCandles\(h\.m1,60,240\)/);
