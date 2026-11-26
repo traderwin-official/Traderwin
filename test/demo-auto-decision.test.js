@@ -322,3 +322,30 @@ test("blocks open-position management when the protective stop itself is invalid
   };
   assert.equal(decideDemoAutoAction({ ...input, now }).reason, "STOP_LOSS_UNAVAILABLE");
 });
+
+
+test("verified protective stop still closes when optional USD conversion is unavailable", () => {
+  const input = structuredClone(base);
+  input.market = null;
+  input.openTrade = {
+    id: "stop-without-usd-rate", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, stop_loss: 118, take_profit: 126,
+    tp1_price: 122, tp2_price: 124, tp3_price: 126,
+    tp1_done: false, tp2_done: false, tp3_done: false,
+    virtual_units: 2, status: "OPEN"
+  };
+  input.quote.quote = 117.9;
+  input.quote.quoteToUsd = null;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "CLOSE");
+  assert.equal(result.reason, "STOP_LOSS");
+  assert.equal(result.unrealizedPnl, null);
+});
+
+test("blocks new DEMO entries when USD conversion is unavailable", () => {
+  const input = structuredClone(base);
+  input.quote.quoteToUsd = null;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "BLOCK");
+  assert.equal(result.reason, "USD_CONVERSION_UNAVAILABLE");
+});
