@@ -109,7 +109,7 @@ async function manageOpenTrades(instrument,tick){
  const outcomes=await Promise.all(trades.map(async trade=>{
   tradeLocks.add(trade.id);
   try{
-   const result=await manageScalpingPaperPosition({db,trade,tick,now:Date.now()});
+   const result=await manageScalpingPaperPosition({db,trade,tick,leaseToken,now:Date.now()});
    if(result.action==="EXIT"&&result.result?.ok===true){
     state.paperExits++;state.lastPaperExitAt=new Date().toISOString();
     if(result.stage==="TP1")trade.tp1_done=true;
