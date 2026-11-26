@@ -177,6 +177,23 @@ test("market-gated worker manages each open DEMO position independently", async 
  assert.equal(locks.size,0);
 });
 
+test("all 15 positions are evaluated in the same tick management cycle",async()=>{
+ const locks=new Set(),started=[],completed=[];
+ let release;
+ const gate=new Promise(resolve=>{release=resolve;});
+ const trades=Array.from({length:15},(_,i)=>({id:"position-"+(i+1)}));
+ const run=manageTradesIndependently({
+  trades,locks,
+  manage:async trade=>{started.push(trade.id);await gate;completed.push(trade.id);}
+ });
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(started.length,15);
+ assert.equal(locks.size,15);
+ release();
+ assert.equal(await run,true);
+ assert.equal(completed.length,15);
+ assert.equal(locks.size,0);
+});
 test("one position-management error is isolated from other open positions", async () => {
  const locks=new Set(),finished=[],errors=[];
  const ok=await manageTradesIndependently({
