@@ -8,6 +8,7 @@ import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.j
 import { evaluateMarketCandidate } from "./lib/market-intelligence-gate.js";
 import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
 import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
+import { getBiQuoteCalendarRiskStatus } from "./lib/biquote-calendar-risk.js";
 import { getXausGoldReference, compareGoldReference } from "./lib/xaus-gold-reference.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -208,7 +209,15 @@ async function publishTick(wanted,tick){
   const mid=(payload.bid+payload.ask)/2;
   const spreadBps=Number.isFinite(mid)&&mid>0?((payload.ask-payload.bid)/mid)*10000:null;
   const configuredMaxSpreadBps=Number(process.env.SCALPING_MAX_SPREAD_BPS);
-  const newsRisk=await getGdeltNewsRiskStatus();
+  const [gdeltRisk,calendarRisk]=await Promise.all([
+   getGdeltNewsRiskStatus(),
+   getBiQuoteCalendarRiskStatus({instrument:wanted.instrument})
+  ]);
+  const newsRisk={
+   status:gdeltRisk.status==="BLACKOUT"||calendarRisk.status==="BLACKOUT"?"BLACKOUT":"UNKNOWN",
+   reason:gdeltRisk.status==="BLACKOUT"?"GDELT_HIGH_IMPACT_NEWS":calendarRisk.status==="BLACKOUT"?"BIQUOTE_HIGH_IMPACT_CALENDAR":"NEWS_CLEARANCE_NOT_ESTABLISHED",
+   gdelt:gdeltRisk,calendar:calendarRisk
+  };
   state.newsRisk=newsRisk;
   if(wanted.instrument==="XAUUSD"){
    const goldReference=await getXausGoldReference();
