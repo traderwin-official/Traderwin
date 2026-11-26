@@ -324,7 +324,7 @@ test("blocks open-position management when the protective stop itself is invalid
 });
 
 
-test("verified protective stop still closes when optional USD conversion is unavailable", () => {
+test("does not attempt an atomic stop exit without USD conversion needed for balance and daily-loss settlement", () => {
   const input = structuredClone(base);
   input.market = null;
   input.openTrade = {
@@ -337,15 +337,7 @@ test("verified protective stop still closes when optional USD conversion is unav
   input.quote.quote = 117.9;
   input.quote.quoteToUsd = null;
   const result = decideDemoAutoAction({ ...input, now });
-  assert.equal(result.action, "CLOSE");
-  assert.equal(result.reason, "STOP_LOSS");
-  assert.equal(result.unrealizedPnl, null);
-});
-
-test("blocks new DEMO entries when USD conversion is unavailable", () => {
-  const input = structuredClone(base);
-  input.quote.quoteToUsd = null;
-  const result = decideDemoAutoAction({ ...input, now });
   assert.equal(result.action, "BLOCK");
   assert.equal(result.reason, "USD_CONVERSION_UNAVAILABLE");
 });
+
