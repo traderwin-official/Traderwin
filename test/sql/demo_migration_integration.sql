@@ -452,3 +452,8 @@ begin
   if v_saved is not true then raise exception 'Expected current lease owner to release its lease'; end if;
 end
 $body$;
+
+-- Release this file-local allowlist fixture so later SQL suites can seed EURUSD independently.
+delete from public.trading_instrument_approvals
+ where broker='DERIV' and instrument='EURUSD'
+   and provider_symbol='frxEURUSD' and approval_note='Disposable CI fixture';
