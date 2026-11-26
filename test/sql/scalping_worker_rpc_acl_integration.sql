@@ -77,4 +77,4 @@ begin
     raise exception 'Retired staged-exit RPC must not be executable by service_role';
   end if;
 end
-$;
+$$;
