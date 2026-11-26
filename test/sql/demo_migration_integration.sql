@@ -18,6 +18,8 @@ declare
   v_count integer;
   v_permission record;
   v_saved boolean;
+  v_lease_token uuid;
+  v_other_lease_token uuid;
   i integer;
 begin
   perform set_config('request.jwt.claim.role','service_role',true);
@@ -367,5 +369,34 @@ begin
   ) then
     raise exception 'Expected daily loss breach to lock the scalping DEMO session';
   end if;
+
+  -- The dedicated worker lease is a strict singleton: only its owner may
+  -- renew or release it, and a different token can take over after expiry.
+  select gen_random_uuid(),gen_random_uuid()
+    into v_lease_token,v_other_lease_token;
+  select public.claim_traderwin_scalping_worker(v_lease_token,90) into v_saved;
+  if v_saved is not true then raise exception 'Expected initial worker lease claim'; end if;
+
+  select public.claim_traderwin_scalping_worker(v_other_lease_token,90) into v_saved;
+  if v_saved is not false then raise exception 'Expected competing worker lease claim to fail'; end if;
+
+  select public.claim_traderwin_scalping_worker(v_lease_token,90) into v_saved;
+  if v_saved is not true then raise exception 'Expected lease owner to renew its own lease'; end if;
+
+  select public.release_traderwin_scalping_worker(v_other_lease_token) into v_saved;
+  if v_saved is not false then raise exception 'Expected non-owner lease release to fail'; end if;
+
+  update public.scalping_worker_leases
+     set lease_until=now()-interval '1 second'
+   where lease_key='global' and lease_token=v_lease_token;
+
+  select public.claim_traderwin_scalping_worker(v_other_lease_token,90) into v_saved;
+  if v_saved is not true then raise exception 'Expected expired lease takeover'; end if;
+
+  select public.release_traderwin_scalping_worker(v_lease_token) into v_saved;
+  if v_saved is not false then raise exception 'Expected expired lease owner to be unable to release new lease'; end if;
+
+  select public.release_traderwin_scalping_worker(v_other_lease_token) into v_saved;
+  if v_saved is not true then raise exception 'Expected current lease owner to release its lease'; end if;
 end
 $body$;
