@@ -157,4 +157,4 @@ begin
     raise exception 'Expected second pending reservation to exceed the combined DEMO budget';
   end if;
 end
-$;
+$$;
