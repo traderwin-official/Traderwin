@@ -43,7 +43,7 @@ export async function checkScalpingRuntimeReadiness({
   const rest = new URL("/rest/v1/", base).toString();
   let schema;
   try {
-    const response = await fetchImpl(rest, { headers: jsonHeaders(serviceRoleKey) });
+    const response = await fetchImpl(rest, { headers: { ...jsonHeaders(serviceRoleKey), accept: "application/openapi+json" } });
     if (!response.ok) throw new Error("Supabase REST schema check returned HTTP " + response.status + ".");
     schema = await response.json();
     checks.api = true;
