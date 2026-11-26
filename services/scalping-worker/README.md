@@ -48,3 +48,17 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - Do not deploy until the migration has been reviewed and explicitly approved for the target Supabase project.
 - Do not add the service-role key to a browser environment, GitHub source, or chat.
 - Keep the service stopped until code checks are green and the Railway trial credit balance has been checked. Do not upgrade to a paid Railway plan without the account owner's explicit approval.
+
+## Historical strategy research
+
+The repository also contains an offline research harness at `lib/scalping-backtest.js`.
+It replays completed M1 candles, derives M5 confirmation only from prior complete candles,
+evaluates entries at the next bar open, applies a fixed spread on both sides, adverse
+slippage and round-trip commission assumptions, and resolves same-bar stop/target ambiguity
+conservatively in favor of the stop. It reports expectancy, profit factor, win rate,
+drawdown, losing streaks and a portfolio-risk-weighted return estimate.
+
+Run the repository test suite with `npm test`. To evaluate a real strategy, supply
+verified historical M1 OHLC data and instrument-specific spread, slippage and commission
+assumptions. Synthetic test candles are only for checking code behavior; they are not
+evidence of trading performance. This harness does not connect to a broker or execute orders.
