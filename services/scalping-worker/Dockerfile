@@ -19,3 +19,4 @@ EXPOSE 8080
 USER node
 CMD ["node", "index.js"]
 COPY lib/biquote-calendar-risk.js ./lib/biquote-calendar-risk.js
+COPY lib/scalping-entry-lock.js ./lib/scalping-entry-lock.js
