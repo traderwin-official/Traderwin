@@ -10,6 +10,7 @@ import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
 import { applyOpenTradeSnapshot, quarantineTradeForRefresh } from "../../lib/scalping-trade-refresh.js";
 import { acceptMonotonicMarketTick } from "../../lib/scalping-tick-order.js";
 import { detectMarketDataGap } from "../../lib/scalping-market-data-gap.js";
+import { recordMarketDataGapReview, resolveMarketDataGapReview } from "../../lib/scalping-gap-review.js";
 import { runInstrumentEntryAnalysis } from "./lib/scalping-entry-lock.js";
 import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
 import { getBiQuoteCalendarRiskStatus } from "./lib/biquote-calendar-risk.js";
@@ -19,10 +20,10 @@ const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=proce
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const SCALPING_STRATEGY="TIGER_SCHEME_QUANTUM_SCALPING";
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
-const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastMarketIntelligence:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},lastMarketDataGap:null,newsRisk:{status:"UNKNOWN",reason:"NOT_CHECKED"},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
+const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastMarketIntelligence:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},lastMarketDataGap:null,marketDataReviewRequired:{},newsRisk:{status:"UNKNOWN",reason:"NOT_CHECKED"},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map(),entryAnalysisLocks=new Set(),latestTickEpoch=new Map(),tradeRefreshPending=new Map();
+const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map(),entryAnalysisLocks=new Set(),latestTickEpoch=new Map(),tradeRefreshPending=new Map(),marketDataReviewRequired=new Map();
 let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[],tradeRefreshGeneration=0,tradeRefreshInFlight=null,reconcileInFlight=null,tradeStateReady=false;
 const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
@@ -201,7 +202,7 @@ async function publishTick(wanted,tick){
  const previousEpoch=latestTickEpoch.get(norm(wanted.instrument));
  if(!acceptMonotonicMarketTick({instrument:wanted.instrument,epoch,latestByInstrument:latestTickEpoch}))return;
  const gap=detectMarketDataGap({instrument:wanted.instrument,previousEpoch,epoch,activePositionCount:[...activeTrades.values()].filter(trade=>norm(trade.instrument)===norm(wanted.instrument)).length});
- if(gap){state.lastMarketDataGap={...gap,detectedAt:new Date().toISOString()};}
+ if(gap){state.lastMarketDataGap={...gap,detectedAt:new Date().toISOString()};recordMarketDataGapReview({gap,reviewRequiredByInstrument:marketDataReviewRequired});state.marketDataReviewRequired[wanted.instrument]=marketDataReviewRequired.get(wanted.instrument)||null;}
  const quoteAsOf=new Date(epoch*1000).toISOString(),receivedAt=new Date().toISOString();
  const payload={instrument:wanted.instrument,providerSymbol,quote,bid:typeof tick.bid==="number"&&Number.isFinite(tick.bid)&&tick.bid>0?tick.bid:null,ask:typeof tick.ask==="number"&&Number.isFinite(tick.ask)&&tick.ask>0?tick.ask:null,quoteAsOf,receivedAt,source:"DERIV"};
  state.lastTickAt=receivedAt;state.ticks++;
