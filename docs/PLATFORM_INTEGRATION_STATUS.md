@@ -78,6 +78,7 @@ The summary is a presentation/aggregation layer. It does not change the executio
 - The XAUS independent gold reference comparison was previously calculated and displayed in the Analyst response but was not connected to the final market-intelligence veto. This meant a divergence could appear as context without blocking the candidate.
 - The Analyst now passes the server-verified comparison status into the gate. XAUUSD can pass only when the comparison is `PASS`; a divergence returns `INDEPENDENT_REFERENCE_DIVERGENCE`, while missing, stale or invalid reference data returns `INDEPENDENT_REFERENCE_NOT_VERIFIED`.
 - Non-gold instruments are unaffected. The independent reference remains indicative only and never replaces Deriv bid/ask. The gate remains research-only and never authorizes execution.
+- The consolidated Analyst summary also deduplicates date-only calendar rows that the provider returns in both blackout and upcoming lists, preserving the blackout classification.
 - Added unit tests for PASS/BLOCK/UNKNOWN, non-gold behaviour, consolidated risk flags and route-to-gate wiring. The first run exposed one incorrect static test assertion; it was corrected.
 - Node workflow [#1204](https://github.com/traderwin-official/Traderwin/actions/runs/45842452216) passed **619/619 tests** (0 failed).
 - Full Traderwin workflow [#1994](https://github.com/traderwin-official/Traderwin/actions/runs/45842452247) passed Node tests, serverless syntax, inline page scripts, worker image build and disposable PostgreSQL DEMO/portfolio migration validation.
