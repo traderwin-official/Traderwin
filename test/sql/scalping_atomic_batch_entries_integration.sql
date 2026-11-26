@@ -45,6 +45,9 @@ begin
      or position('SCALPING_DAILY_LOSS_LIMIT' in v_definition)=0
      or position('SCALPING_ENTRY_ALREADY_PROCESSED' in v_definition)=0
      or position('scalping_batch_index' in v_definition)=0
+     or position('demo_paper_emergency_controls' in v_definition)=0
+     or position('entries_blocked' in v_definition)=0
+     or position('KILL_SWITCH_ACTIVE' in v_definition)=0
      or position('for v_entry in' in lower(v_definition))=0
      or position('demo_scalping_entry_batches' in v_definition)=0
      or position('on conflict' in lower(v_definition))=0 then
