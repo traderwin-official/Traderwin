@@ -3,7 +3,10 @@ do $$
 declare
   v_user uuid;
   v_override_user uuid;
+  v_batch_user uuid;
   v_session uuid;
+  v_batch_session uuid;
+  v_batch uuid;
   v_result jsonb;
   v_trade uuid;
   v_count integer;
@@ -98,5 +101,60 @@ begin
     v_blocked := true;
   end;
   if not v_blocked then raise exception 'Expected session-level platform risk caps to reject overrides'; end if;
+
+  -- Pending manual setups reserve the same combined daily-loss/open-risk budget.
+  insert into auth.users default values returning id into v_batch_user;
+  insert into public.trading_instrument_approvals(
+    broker,instrument,provider,provider_symbol,status,is_active,
+    approval_note,approved_by,updated_by,approved_at
+  ) values (
+    'DERIV','GBPUSD','DERIV','frxGBPUSD','APPROVED',true,
+    'Disposable risk-budget CI fixture',v_batch_user,v_batch_user,now()
+  );
+  insert into public.demo_paper_sessions(
+    user_id,broker,broker_account_ref,instrument,strategy,timeframe,status,
+    starting_balance,current_balance,max_open_positions
+  ) values (
+    v_batch_user,'DERIV','RISK-BATCH:'||v_batch_user,'GBPUSD','RISK_GUARD_CI','M15','RUNNING',
+    10000,10000,3
+  ) returning id into v_batch_session;
+
+  select public.open_demo_paper_trade(
+    v_batch_user,v_batch_session,'GBPUSD','BUY',1.10000,1.09000,1.13000,
+    2500,25,0.25,1,'DERIV',now(),'MANUAL'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected compliant GBPUSD position before pending reservation: %',v_result;
+  end if;
+  v_trade := (v_result->>'trade_id')::uuid;
+  update public.demo_paper_trades set realized_pnl_usd=-50 where id=v_trade;
+
+  select public.create_demo_manual_entry_batch(
+    v_batch_user,v_batch_session,'GBPUSD','frxGBPUSD','BUY','LIMIT',1,
+    1.10000,1.09000,1.11000,1.12000,1.13000,
+    40,30,30,2500,25,0.25,1,'DERIV',1.10500,now()-interval '10 seconds'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected first pending reservation to fit the combined budget: %',v_result;
+  end if;
+  v_batch := (v_result->>'batch_id')::uuid;
+
+  v_blocked := false;
+  begin
+    perform public.create_demo_manual_entry_batch(
+      v_batch_user,v_batch_session,'GBPUSD','frxGBPUSD','BUY','LIMIT',1,
+      1.10000,1.09000,1.11000,1.12000,1.13000,
+      40,30,30,2500,25,0.25,1,'DERIV',1.10500,now()
+    );
+  exception when others then
+    if position('combined daily loss' in lower(sqlerrm)) > 0 then
+      v_blocked := true;
+    else
+      raise;
+    end if;
+  end;
+  if not v_blocked then
+    raise exception 'Expected second pending reservation to exceed the combined DEMO budget';
+  end if;
 end
-$$;
+$;
