@@ -39,7 +39,7 @@ begin
   if p_user_id is null or p_session_id is null
      or p_entries is null or jsonb_typeof(p_entries) <> 'array'
      or jsonb_array_length(p_entries) < 1 or jsonb_array_length(p_entries) > 15
-     or p_entry_as_of is null or p_entry_as_of > now()
+     or p_entry_as_of is null or p_entry_as_of > now() + interval '2 seconds'
      or p_entry_as_of < now() - interval '10 seconds'
      or p_entry_key is null or length(trim(p_entry_key)) not between 1 and 160 then
     raise exception 'Invalid Quantum Scalping batch request';
