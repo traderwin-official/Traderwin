@@ -48,3 +48,8 @@ test("worker resumes live quotes before history warm-up but gates new entries",(
   "open positions must be managed before the history warm-up return");
  assert.match(publish,/if\(!h\|\|h\.m1\.length<35\)return/);
 });
+
+test("health check treats connected quote service as healthy during candle warm-up",()=>{
+ assert.match(worker,/state\.socket==="CONNECTED"&&state\.subscribed\.length>0/);
+ assert.doesNotMatch(worker,/state\.socket==="CONNECTED"&&state\.readySymbols\.length>0/);
+});
