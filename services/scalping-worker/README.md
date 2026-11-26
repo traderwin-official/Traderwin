@@ -40,7 +40,7 @@ Enabling the feed alone never opens a position; `paper_execution_enabled` defaul
 - After reconnect, live ticks resume immediately while M1/M5/M15/H1/H4 candle history warms in parallel. This lets the worker assess open DEMO positions against fresh bid/ask quotes during warm-up; new entries remain blocked until all five histories are complete and pass the contiguous-candle checks. All five histories refresh every 60 seconds; M1/M5 refresh lets the worker recover from a market-session gap without remaining stuck below its contiguous warm-up threshold.
 - Latest ticks and signal candidates are persisted to private Supabase tables. The worker health response also reports per-instrument quote-side readiness and counts spot-only ticks; a spot quote without both valid bid and ask is never eligible for a new entry.
 - Open scalping positions are refreshed without replacing in-flight trade state and managed concurrently from the same tick stream; each position can take profit or stop out independently while the others remain open.
-- `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error.
+- `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error. It reports the service healthy once the lease and quote WebSocket are connected, even while candle history is warming; `readySymbols` remains the separate indicator-readiness signal, and entry analysis stays blocked until all required histories pass validation.
 
 ## Pre-deployment readiness check
 
