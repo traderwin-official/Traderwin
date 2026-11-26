@@ -215,9 +215,12 @@ async function publishTick(wanted,tick){
   const mid=(payload.bid+payload.ask)/2;
   const spreadBps=Number.isFinite(mid)&&mid>0?((payload.ask-payload.bid)/mid)*10000:null;
   const configuredMaxSpreadBps=Number(process.env.SCALPING_MAX_SPREAD_BPS);
-  const [gdeltRisk,calendarRisk]=await Promise.all([
+  // Fetch all independent external vetoes concurrently so XAUUSD does not
+  // wait for news/calendar checks before starting its independent gold reference.
+  const [gdeltRisk,calendarRisk,goldReference]=await Promise.all([
    getGdeltNewsRiskStatus(),
-   getBiQuoteCalendarRiskStatus({instrument:wanted.instrument})
+   getBiQuoteCalendarRiskStatus({instrument:wanted.instrument}),
+   wanted.instrument==="XAUUSD"?getXausGoldReference():Promise.resolve(null)
   ]);
   const newsRisk={
    status:gdeltRisk.status==="BLACKOUT"||calendarRisk.status==="BLACKOUT"?"BLACKOUT":"UNKNOWN",
@@ -226,7 +229,6 @@ async function publishTick(wanted,tick){
   };
   state.newsRisk=newsRisk;
   if(wanted.instrument==="XAUUSD"){
-   const goldReference=await getXausGoldReference();
    const referenceLimit=Number(process.env.SCALPING_XAUUSD_MAX_REFERENCE_DEVIATION_BPS||50);
    const goldGuard=compareGoldReference({brokerMid:mid,reference:goldReference,maxDeviationBps:referenceLimit});
    state.goldReference={...goldReference,guard:goldGuard};
