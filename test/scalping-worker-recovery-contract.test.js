@@ -58,7 +58,7 @@ test("worker records reconnect gaps and never synthesizes an exit price from mis
  assert.match(worker,/detectMarketDataGap\(/);
  assert.match(worker,/lastMarketDataGap:null/);
  const start=worker.indexOf("async function publishTick(");
- const end=worker.indexOf("\\nfunction closeSocket",start);
+ const end=worker.indexOf("\nfunction closeSocket",start);
  const publish=worker.slice(start,end);
  assert.ok(publish.indexOf("detectMarketDataGap(")<publish.indexOf("manageOpenTrades("));
  assert.ok(publish.indexOf("manageOpenTrades(")<publish.indexOf("const h=history.get(wanted.instrument)"));
