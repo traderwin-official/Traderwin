@@ -8,6 +8,20 @@ begin
   if v_inner is null or v_wrapper is null then
     raise exception 'Atomic Quantum Scalping batch RPCs are missing';
   end if;
+  if to_regclass('public.demo_scalping_entry_batches') is null then
+    raise exception 'Durable Quantum Scalping batch idempotency ledger is missing';
+  end if;
+  if not exists (
+    select 1 from pg_indexes
+     where schemaname='public' and tablename='demo_scalping_entry_batches'
+       and indexdef ilike '%unique%session_id%entry_key%'
+  ) then
+    raise exception 'Batch idempotency ledger must enforce unique session and entry key';
+  end if;
+  if has_table_privilege('service_role','public.demo_scalping_entry_batches','SELECT')
+     or has_table_privilege('authenticated','public.demo_scalping_entry_batches','SELECT') then
+    raise exception 'Batch idempotency ledger must not be directly readable by API roles';
+  end if;
   if has_function_privilege('service_role',v_inner,'EXECUTE') then
     raise exception 'Service role must not bypass the lease-fenced batch wrapper';
   end if;
@@ -20,8 +34,10 @@ begin
      or position('SCALPING_DAILY_LOSS_LIMIT' in v_definition)=0
      or position('SCALPING_ENTRY_ALREADY_PROCESSED' in v_definition)=0
      or position('scalping_batch_index' in v_definition)=0
-     or position('for v_entry in' in lower(v_definition))=0 then
-    raise exception 'Batch RPC is missing portfolio, idempotency, or independent-position safeguards';
+     or position('for v_entry in' in lower(v_definition))=0
+     or position('demo_scalping_entry_batches' in v_definition)=0
+     or position('on conflict' in lower(v_definition))=0 then
+    raise exception 'Batch RPC is missing portfolio, durable idempotency, or independent-position safeguards';
   end if;
   select pg_get_functiondef(v_wrapper) into v_definition;
   if position('SCALPING_WORKER_LEASE_NOT_OWNED' in v_definition)=0
