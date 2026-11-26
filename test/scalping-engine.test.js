@@ -195,7 +195,8 @@ test("higher timeframe context requires contiguous M15 H1 and H4 candles",()=>{
 });
 
 test("scalping engine fails closed when M15 H1 or H4 context is missing",()=>{
- const result=analyseScalping({instrument:"XAUUSD",candles:candles(),trendCandles:undefined,contextCandles:{M15:[],H1:[],H4:[]},tick:tick(),now});
+ const t=tick();t.bid=t.quote-0.001;t.ask=t.quote+0.001;
+ const result=analyseScalping({instrument:"XAUUSD",candles:candles(),trendCandles:undefined,contextCandles:{M15:[],H1:[],H4:[]},tick:t,now});
  assert.equal(result.direction,"WAIT");
  assert.equal(result.reason,"HIGHER_TIMEFRAME_CONTEXT_UNAVAILABLE");
 });
