@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {openScalpingPaperPosition as openPosition,manageScalpingPaperPosition} from "../lib/scalping-paper-adapter.js";
+import {openScalpingPaperPosition as openPosition,manageScalpingPaperPosition as managePosition} from "../lib/scalping-paper-adapter.js";
 const openScalpingPaperPosition = args => openPosition({leaseToken:"lease-token-1",...args});
+const manageScalpingPaperPosition = args => managePosition({leaseToken:"lease-token-1",...args});
 
 const session={id:"session-1",user_id:"user-1",broker:"DERIV",status:"RUNNING",instrument:"XAUUSD",starting_balance:10000,current_balance:10000,max_open_positions:15,max_total_open_risk_pct:5,risk_per_trade_pct:0.5,
  config_snapshot:{account_mode:"DEMO",execution:"WEBSITE_PAPER_ONLY"}};
@@ -72,7 +73,8 @@ test("paper adapter closes only tagged scalping BOT positions through the existi
   tp1_price:"2007.5",tp2_price:"2011",tp3_price:"2016",tp1_done:false,tp2_done:false,tp3_done:false,quote_to_usd:"1"};
  const exit=await manageScalpingPaperPosition({db,trade,tick:{...tick,bid:2008,ask:2008.1},now});
  assert.equal(exit.stage,"TP1");
- assert.equal(call.name,"manage_demo_paper_exit");
+ assert.equal(call.name,"manage_demo_scalping_paper_exit_with_lease");
+ assert.equal(call.args.p_lease_token,"lease-token-1");
  assert.equal(call.args.p_stage,"TP1");
 });
 
@@ -122,5 +124,16 @@ test("portfolio refuses a sixteenth open position before requesting an entry",as
  const db=paperDb(async()=>{called=true;return {data:{ok:true},error:null};},rows);
  const result=await openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,now});
  assert.equal(result.reason,"SCALPING_MAX_OPEN_POSITIONS");
+ assert.equal(called,false);
+});
+
+test("paper position management refuses missing worker lease before database access",async()=>{
+ let called=false;
+ const db=paperDb(async()=>{called=true;return {data:true,error:null};});
+ const trade={id:"trade-3",user_id:"user-1",status:"OPEN",trade_origin:"BOT",
+  metadata:{strategy:"TIGER_SCHEME_QUANTUM_SCALPING"},side:"BUY",stop_loss:1990,
+  tp1_price:2007,tp2_price:2011,tp3_price:2016,tp1_done:false,tp2_done:false,tp3_done:false,quote_to_usd:1};
+ const result=await managePosition({db,trade,tick:{...tick,bid:2008,ask:2008.1},now});
+ assert.equal(result.reason,"SCALPING_WORKER_LEASE_NOT_OWNED");
  assert.equal(called,false);
 });
