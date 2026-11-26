@@ -9,14 +9,14 @@ const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=proce
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const SCALPING_STRATEGY="TIGER_SCHEME_QUANTUM_SCALPING";
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
-const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{}};
+const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
 let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[];
 const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
- if(req.url==="/healthz"){const healthy=!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
+ if(req.url==="/healthz"){const healthy=leaseOwned&&!stopping&&!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
  res.writeHead(404);res.end();
 });
 function logError(e){state.lastError=String(e?.message||e).slice(0,240);console.error("scalping-worker:",state.lastError);}
@@ -281,18 +281,23 @@ async function reconcile(){
  try{
   const {data:claimed,error:leaseError}=await db.rpc("claim_traderwin_scalping_worker",{p_lease_token:leaseToken,p_lease_seconds:90});
   if(leaseError)throw leaseError;
-  leaseOwned=claimed===true;
-  if(!leaseOwned){closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
+  leaseOwned=claimed===true;state.leaseOwned=leaseOwned;
+  if(!leaseOwned){state.leaseLastError="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
+  state.leaseLastRenewedAt=new Date().toISOString();state.leaseLastError=null;
   const desired=await eligibleSymbols();await subscribeSet(desired);state.lastError=null;
- }catch(e){leaseOwned=false;closeSocket();logError(e);scheduleReconnect();}
+ }catch(e){leaseOwned=false;state.leaseOwned=false;state.leaseLastError=String(e?.message||e).slice(0,180);closeSocket();logError(e);scheduleReconnect();}
 }
 server.listen(PORT,()=>console.log("Young Tiger continuous DEMO scalping paper worker listening on",PORT));
 reconcile().catch(logError);
 reconcileTimer=setInterval(()=>reconcile().catch(logError),10000);
 refreshOpenTrades().catch(logError);
 tradeRefreshTimer=setInterval(()=>refreshOpenTrades().catch(logError),1000);
-function shutdown(){
- stopping=true;clearInterval(reconcileTimer);clearInterval(tradeRefreshTimer);if(reconnectTimer)clearTimeout(reconnectTimer);closeSocket();server.close();
- if(leaseOwned)db.rpc("release_traderwin_scalping_worker",{p_lease_token:leaseToken}).catch(logError);
+async function shutdown(){
+ if(stopping)return;
+ stopping=true;state.stopping=true;clearInterval(reconcileTimer);clearInterval(tradeRefreshTimer);if(reconnectTimer)clearTimeout(reconnectTimer);closeSocket();server.close();
+ if(leaseOwned){
+  try{const {error}=await db.rpc("release_traderwin_scalping_worker",{p_lease_token:leaseToken});if(error)throw error;leaseOwned=false;state.leaseOwned=false;}
+  catch(e){state.leaseLastError=String(e?.message||e).slice(0,180);logError(e);}
+ }
 }
 process.on("SIGTERM",shutdown);process.on("SIGINT",shutdown);
