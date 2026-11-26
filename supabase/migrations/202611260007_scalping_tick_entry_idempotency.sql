@@ -4,7 +4,7 @@
 -- Feature-branch migration only; do not apply to production without approval.
 
 alter table public.demo_scalping_preferences
-  add column if not exists last_entry_quote_as_of timestamptz;
+  add column if not exists last_entry_as_of timestamptz;
 alter table public.demo_scalping_preferences
   add column if not exists last_entry_key text;
 
@@ -31,13 +31,13 @@ begin
   v_before := v_sql;
   v_sql := regexp_replace(v_sql,
     'if p_candle_as_of <= coalesce\(v_preference\.last_candle_as_of,''epoch''::timestamptz\) then\s+return jsonb_build_object\(''ok'',false,''reason'',''SCALPING_CANDLE_ALREADY_PROCESSED''\);\s+end if;',
-    'if p_entry_key = coalesce(v_preference.last_entry_key, '''') then     return jsonb_build_object(''ok'',false,''reason'',''SCALPING_ENTRY_ALREADY_PROCESSED'');   end if;   if p_entry_as_of <= coalesce(v_preference.last_entry_quote_as_of, ''epoch''::timestamptz)      or p_entry_as_of < coalesce(v_preference.last_entry_quote_as_of, ''epoch''::timestamptz) + interval ''1 second'' then     return jsonb_build_object(''ok'',false,''reason'',''SCALPING_ENTRY_RATE_LIMIT'');   end if;', 'i');
+    'if p_entry_key = coalesce(v_preference.last_entry_key, '''') then     return jsonb_build_object(''ok'',false,''reason'',''SCALPING_ENTRY_ALREADY_PROCESSED'');   end if;   if p_entry_as_of <= coalesce(v_preference.last_entry_as_of, ''epoch''::timestamptz)      or p_entry_as_of < coalesce(v_preference.last_entry_as_of, ''epoch''::timestamptz) + interval ''1 second'' then     return jsonb_build_object(''ok'',false,''reason'',''SCALPING_ENTRY_RATE_LIMIT'');   end if;', 'i');
   if v_sql = v_before then raise exception 'Could not replace M1-candle-only entry deduplication'; end if;
 
   v_before := v_sql;
   v_sql := replace(v_sql,
     'set last_candle_as_of=p_candle_as_of,updated_at=now()',
-    'set last_candle_as_of=p_candle_as_of,last_entry_quote_as_of=p_entry_as_of,last_entry_key=p_entry_key,updated_at=now()');
+    'set last_candle_as_of=p_candle_as_of,last_entry_as_of=p_entry_as_of,last_entry_key=p_entry_key,updated_at=now()');
   if v_sql = v_before then raise exception 'Could not persist tick-level idempotency state'; end if;
 
   v_before := v_sql;
@@ -87,7 +87,7 @@ grant execute on function public.open_demo_scalping_paper_trade_with_lease(
   numeric,numeric,numeric,numeric,timestamptz,timestamptz,timestamptz,text
 ) to service_role;
 
-comment on column public.demo_scalping_preferences.last_entry_quote_as_of
+comment on column public.demo_scalping_preferences.last_entry_as_of
   is 'Latest accepted tick timestamp for Quantum Scalping entry pacing; separate from M1 candle timestamp.';
 comment on column public.demo_scalping_preferences.last_entry_key
   is 'Deterministic per-session tick idempotency key for Quantum Scalping paper entries.';
