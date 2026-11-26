@@ -65,3 +65,8 @@ revoke all on function public.close_demo_scalping_paper_trade_with_lease(uuid,uu
 grant execute on function public.close_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,numeric,numeric,text,timestamptz) to service_role;
 comment on function public.close_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,numeric,numeric,text,timestamptz)
  is 'Lease-fenced atomic full-position DEMO scalping exit at one take-profit or stop-loss. Never manages manual positions or sends broker orders.';
+
+-- Disable the retired staged-exit endpoint. Scalping now closes full positions
+-- through the single-target RPC above; manual partial-exit RPCs are unaffected.
+revoke all on function public.manage_demo_scalping_paper_exit_with_lease(uuid,uuid,uuid,text,numeric,numeric,text,timestamptz)
+ from public,anon,authenticated,service_role;
