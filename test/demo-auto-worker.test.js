@@ -6,7 +6,7 @@ test("DEMO worker uses cron authorization, v2 lease and never sends broker order
  assert.match(s,/CRON_SECRET/);assert.match(s,/claim_demo_paper_worker/);assert.match(s,/release_demo_paper_worker/);
  assert.match(s,/p_lease_seconds:90/);assert.match(s,/eq\("trade_origin","BOT"\)/);assert.match(s,/realOrdersSent:0/);
  assert.match(s,/demo_paper_sessions/);assert.match(s,/demo_paper_trades/);assert.match(s,/neq\("strategy","MANUAL"\)/);
- assert.match(s,/\["TIGER_FIBONACCI_PSYCHOLOGY_V1","AUTO_SELECT_V1"\]/);
+ assert.match(s,/M5:"M15",M15:"H1",H1:"H4"/);
 });
 test("worker processes DEMO sessions only and respects paused, risk-lock and emergency stop",async()=>{
  const s=await readFile(new URL("../handlers/cron/demo-auto-worker.js",import.meta.url),"utf8");
