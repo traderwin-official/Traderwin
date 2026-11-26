@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createMt5BridgeAdapter } from "../lib/mt5-bridge-adapter.js";
+import { createMt5BridgeAdapter, createMt5BridgeAdapterFromEnv } from "../lib/mt5-bridge-adapter.js";
 
 const scope = { userId: "user-1", accountMode: "DEMO", broker: "MT5", accountRef: "acct-7" };
 const portfolio = {
@@ -105,4 +105,26 @@ test("MT5 DEMO closing is disabled unless explicitly enabled and can never close
     broker: "MT5", brokerPositionId: "12345", accountRef: "acct-7",
     accountMode: "REAL", source: "MANUAL"
   }, { idempotencyKey: "real-close", reason: "TEST" }), /DEMO position/);
+});
+
+test("server environment config is optional but rejects partial MT5 credentials", () => {
+  assert.equal(createMt5BridgeAdapterFromEnv({ env: {} }), null);
+  assert.throws(() => createMt5BridgeAdapterFromEnv({
+    env: { MT5_BRIDGE_URL: "https://bridge.example.test" }
+  }), /incomplete/);
+  const adapter = createMt5BridgeAdapterFromEnv({
+    env: {
+      MT5_BRIDGE_URL: "https://bridge.example.test",
+      MT5_BRIDGE_API_TOKEN: "server-side-test-token-long-enough"
+    }
+  });
+  assert.equal(adapter.broker, "MT5");
+  const closeEnabled = createMt5BridgeAdapterFromEnv({
+    env: {
+      MT5_BRIDGE_URL: "https://bridge.example.test",
+      MT5_BRIDGE_API_TOKEN: "server-side-test-token-long-enough",
+      MT5_DEMO_CLOSE_ENABLED: "true"
+    }
+  });
+  assert.equal(closeEnabled.broker, "MT5");
 });
