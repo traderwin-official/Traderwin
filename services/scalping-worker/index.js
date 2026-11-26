@@ -144,15 +144,17 @@ async function saveSignal(wanted,result,candleEpoch,tick){
   if(error){logError(error);return;}
   lastSignal.set(wanted.instrument,key);state.signals++;state.lastSignalAt=new Date().toISOString();
  }
+ if(!leaseOwned||stopping)return;
  const ready=wanted.sessions.filter(x=>x.entryEnabled&&lastEntryAttempt.get(x.session.id)!==candleEpoch);
  if(!ready.length)return;
  for(const item of ready)lastEntryAttempt.set(item.session.id,candleEpoch);
  let conversion;
  try{conversion=await getDerivQuoteToUsd(wanted.instrument,tick);}
  catch(e){state.lastEntryReason=String(e?.message||e).slice(0,180);logError(e);return;}
+ if(!leaseOwned||stopping)return;
  await Promise.all(ready.map(async item=>{
   try{
-   const opened=await openScalpingPaperPosition({db,session:item.session,preference:item.preference,signal:{...result,instrument:wanted.instrument},tick,candleEpoch,quoteToUsd:conversion.rate,now:Date.now()});
+   const opened=await openScalpingPaperPosition({db,leaseToken,session:item.session,preference:item.preference,signal:{...result,instrument:wanted.instrument},tick,candleEpoch,quoteToUsd:conversion.rate,now:Date.now()});
    if(opened?.ok===true){
     state.paperEntries++;state.lastPaperEntryAt=new Date().toISOString();state.lastEntryReason=null;
     if(opened.trade_id){
@@ -193,9 +195,10 @@ async function publishTick(wanted,tick){
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
  const managementHealthy=await managementPromise;
  if(!managementHealthy)return;
- if(!wanted.sessions.some(x=>x.entryEnabled))return;
+ if(!leaseOwned||stopping||!wanted.sessions.some(x=>x.entryEnabled))return;
  const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
+ if(!leaseOwned||stopping)return;
  const result=analyseScalping({instrument:wanted.instrument,candles:h.m1.slice(-180),trendCandles:m5,contextCandles:{M15:h.m15,H1:h.h1,H4:h.h4},tick:payload,now:Date.now()});
  if(result.direction==="BUY"||result.direction==="SELL")await saveSignal(wanted,result,h.m1.at(-1).epoch,payload);
 }
