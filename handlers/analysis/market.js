@@ -5,6 +5,7 @@ import { buildAnalystTradePlan } from "../../lib/analyst-trade-plan.js";
 import { getDerivPublicQuote } from "../../lib/deriv-public-quote.js";
 import { loadApprovedInstrument } from "../../lib/deriv/load-approved-instrument.js";
 import { evaluateMarketCandidate } from "../../lib/market-intelligence-gate.js";
+import { getGdeltNewsContext } from "../../lib/gdelt-news-context.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -48,7 +49,8 @@ export default async function handler(req, res) {
       ? getDerivCandles(instrument, higherTimeframe, { timeoutMs: 6000 })
       : Promise.resolve(null);
     const quotePromise = getDerivPublicQuote(instrument, { timeoutMs: 4000 }).catch(() => null);
-    const [market, trendMarket, quote] = await Promise.all([marketPromise, trendPromise, quotePromise]);
+    const newsPromise = getGdeltNewsContext(instrument);
+    const [market, trendMarket, quote, newsContext] = await Promise.all([marketPromise, trendPromise, quotePromise, newsPromise]);
     const candidate = analyseStrategy(market.candles, strategy, {
       trendCandles: trendMarket?.candles || market.candles,
       trendTimeframe: higherTimeframe || timeframe,
@@ -145,6 +147,7 @@ export default async function handler(req, res) {
       result: gatedResult,
       candidate: result,
       marketIntelligence,
+      newsContext,
       marketData: {
         quoteStatus: quoteFresh ? "FRESH" : "UNAVAILABLE_OR_UNVERIFIED",
         quoteAsOf: quote?.quoteAsOf || null,
