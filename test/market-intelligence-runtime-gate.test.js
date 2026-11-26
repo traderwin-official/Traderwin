@@ -108,6 +108,8 @@ test("the analyst route and DEMO scalping worker both invoke the runtime gate", 
   assert.match(analyst, /getXausGoldReference/);
   assert.match(analyst, /compareGoldReference/);
   assert.match(analyst, /goldReferenceComparison/);
+  assert.match(analyst, /buildAnalystResearchSummary/);
+  assert.match(analyst, /researchSummary/);
   assert.match(worker, /evaluateMarketCandidate/);
   assert.match(worker, /MARKET_INTELLIGENCE_WAIT/);
   assert.match(worker, /lastMarketIntelligence/);
