@@ -2,6 +2,7 @@
 do $$
 declare
   v_user uuid;
+  v_override_user uuid;
   v_session uuid;
   v_result jsonb;
   v_trade uuid;
@@ -82,6 +83,7 @@ begin
   if not v_blocked then raise exception 'Expected >0.25% per-trade risk to be rejected'; end if;
 
   -- New sessions cannot opt out by explicitly requesting a higher risk cap.
+  insert into auth.users default values returning id into v_override_user;
   v_blocked := false;
   begin
     insert into public.demo_paper_sessions(
@@ -89,7 +91,7 @@ begin
       starting_balance,current_balance,risk_per_trade_pct,max_daily_loss_pct,
       max_open_positions,max_total_open_risk_pct
     ) values (
-      v_user,'DERIV','RISK-OVERRIDE:'||v_user,'EURUSD','RISK_GUARD_CI','M15','RUNNING',
+      v_override_user,'DERIV','RISK-OVERRIDE:'||v_override_user,'EURUSD','RISK_GUARD_CI','M15','RUNNING',
       10000,10000,0.50,2.00,10,2.00
     );
   exception when check_violation then
