@@ -79,10 +79,10 @@ Deriv's public market-data WebSocket can download recent M1 candles without an a
 Check the current active symbol name first (for example, do not assume a display label is the API symbol):
 
 ```sh
-node scripts/fetch-deriv-m1-history.js frxXAUUSD 14 ./xauusd-m1.csv
+node scripts/fetch-deriv-m1-history.js frxXAUUSD 90 ./xauusd-m1.csv
 node scripts/run-scalping-backtest.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xauusd-report.json
 ```
 
-The sample cost values above are placeholders only. Use actual broker spread,
+The downloader accepts 1–120 days of history and excludes the current, potentially incomplete M1 candle. Longer samples improve research coverage, but still require a separate out-of-sample period. The sample cost values above are placeholders only. Use actual broker spread,
 slippage and commission assumptions before interpreting any result. The Deriv
 download is Deriv market data, not an MT5 broker execution record.
