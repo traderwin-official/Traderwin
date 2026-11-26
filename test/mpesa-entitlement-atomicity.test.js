@@ -20,7 +20,7 @@ test("M-Pesa callback delegates subscription fulfilment to one atomic database t
   assert.ok(source.includes("admin.rpc("));
   assert.ok(source.includes("fulfill_paid_subscription_order"));
   assert.ok(source.includes("p_order_id: paidOrder.id"));
-  assert.match(source, /Payment entitlement activation failed/);
+  assert.match(source, /Paid service entitlement activation failed/);
   assert.doesNotMatch(source, /from\("user_subscriptions"\)\.upsert/);
   assert.doesNotMatch(source, /existingSubscription\?\.payment_order_id/);
 });
