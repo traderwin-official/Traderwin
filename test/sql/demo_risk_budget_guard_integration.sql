@@ -80,7 +80,7 @@ begin
   exception when others then
     v_blocked := true;
   end;
-  if not v_blocked then raise exception 'Expected >0.25% per-trade risk to be rejected'; end if;
+  if not v_blocked then raise exception 'Expected risk above 0.25 percent per trade to be rejected'; end if;
 
   -- New sessions cannot opt out by explicitly requesting a higher risk cap.
   insert into auth.users default values returning id into v_override_user;
