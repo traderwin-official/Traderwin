@@ -287,6 +287,23 @@ begin
     raise exception 'Expected a second concurrent scalping position: %',v_result;
   end if;
   v_scalping_trade_2 := (v_result->>'trade_id')::uuid;
+
+  -- Manual DEMO positions remain available beside bot positions. They share
+  -- the portfolio ceiling but are not enrolled in bot management by default.
+  insert into public.demo_paper_trades(
+    session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
+    quantity,remaining_quantity,risk_amount_usd,risk_pct,quote_to_usd,
+    quote_source,quote_as_of,trade_origin
+  ) values (
+    v_scalping_session,v_scalping_user,'EURUSD','SELL',1.10000,1.11000,1.07000,
+    1000,1000,10,0.10,1,'DERIV',now(),'MANUAL'
+  ) returning id into v_manual_trade_id;
+  select public.close_demo_paper_trade(
+    v_scalping_user,v_manual_trade_id,1.10000,1,'DERIV',now(),'CI_MANUAL_CLOSE_DURING_SCALPING'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected manual DEMO position to remain manageable during scalping: %',v_result;
+  end if;
   select count(*) into v_count from public.demo_paper_trades
    where user_id=v_scalping_user and status='OPEN'
      and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING';
@@ -339,7 +356,7 @@ begin
     raise exception 'Expected missing paper execution consent to block entries: %',v_result;
   end if;
 
-  -- Direct/manual inserts cannot bypass the active scalping-only entry gate.
+  -- Manual entries remain allowed but must obey the shared 15-position cap.
   begin
     insert into public.demo_paper_trades(
       session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
@@ -349,9 +366,9 @@ begin
       v_scalping_session,v_scalping_user,'EURUSD','SELL',1.10000,1.11000,1.07000,
       1000,1000,10,0.10,1,'DERIV',now(),'MANUAL'
     );
-    raise exception 'Expected active scalping to reject a new manual insert';
+    raise exception 'Expected the shared 15-position cap to block a 16th manual position';
   exception when others then
-    if position('SCALPING_ACTIVE_BOT_ONLY_NEW_ENTRIES' in sqlerrm)=0 then
+    if position('SCALPING_MAX_OPEN_POSITIONS' in sqlerrm)=0 then
       raise;
     end if;
   end;
