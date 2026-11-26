@@ -22,7 +22,7 @@ const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map(),entryAnalysisLocks=new Set(),latestTickEpoch=new Map(),tradeRefreshPending=new Map();
-let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[],tradeRefreshGeneration=0,tradeRefreshInFlight=null,tradeStateReady=false;
+let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[],tradeRefreshGeneration=0,tradeRefreshInFlight=null,reconcileInFlight=null,tradeStateReady=false;
 const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
  if(req.url==="/healthz"){const leaseRenewedAt=Date.parse(state.leaseLastRenewedAt);const leaseAgeMs=Date.now()-leaseRenewedAt;const leaseFresh=Number.isFinite(leaseRenewedAt)&&leaseAgeMs>=0&&leaseAgeMs<=30000;const healthy=leaseOwned&&leaseFresh&&!stopping&&!state.lastError&&(state.socket==="IDLE_NO_OPTED_IN_DEMO_SESSIONS"||(state.socket==="CONNECTED"&&state.readySymbols.length>0));res.writeHead(healthy?200:503,{"content-type":"application/json","cache-control":"no-store"});return res.end(JSON.stringify({...state,service:"young-tiger-scalping-worker",execution:"DEMO_PAPER_ONLY_NO_BROKER_ORDERS"}));}
@@ -355,16 +355,21 @@ function validCandle(c){return c&&[c.epoch,c.open,c.high,c.low,c.close].every(Nu
 function scheduleReconnect(){if(stopping||reconnectTimer)return;reconnectTimer=setTimeout(()=>{reconnectTimer=null;reconcile().catch(logError);},retry);retry=Math.min(retry*2,30000);}
 async function reconcile(){
  if(stopping)return;
- try{
-  const {data:claimed,error:leaseError}=await db.rpc("claim_traderwin_scalping_worker",{p_lease_token:leaseToken,p_lease_seconds:90});
-  if(leaseError)throw leaseError;
-  leaseOwned=claimed===true;state.leaseOwned=leaseOwned;
-  if(!leaseOwned){tradeStateReady=false;state.leaseLastError="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
-  state.leaseLastRenewedAt=new Date().toISOString();state.leaseLastError=null;
-  // Rehydrate the durable open-position ledger before reconnecting market data.
-  await refreshOpenTrades();
-  const desired=await eligibleSymbols();await subscribeSet(desired);state.lastError=null;
- }catch(e){leaseOwned=false;state.leaseOwned=false;tradeStateReady=false;state.leaseLastError=String(e?.message||e).slice(0,180);closeSocket();logError(e);scheduleReconnect();}
+ if(reconcileInFlight)return reconcileInFlight;
+ reconcileInFlight=(async()=>{
+  try{
+   const {data:claimed,error:leaseError}=await db.rpc("claim_traderwin_scalping_worker",{p_lease_token:leaseToken,p_lease_seconds:90});
+   if(leaseError)throw leaseError;
+   leaseOwned=claimed===true;state.leaseOwned=leaseOwned;
+   if(!leaseOwned){tradeStateReady=false;state.leaseLastError="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";closeSocket();state.socket="LEASE_HELD_BY_ANOTHER_SCALPING_WORKER";return;}
+   state.leaseLastRenewedAt=new Date().toISOString();state.leaseLastError=null;
+   // Rehydrate the durable open-position ledger before reconnecting market data.
+   await refreshOpenTrades();
+   const desired=await eligibleSymbols();await subscribeSet(desired);state.lastError=null;
+  }catch(e){leaseOwned=false;state.leaseOwned=false;tradeStateReady=false;state.leaseLastError=String(e?.message||e).slice(0,180);closeSocket();logError(e);scheduleReconnect();}
+ })();
+ try{return await reconcileInFlight;}
+ finally{reconcileInFlight=null;}
 }
 server.listen(PORT,()=>console.log("Young Tiger continuous DEMO scalping paper worker listening on",PORT));
 reconcile().catch(logError);
