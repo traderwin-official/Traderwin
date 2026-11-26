@@ -120,3 +120,11 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - USD monetary-policy, inflation and bond/yield releases are marked highly relevant to XAUUSD; employment and growth releases are also elevated. Other events use transparent category weights.
 - Relevance is explicitly labelled as context only: it does not infer bullish/bearish direction, probability of profit or permission to trade. Existing blackout timing and UNKNOWN/fail-closed behaviour are unchanged.
 - Regression tests cover gold sensitivity and lower-sensitivity housing context. This is still provider-limited calendar context, not a complete central-bank statement, bond-yield or geopolitical research feed.
+
+
+## 2026-11-26 headline macro-topic context update
+
+- GDELT contextual headlines now receive transparent keyword topic labels for monetary policy, bonds/yields, inflation, employment, geopolitical risk, growth/demand, energy and digital assets.
+- Headlines also receive an instrument-aware HIGH/MEDIUM/LOW relevance score. XAUUSD rate/yield/inflation and geopolitical headlines are elevated; crypto-specific headlines are elevated for BTCUSD/ETHUSD.
+- These are headline-keyword classifications only, not validated sentiment, causal impact or trade direction. They do not change the fail-closed news gate: GDELT cannot certify CLEAR and empty results remain UNKNOWN.
+- Fixed an invalid backspace character in the negative-keyword boundary for the word "ban"; regression tests cover macro-topic classification and direction-neutral relevance.
