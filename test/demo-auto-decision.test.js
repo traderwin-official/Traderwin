@@ -57,6 +57,16 @@ test("requires independent higher-timeframe EMA agreement before opening", () =>
   assert.equal(result.higherTimeframeDirection, "SELL");
 });
 
+test("blocks missing or stale higher-timeframe candles instead of trusting old trend context", () => {
+  const input = structuredClone(base);
+  input.market.trendTimeframe = "H1";
+  input.market.trendCandleAsOf = new Date(now - 3 * 3600_000).toISOString();
+  input.market.trendCandles = input.market.candles;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "BLOCK");
+  assert.equal(result.reason, "HIGHER_TIMEFRAME_DATA_UNAVAILABLE_OR_STALE");
+});
+
 test("does not chase an entry after price has stretched from the signal candle", () => {
   const input = structuredClone(base);
   input.quote.quote = 125;
