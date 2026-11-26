@@ -12,6 +12,6 @@ try{
  const candles=parseM1Csv(readFileSync(resolve(csvPath),"utf8"));
  const report=runScalpingBacktest({instrument,candles,spreadPriceUnits:number(spread,"Spread"),slippagePriceUnits:number(slippage,"Slippage"),commissionPriceUnitsRoundTrip:number(commission,"Commission")});
  const json=JSON.stringify(report,null,2);
- if(outputPath)writeFileSync(resolve(outputPath),json+"\\n","utf8");
- else process.stdout.write(json+"\\n");
+ if(outputPath)writeFileSync(resolve(outputPath),json+"\n","utf8");
+ else process.stdout.write(json+"\n");
 }catch(error){console.error("Backtest failed:",error.message);process.exitCode=1;}
