@@ -24,3 +24,11 @@ test("M-Pesa callback delegates subscription fulfilment to one atomic database t
   assert.doesNotMatch(source, /from\("user_subscriptions"\)\.upsert/);
   assert.doesNotMatch(source, /existingSubscription\?\.payment_order_id/);
 });
+
+test("member payment-status polling retries paid entitlement recovery for that member's order", async () => {
+  const source = await readFile(new URL("../handlers/payments/mpesa/status.js", import.meta.url), "utf8");
+  assert.match(source, /\.eq\("id", orderId\)\.eq\("user_id", auth\.user\.id\)/);
+  assert.match(source, /if \(data\.status === "PAID"\)/);
+  assert.match(source, /fulfill_paid_subscription_order/);
+  assert.match(source, /entitlementStatus/);
+});
