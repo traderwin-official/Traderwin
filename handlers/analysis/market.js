@@ -9,6 +9,7 @@ import { getGdeltNewsContext } from "../../lib/gdelt-news-context.js";
 import { getGdeltNewsRiskStatus } from "../../lib/gdelt-news-risk.js";
 import { getBiQuoteCalendarRiskStatus } from "../../lib/biquote-calendar-risk.js";
 import { getXausGoldReference, compareGoldReference } from "../../lib/xaus-gold-reference.js";
+import { buildAnalystResearchSummary } from "../../lib/analyst-research-summary.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -147,6 +148,32 @@ export default async function handler(req, res) {
       confidence: marketIntelligence.confidence,
       marketIntelligence
     };
+    const analysedAt = new Date().toISOString();
+    const marketData = {
+      quoteStatus: quoteFresh ? "FRESH" : "UNAVAILABLE_OR_UNVERIFIED",
+      quoteAsOf: quote?.quoteAsOf || null,
+      approvalStatus: approval.status || "BLOCKED",
+      spreadBps,
+      multiTimeframeStatus: mtfStatus,
+      higherTimeframeDirection: higherResult?.direction || null,
+      tradePlanStatus: tradePlan.status,
+      goldReferenceStatus: goldReferenceComparison?.status || "NOT_APPLICABLE",
+      goldReferenceDeviationBps: goldReferenceComparison?.deviationBps ?? null
+    };
+    const researchSummary = buildAnalystResearchSummary({
+      instrument: market.instrument,
+      timeframe: market.timeframe,
+      candidate: result,
+      tradePlan,
+      marketData,
+      marketIntelligence,
+      newsContext,
+      newsRisk,
+      calendarRisk,
+      goldReference,
+      goldReferenceComparison,
+      analysedAt
+    });
     return res.status(200).json({
       ok: true,
       instrument: market.instrument,
@@ -157,7 +184,7 @@ export default async function handler(req, res) {
       accountMode,
       trendTimeframe: higherTimeframe,
       latestCandleAsOf: market.latestCandleAsOf,
-      analysedAt: new Date().toISOString(),
+      analysedAt,
       result: gatedResult,
       candidate: result,
       marketIntelligence,
@@ -166,17 +193,8 @@ export default async function handler(req, res) {
       calendarRisk,
       goldReference,
       goldReferenceComparison,
-      marketData: {
-        quoteStatus: quoteFresh ? "FRESH" : "UNAVAILABLE_OR_UNVERIFIED",
-        quoteAsOf: quote?.quoteAsOf || null,
-        approvalStatus: approval.status || "BLOCKED",
-        spreadBps,
-        multiTimeframeStatus: mtfStatus,
-        higherTimeframeDirection: higherResult?.direction || null,
-        tradePlanStatus: tradePlan.status,
-        goldReferenceStatus: goldReferenceComparison?.status || "NOT_APPLICABLE",
-        goldReferenceDeviationBps: goldReferenceComparison?.deviationBps ?? null
-      },
+      marketData,
+      researchSummary,
       execution: "NONE",
       executionAuthorized: false,
       message: marketIntelligence.direction === "WAIT"
