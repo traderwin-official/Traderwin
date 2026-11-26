@@ -202,3 +202,15 @@ test("paper adapter restores trade IDs when the database reports an already-proc
  assert.deepEqual(result.trade_ids,["existing-a","existing-b"]);
  assert.deepEqual(calls,["open_demo_scalping_paper_trade_batch_with_lease","get_demo_scalping_entry_batch_with_lease"]);
 });
+
+test("paper adapter rejects malformed durable batch recovery and never retries it",async()=>{
+ let openCalls=0,recoveryCalls=0;
+ const db=paperDb(async(name)=>{
+  if(name==="open_demo_scalping_paper_trade_batch_with_lease"){openCalls++;return {data:null,error:new Error("lost response")};}
+  recoveryCalls++;
+  return {data:{ok:true,batch_key:"wrong-key",trade_ids:["trade-a","trade-b"],opened_count:1},error:null};
+ });
+ await assert.rejects(()=>openScalpingPaperPosition({db,session,preference,signal,tick,candleEpoch:Math.floor(now/60000)*60,quoteToUsd:1,leaseToken:"lease-token-1",now}),/lost response/);
+ assert.equal(openCalls,1);
+ assert.equal(recoveryCalls,1);
+});
