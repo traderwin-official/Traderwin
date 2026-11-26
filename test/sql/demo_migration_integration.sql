@@ -22,6 +22,16 @@ declare
   v_other_lease_token uuid;
   i integer;
 begin
+  if has_function_privilege('service_role',
+    to_regprocedure('public.open_demo_scalping_paper_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz)'),
+    'EXECUTE') then
+    raise exception 'Service role must not bypass the lease-fenced paper entry wrapper';
+  end if;
+  if not has_function_privilege('service_role',
+    to_regprocedure('public.open_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz)'),
+    'EXECUTE') then
+    raise exception 'Service role must be allowed to use the lease-fenced paper entry wrapper';
+  end if;
   perform set_config('request.jwt.claim.role','service_role',true);
   insert into auth.users default values returning id into v_user;
   insert into auth.users default values returning id into v_scalping_user;
