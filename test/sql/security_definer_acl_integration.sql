@@ -47,12 +47,36 @@ begin
       raise exception 'Approval audit table must be append-only for service role';
     end if;
   end if;
+  if to_regclass('public.admin_users') is not null then
+    if has_table_privilege('anon','public.admin_users','SELECT')
+       or has_table_privilege('authenticated','public.admin_users','INSERT')
+       or has_table_privilege('authenticated','public.admin_users','UPDATE')
+       or has_table_privilege('authenticated','public.admin_users','DELETE')
+       or not has_table_privilege('authenticated','public.admin_users','SELECT') then
+      raise exception 'Admin users must be self-readable by authenticated users only';
+    end if;
+    if not exists (
+      select 1 from pg_policies
+       where schemaname='public' and tablename='admin_users'
+         and policyname='Users can check their own admin status'
+         and roles @> array['authenticated']::name[]
+         and qual ilike '%user_id = auth.uid()%'
+    ) then
+      raise exception 'Admin status lookup must be limited to the current user';
+    end if;
+  end if;
   if to_regclass('public.service_catalog') is not null then
     if not exists (select 1 from pg_policies where schemaname='public' and tablename='service_catalog' and policyname='Public read active services' and roles @> array['anon']::name[]) then
       raise exception 'Anonymous active catalogue policy missing';
     end if;
     if not exists (select 1 from pg_policies where schemaname='public' and tablename='service_catalog' and policyname='Authenticated read active services' and roles @> array['authenticated']::name[]) then
       raise exception 'Authenticated catalogue policy missing';
+    end if;
+    if exists (select 1 from pg_policies where schemaname='public' and tablename='service_catalog' and policyname='Public read active services' and coalesce(qual,'') ilike '%is_traderwin_admin%') then
+      raise exception 'Anonymous catalogue policy must not call the admin SECURITY DEFINER helper';
+    end if;
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='service_catalog' and policyname='Authenticated read active services' and coalesce(qual,'') ilike '%is_traderwin_admin%') then
+      raise exception 'Authenticated catalogue policy must retain admin access';
     end if;
   end if;
 end
