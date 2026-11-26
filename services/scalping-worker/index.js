@@ -120,7 +120,7 @@ async function refreshOpenTrades(){
 }
 
 async function manageOpenTrades(instrument,tick){
- const trades=[...activeTrades.values()].filter(trade=>!tradeRefreshPending.has(trade.id)&&norm(trade.instrument)===norm(instrument));
+ const trades=tradeStateReady?[...activeTrades.values()].filter(trade=>!tradeRefreshPending.has(trade.id)&&norm(trade.instrument)===norm(instrument)):[];
  return manageTradesIndependently({
   trades,locks:tradeLocks,onError:e=>logError(e),
   manage:async trade=>{
@@ -138,7 +138,7 @@ async function manageOpenTrades(instrument,tick){
     if(result.result?.ok===true){state.paperExits++;state.lastPaperExitAt=new Date().toISOString();}
     // Success, conflict, or an ambiguous stage response all require an
     // authoritative ledger read before another tick may manage this position.
-    tradeRefreshPending.add(trade.id);
+    tradeRefreshPending.set(trade.id,tradeRefreshGeneration+1);
     activeTrades.delete(trade.id);
     lastMarked.delete(trade.id);
    }
