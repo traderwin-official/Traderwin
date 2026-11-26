@@ -21,6 +21,8 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/openScalpingPaperPosition\(\{db,leaseToken,/);
  assert.match(s,/manageScalpingPaperPosition/);
  assert.match(s,/manageScalpingPaperPosition\(\{db,trade,tick,leaseToken,/);
+ assert.match(s,/mark_demo_scalping_paper_trade_with_lease/);
+ assert.match(s,/p_lease_token:leaseToken/);
  assert.match(s,/getDerivQuoteToUsd/);
  assert.match(s,/refreshOpenTrades/);
  assert.match(s,/claim_traderwin_scalping_worker/);
