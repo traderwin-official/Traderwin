@@ -7,6 +7,7 @@ import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/sc
 import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.js";
 import { evaluateMarketCandidate } from "./lib/market-intelligence-gate.js";
 import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
+import { runInstrumentEntryAnalysis } from "./lib/scalping-entry-lock.js";
 import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
 import { getBiQuoteCalendarRiskStatus } from "./lib/biquote-calendar-risk.js";
 import { getXausGoldReference, compareGoldReference } from "./lib/xaus-gold-reference.js";
@@ -18,7 +19,7 @@ const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
 const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastMarketIntelligence:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},newsRisk:{status:"UNKNOWN",reason:"NOT_CHECKED"},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
+const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map(),entryAnalysisLocks=new Set();
 let socket=null,stopping=false,leaseOwned=false,retry=1000,reconnectTimer=null,reconcileTimer=null,tradeRefreshTimer=null,contextRefreshTimers=new Map(),desiredSymbols=[];
 const leaseToken=randomUUID();
 const server=http.createServer((req,res)=>{
@@ -201,6 +202,7 @@ async function publishTick(wanted,tick){
   h.current={epoch:minute,open:quote,high:quote,low:quote,close:quote};
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
  if(!leaseOwned||stopping||!wanted.sessions.some(x=>x.entryEnabled))return;
+ await runInstrumentEntryAnalysis({instrument:wanted.instrument,locks:entryAnalysisLocks,analyse:async()=>{
  const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
  if(!leaseOwned||stopping)return;
@@ -250,6 +252,7 @@ async function publishTick(wanted,tick){
   state.lastEntryReason=null;
  }
  if(result.direction==="BUY"||result.direction==="SELL")await saveSignal(wanted,result,h.m1.at(-1).epoch,payload);
+ }});
 }
 
 function closeSocket(){for(const timer of contextRefreshTimers.values())clearInterval(timer);contextRefreshTimers.clear();if(socket){const old=socket;socket=null;try{old.onopen=null;old.onmessage=null;old.onerror=null;old.onclose=null;old.close();}catch{}}state.socket="DISCONNECTED";}
