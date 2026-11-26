@@ -42,7 +42,7 @@ test("worker resumes live quotes before history warm-up but gates new entries",(
  assert.ok(active>=0&&tickSubscribe>active&&historyRequests>tickSubscribe,
   "live quote subscription must start before requesting/waiting for candle history");
  const publishStart=worker.indexOf("async function publishTick(");
- const publishEnd=worker.indexOf("\\nasync function saveSignal",publishStart);
+ const publishEnd=worker.indexOf("\nasync function saveSignal",publishStart);
  const publish=worker.slice(publishStart,publishEnd);
  assert.ok(publish.indexOf("manageOpenTrades(")<publish.indexOf("const h=history.get(wanted.instrument)"),
   "open positions must be managed before the history warm-up return");
