@@ -204,7 +204,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
    <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="AUTO_SELECT_V1">Auto-select strongest validated strategy</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology + Support &amp; Resistance</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
   </div>
-  <p class="muted">The Tiger indicator checks H1 trend direction, confirmed swing Fibonacci 50% / 61.8% / 78.6%, psychological round numbers, support and resistance, rejection or liquidity sweep, and selected-timeframe structure. It is analysis only in both DEMO and REAL profiles.</p>
+  <p class="muted">The analyst checks the selected timeframe against the next higher timeframe (M5→M15, M15→H1, H1→H4), plus EMA, RSI, ATR, Fibonacci, psychological levels, support/resistance and price-action confirmation. H4 has no higher timeframe in this feed and will not be presented as multi-timeframe confirmed. It is analysis only in both DEMO and REAL profiles.</p>
   <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
   <p id="smartAnalysisStatus" class="muted" role="status" aria-live="polite">Ready to analyse fresh Deriv market data.</p>
   <div id="smartAnalysisResult" class="notice" hidden></div>
@@ -657,11 +657,18 @@ smartButton.addEventListener("click",async()=>{
   const fmt=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):"Unavailable";
   const sr="Support: "+fmt(ind.support?.price)+" ("+(ind.support?.strength||"n/a")+") · Resistance: "+fmt(ind.resistance?.price)+" ("+(ind.resistance?.strength||"n/a")+")"+(typeof ind.nearSupport==="boolean"?" · Near support: "+(ind.nearSupport?"YES":"NO")+" · Near resistance: "+(ind.nearResistance?"YES":"NO")+" · S/R confluence: "+(ind.supportResistanceConfluence?"YES":"NO"):"");
   const fib=ind.fibonacci? " · Fib 50% "+fmt(ind.fibonacci["50"])+", 61.8% "+fmt(ind.fibonacci["61.8"])+", 78.6% "+fmt(ind.fibonacci["78.6"]):"";
+  const plan=r.tradePlan||{};
+  const mtf=r.multiTimeframe||{};
+  const planText=plan.status==="INDICATIVE_ONLY"
+   ?" · Indicative plan (not executable): "+plan.direction+" entry "+fmt(plan.entry)+" ("+plan.entrySide+") · SL "+fmt(plan.stopLoss)+" · TP1 "+fmt(plan.takeProfit1)+" (1.5R) · TP2 "+fmt(plan.takeProfit2)+" (2R)"
+   :" · Trade plan unavailable: "+(plan.reason||plan.status||"no directional setup");
   const extra=r.strategy==="TIGER_FIBONACCI_PSYCHOLOGY_V1"
-   ?" · H1 trend "+(ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+" · SL "+fmt(ind.stopLoss)+" · TP "+fmt(ind.takeProfit)+fib
+   ?" · Higher-timeframe trend "+(ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+fib
    :"";
+  const gate=result.marketIntelligence||{};
+  const gateText=" · Higher timeframe "+(mtf.higherTimeframe||"unavailable")+" "+(mtf.higherTimeframeDirection||"n/a")+" ("+(mtf.status||"unknown")+") · Quality gate "+(gate.decision||"unknown")+" · Reasons "+((gate.reasons||[]).join(", ")||"none");
   output.hidden=false;
-  output.textContent="Profile: "+document.getElementById("profileMode").value+" · "+r.direction+" · Confidence "+r.confidence+"/95 · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Analysis only; no trade was executed.";
+  output.textContent="Profile: "+document.getElementById("profileMode").value+" · Decision: "+r.direction+" · Technical score "+(r.candidateConfidence??r.confidence)+"/95 (not win probability) · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+gateText+" "+planText+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Research only; no trade was executed.";
   status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
  }catch(error){status.textContent=error.message||"Could not analyse the market.";}
  finally{smartButton.disabled=false;}
