@@ -28,9 +28,14 @@ begin
     raise exception 'Service role must not bypass the lease-fenced paper entry wrapper';
   end if;
   if not has_function_privilege('service_role',
-    to_regprocedure('public.open_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz)'),
+    to_regprocedure('public.open_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz,timestamptz,text)'),
     'EXECUTE') then
     raise exception 'Service role must be allowed to use the lease-fenced paper entry wrapper';
+  end if;
+  if has_function_privilege('service_role',
+    to_regprocedure('public.open_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz)'),
+    'EXECUTE') then
+    raise exception 'Legacy lease wrapper must not bypass tick-level entry idempotency';
   end if;
   if not has_function_privilege('service_role',
     to_regprocedure('public.mark_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,numeric,timestamptz)'),
@@ -427,7 +432,7 @@ begin
   select public.open_demo_scalping_paper_trade_with_lease(
     v_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
-    666,6.66,0.0666,1,now(),now()-interval '4 seconds'
+    666,6.66,0.0666,1,now(),now()-interval '4 seconds',now(),'CI_CURRENT_LEASE'
   ) into v_result;
   if v_result->>'reason' <> 'ELIGIBLE_RUNNING_DERIV_DEMO_SESSION_REQUIRED' then
     raise exception 'Expected current lease to pass fencing before the stopped-session guard: %',v_result;
@@ -436,7 +441,7 @@ begin
   select public.open_demo_scalping_paper_trade_with_lease(
     v_other_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
-    666,6.66,0.0666,1,now(),now()-interval '3 seconds'
+    666,6.66,0.0666,1,now(),now()-interval '3 seconds',now(),'CI_WRONG_LEASE'
   ) into v_result;
   if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
     raise exception 'Expected mismatched worker token to be blocked: %',v_result;
@@ -456,7 +461,7 @@ begin
   select public.open_demo_scalping_paper_trade_with_lease(
     v_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
-    666,6.66,0.0666,1,now(),now()-interval '2 seconds'
+    666,6.66,0.0666,1,now(),now()-interval '2 seconds',now(),'CI_EXPIRED_LEASE'
   ) into v_result;
   if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
     raise exception 'Expected displaced worker token to be fenced after takeover: %',v_result;
