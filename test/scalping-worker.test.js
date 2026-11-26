@@ -41,7 +41,11 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.doesNotMatch(s,/await managementPromise/);
  assert.doesNotMatch(s,/managementHealthy/);
  assert.match(s,/Promise\.all\(ready\.map\(async item/);
- assert.match(s,/if\(!tradeLocks\.has\(trade\.id\)\)activeTrades\.set/);
+ const refresh=await readFile(new URL("../lib/scalping-trade-refresh.js",import.meta.url),"utf8");
+ assert.match(s,/applyOpenTradeSnapshot\(/);
+ assert.match(s,/quarantineTradeForRefresh\(/);
+ assert.match(refresh,/if\(locks\.has\(id\)\)continue/);
+ assert.match(refresh,/pendingRefresh\.delete\(id\)/);
  assert.match(s,/OPEN_SCALPING_POSITION_PROVIDER_MAPPING_MISSING/);
  assert.match(s,/leaseOwned&&leaseFresh&&!stopping&&!state\.lastError/);
  assert.match(s,/leaseAgeMs<=30000/);
