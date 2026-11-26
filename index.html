@@ -601,7 +601,8 @@ function setSharedTimeframe(timeframe){
  if(smart)smart.value=tf;
  if(demo)demo.value=tf;
  if(bot)bot.value=tf;
- const interval={M5:"5",M15:"15",H1:"60",H4:"240"}[tf];
+ const intervalByTimeframe={M5:"5",M15:"15",H1:"60",H4:"240"};
+ const interval=intervalByTimeframe[tf];
  selectedTime=interval;
  document.querySelectorAll("#timeTabs button").forEach(button=>{
   button.classList.toggle("active",button.dataset.time===interval);
