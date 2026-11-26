@@ -34,6 +34,44 @@ test("opens a virtual position only on a new confirmed BUY/SELL candle", () => {
   assert.ok(result.riskAmount <= 50.01);
 });
 
+test("accepts a sweep-and-displacement continuation without requiring consolidation", () => {
+  const input = structuredClone(base);
+  const candles = input.market.candles;
+  const referenceLow = Math.min(...candles.slice(-13, -3).map(c => c.low));
+  const referenceHigh = Math.max(...candles.slice(-13, -3).map(c => c.high));
+  // A quick downside liquidity sweep that closes back above the old low.
+  candles[candles.length - 2] = {
+    ...candles[candles.length - 2], open: referenceLow + 0.2,
+    low: referenceLow - 0.8, high: referenceLow + 0.35, close: referenceLow + 0.25
+  };
+  // Immediate bullish displacement; there is no sideways consolidation/retest.
+  candles[candles.length - 1] = {
+    ...candles[candles.length - 1], open: referenceLow + 0.3,
+    low: referenceLow + 0.2, high: referenceLow + 2.2, close: referenceLow + 2.0
+  };
+  input.quote.quote = candles.at(-1).close;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "OPEN");
+  assert.equal(result.direction, "BUY");
+  assert.equal(result.reason, "LIQUIDITY_SWEEP_CONTINUATION");
+  assert.equal(result.analysis.indicators.sweepContinuation.sweep, "BULLISH");
+});
+
+test("does not treat a liquidity sweep without directional displacement as an entry", () => {
+  const input = structuredClone(base);
+  const candles = input.market.candles;
+  const referenceLow = Math.min(...candles.slice(-13, -3).map(c => c.low));
+  candles[candles.length - 2] = {
+    ...candles[candles.length - 2], low: referenceLow - 0.8, close: referenceLow + 0.1
+  };
+  candles[candles.length - 1] = {
+    ...candles[candles.length - 1], open: referenceLow + 0.2,
+    low: referenceLow + 0.1, high: referenceLow + 0.4, close: referenceLow + 0.25
+  };
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.notEqual(result.reason, "LIQUIDITY_SWEEP_CONTINUATION");
+});
+
 test("blocks a new entry during the post-loss cooldown", () => {
   const input = structuredClone(base);
   input.session.lossCooldownUntil = new Date(now + 10 * 60_000).toISOString();
