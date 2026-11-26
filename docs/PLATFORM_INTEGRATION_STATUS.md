@@ -80,9 +80,9 @@ The summary is a presentation/aggregation layer. It does not change the executio
 - Non-gold instruments are unaffected. The independent reference remains indicative only and never replaces Deriv bid/ask. The gate remains research-only and never authorizes execution.
 - The consolidated Analyst summary also deduplicates date-only calendar rows that the provider returns in both blackout and upcoming lists, preserving the blackout classification.
 - Added unit tests for PASS/BLOCK/UNKNOWN, non-gold behaviour, consolidated risk flags and route-to-gate wiring. The first run exposed one incorrect static test assertion; it was corrected.
-- Node workflow [#1204](https://github.com/traderwin-official/Traderwin/actions/runs/45842452216) passed **619/619 tests** (0 failed).
-- Full Traderwin workflow [#1994](https://github.com/traderwin-official/Traderwin/actions/runs/45842452247) passed Node tests, serverless syntax, inline page scripts, worker image build and disposable PostgreSQL DEMO/portfolio migration validation.
-- Validated application-code head: `7e42c1d8fd72dab645286a642c6bddc11bfc84b2`. This remains branch CI only; no live browser journey or production certification.
+- Node workflow [#1213](https://github.com/traderwin-official/Traderwin/actions/runs/45842851805) passed **620/620 tests** (0 failed), including calendar-event deduplication and XAUUSD reference-veto regressions.
+- Full Traderwin workflow [#1998](https://github.com/traderwin-official/Traderwin/actions/runs/45842852217) passed Node tests, serverless syntax, inline page scripts, worker image build and disposable PostgreSQL DEMO/portfolio migration validation.
+- Validated application-code head: `f3a83e6f60136bc39d7bb2dadcb885d404ae6429`. This remains branch CI only; no live browser journey or production certification.
 
 ## Not deployed / not yet verified
 
