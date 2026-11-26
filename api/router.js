@@ -33,6 +33,9 @@ import h29 from "../handlers/payments/mpesa/stk-push.js";
 import h30 from "../handlers/subscriptions/status.js";
 import h31 from "../handlers/bots/demo/history.js";
 import h32 from "../handlers/bots/demo/positions.js";
+import h33 from "../handlers/bots/demo/pending-batches.js";
+import h34 from "../handlers/bots/demo/scalping-feed.js";
+import h35 from "../handlers/bots/demo/scalping-preferences.js";
 
 const ROUTES = {
   "/api/admin/bot-license-fulfill": h0,
@@ -45,6 +48,9 @@ const ROUTES = {
   "/api/bots/demo/close": h7,
   "/api/bots/demo/history": h31,
   "/api/bots/demo/positions": h32,
+  "/api/bots/demo/pending-batches": h33,
+  "/api/bots/demo/scalping-feed": h34,
+  "/api/bots/demo/scalping-preferences": h35,
   "/api/bots/demo/control": h8,
   "/api/bots/demo/mark": h9,
   "/api/bots/demo/portfolio-permissions": h10,
@@ -71,8 +77,9 @@ const ROUTES = {
 };
 
 export default async function handler(req, res) {
-  let pathname = String(req.url || "").split("?")[0] || "/";
-  while (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
+  const routeParam = req.query?.__vercel_route;
+  const routePath = Array.isArray(routeParam) ? routeParam.join("/") : String(routeParam || "");
+  const pathname = routePath ? "/api/" + routePath.split("/").filter(Boolean).join("/") : "";
   const route = ROUTES[pathname];
   if (!route) return res.status(404).json({ error: "API route not found." });
   return route(req, res);

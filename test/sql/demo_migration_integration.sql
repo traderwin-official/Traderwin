@@ -1,8 +1,14 @@
 -- Runs only in the disposable PostgreSQL CI database after migrations 001-004.
 -- Exercises the actual atomic RPCs; no production Supabase data is used.
-do $$
+create table if not exists public.trader_profiles(user_id uuid primary key,account_mode text not null);
+do $body$
 declare
   v_user uuid;
+  v_scalping_user uuid;
+  v_scalping_session uuid;
+  v_scalping_trade uuid;
+  v_scalping_trade_2 uuid;
+  v_trade_to_close uuid;
   v_session_risk uuid;
   v_session_count uuid;
   v_bot_trade_id uuid;
@@ -12,10 +18,31 @@ declare
   v_count integer;
   v_permission record;
   v_saved boolean;
+  v_lease_token uuid;
+  v_other_lease_token uuid;
   i integer;
 begin
+  if has_function_privilege('service_role',
+    to_regprocedure('public.open_demo_scalping_paper_trade(uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz)'),
+    'EXECUTE') then
+    raise exception 'Service role must not bypass the lease-fenced paper entry wrapper';
+  end if;
+  if not has_function_privilege('service_role',
+    to_regprocedure('public.open_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,timestamptz,timestamptz)'),
+    'EXECUTE') then
+    raise exception 'Service role must be allowed to use the lease-fenced paper entry wrapper';
+  end if;
+  if not has_function_privilege('service_role',
+    to_regprocedure('public.mark_demo_scalping_paper_trade_with_lease(uuid,uuid,uuid,numeric,timestamptz)'),
+    'EXECUTE') or not has_function_privilege('service_role',
+    to_regprocedure('public.manage_demo_scalping_paper_exit_with_lease(uuid,uuid,uuid,text,numeric,numeric,text,timestamptz)'),
+    'EXECUTE') then
+    raise exception 'Service role must use lease-fenced scalping position management RPCs';
+  end if;
   perform set_config('request.jwt.claim.role','service_role',true);
   insert into auth.users default values returning id into v_user;
+  insert into auth.users default values returning id into v_scalping_user;
+  insert into public.trader_profiles(user_id,account_mode) values(v_scalping_user,'DEMO');
 
   insert into public.demo_paper_sessions(
     user_id,broker,broker_account_ref,instrument,strategy,timeframe,status,
@@ -170,6 +197,18 @@ begin
     raise exception 'Expected manual portfolio close to be blocked: %',v_result;
   end if;
 
+  -- Monitoring-only consent must still never authorize a portfolio close.
+  update public.portfolio_trade_permissions
+     set manual_trade_management=true,close_manual_trades=false,updated_at=now()
+   where user_id=v_user and account_mode='DEMO' and broker='DERIV'
+     and broker_account_ref='DEMO:'||v_user;
+  select public.close_demo_portfolio_trade(
+    v_user,v_manual_portfolio_id,'EURUSD',1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
+  ) into v_result;
+  if v_result->>'reason' <> 'MANUAL_CLOSE_PERMISSION_NOT_GRANTED' then
+    raise exception 'Monitoring-only permission unexpectedly authorized a manual close: %',v_result;
+  end if;
+
   update public.portfolio_trade_permissions
      set manual_trade_management=true,close_manual_trades=true,updated_at=now()
    where user_id=v_user and account_mode='DEMO' and broker='DERIV'
@@ -182,6 +221,194 @@ begin
     raise exception 'Expected explicitly authorized manual portfolio close: %',v_result;
   end if;
 
+
+  -- Quantum Scalping must require a second, explicit paper-execution consent.
+  insert into public.demo_paper_sessions(
+    user_id,broker,broker_account_ref,instrument,strategy,timeframe,status,
+    starting_balance,current_balance,risk_per_trade_pct,max_daily_loss_pct,
+    max_open_positions,max_total_open_risk_pct,config_snapshot
+  ) values (
+    v_scalping_user,'DERIV','DEMO:'||v_scalping_user,'EURUSD','TIGER_SCHEME_QUANTUM_SCALPING','M15','RUNNING',
+    10000,10000,0.50,2.00,15,5.00,
+    jsonb_build_object('account_mode','DEMO','execution','WEBSITE_PAPER_ONLY')
+  ) returning id into v_scalping_session;
+
+  insert into public.demo_scalping_preferences(
+    session_id,user_id,enabled,paper_execution_enabled,account_mode,execution,
+    max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions
+  ) values (
+    v_scalping_session,v_scalping_user,true,true,'DEMO','WEBSITE_PAPER_ONLY',0.25,1.00,15
+  );
+
+  -- The database entry RPC independently denies instruments absent from the
+  -- active server-managed Deriv approval registry.
+  insert into public.trading_instrument_approvals(
+    broker,instrument,provider,provider_symbol,status,is_active,
+    approval_note,approved_by,updated_by,approved_at
+  ) values (
+    'DERIV','EURUSD','DERIV','frxEURUSD','APPROVED',true,
+    'Disposable CI fixture',v_scalping_user,v_scalping_user,now()
+  );
+
+  update public.trading_instrument_approvals
+     set status='DISABLED',is_active=false,updated_at=now()
+   where broker='DERIV' and instrument='EURUSD';
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '1 minute'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_INSTRUMENT_NOT_APPROVED' then
+    raise exception 'Expected disabled instrument to be blocked at the database boundary: %',v_result;
+  end if;
+  update public.trading_instrument_approvals
+     set status='APPROVED',is_active=true,approved_at=now(),updated_at=now()
+   where broker='DERIV' and instrument='EURUSD';
+
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '1 minute'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected guarded scalping DEMO paper entry: %',v_result;
+  end if;
+  v_scalping_trade := (v_result->>'trade_id')::uuid;
+
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    2500,25,0.25,1,now(),now()-interval '1 minute'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_CANDLE_ALREADY_PROCESSED' then
+    raise exception 'Expected scalping candle idempotency: %',v_result;
+  end if;
+
+  -- A fresh M1 candle may open a second position while the first remains open.
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','SELL',
+    1.10000,1.11000,1.08500,1.09250,1.08900,1.08500,
+    666,6.66,0.0666,1,now(),now()-interval '30 seconds'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected a second concurrent scalping position: %',v_result;
+  end if;
+  v_scalping_trade_2 := (v_result->>'trade_id')::uuid;
+
+  -- Manual DEMO positions must remain openable alongside the bot. They share
+  -- the portfolio cap but are not silently enrolled in bot management.
+  insert into public.demo_paper_trades(
+    session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
+    quantity,remaining_quantity,risk_amount_usd,risk_pct,quote_to_usd,
+    quote_source,quote_as_of,trade_origin
+  ) values (
+    v_scalping_session,v_scalping_user,'EURUSD','SELL',1.10000,1.11000,1.07000,
+    1000,1000,10,0.10,1,'DERIV',now(),'MANUAL'
+  ) returning id into v_manual_trade_id;
+  select public.close_demo_paper_trade(
+    v_scalping_user,v_manual_trade_id,1.10000,1,'DERIV',now(),'CI_MANUAL_CLOSE_DURING_SCALPING'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected manual DEMO position to remain manageable during scalping: %',v_result;
+  end if;
+
+  select count(*) into v_count from public.demo_paper_trades
+   where user_id=v_scalping_user and status='OPEN'
+     and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING';
+  if v_count <> 2 then raise exception 'Expected two simultaneous scalping positions, got %',v_count; end if;
+
+  -- Continue opening fresh M1 entries until the 15-position portfolio cap.
+  for i in 1..13 loop
+    select public.open_demo_scalping_paper_trade(
+      v_scalping_user,v_scalping_session,'EURUSD','BUY',
+      1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+      666,6.66,0.0666,1,now(),now()-interval '29 seconds'+make_interval(secs=>i)
+    ) into v_result;
+    if coalesce((v_result->>'ok')::boolean,false) is not true then
+      raise exception 'Expected scalping portfolio position % to open: %',i+2,v_result;
+    end if;
+  end loop;
+  select count(*) into v_count from public.demo_paper_trades
+   where user_id=v_scalping_user and status='OPEN'
+     and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING';
+  if v_count <> 15 then raise exception 'Expected 15 simultaneous scalping positions, got %',v_count; end if;
+
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    100,1,0.01,1,now(),now()-interval '15 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_MAX_OPEN_POSITIONS' then
+    raise exception 'Expected the 16th position to be blocked: %',v_result;
+  end if;
+
+  update public.trader_profiles set account_mode='REAL' where user_id=v_scalping_user;
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    2500,25,0.25,1,now(),now()-interval '30 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'CURRENT_ACCOUNT_MODE_NOT_DEMO' then
+    raise exception 'Expected current REAL mode to block new DEMO scalping entries: %',v_result;
+  end if;
+
+  update public.trader_profiles set account_mode='DEMO' where user_id=v_scalping_user;
+  update public.demo_scalping_preferences set paper_execution_enabled=false
+   where session_id=v_scalping_session;
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    2500,25,0.25,1,now(),now()-interval '20 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_DEMO_OPT_IN_REQUIRED' then
+    raise exception 'Expected missing paper execution consent to block entries: %',v_result;
+  end if;
+
+  -- Manual entries still obey the shared 15-position portfolio ceiling.
+  begin
+    insert into public.demo_paper_trades(
+      session_id,user_id,instrument,side,entry_price,stop_loss,take_profit,
+      quantity,remaining_quantity,risk_amount_usd,risk_pct,quote_to_usd,
+      quote_source,quote_as_of,trade_origin
+    ) values (
+      v_scalping_session,v_scalping_user,'EURUSD','SELL',1.10000,1.11000,1.07000,
+      1000,1000,10,0.10,1,'DERIV',now(),'MANUAL'
+    );
+    raise exception 'Expected the shared 15-position cap to block a 16th manual position';
+  exception when others then
+    if position('SCALPING_MAX_OPEN_POSITIONS' in sqlerrm)=0 then
+      raise;
+    end if;
+  end;
+
+  select public.close_demo_paper_trade(
+    v_scalping_user,v_scalping_trade,1.10000,1,'DERIV',now(),'CI_SCALPING_CLOSE'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected scalping DEMO paper position to close: %',v_result;
+  end if;
+
+  select public.close_demo_paper_trade(
+    v_scalping_user,v_scalping_trade_2,1.10000,1,'DERIV',now(),'CI_SCALPING_CLOSE_2'
+  ) into v_result;
+  if coalesce((v_result->>'ok')::boolean,false) is not true then
+    raise exception 'Expected second scalping DEMO paper position to close independently: %',v_result;
+  end if;
+
+  -- Close every remaining trade independently; closing one must not affect peers.
+  for v_trade_to_close in
+    select id from public.demo_paper_trades
+     where user_id=v_scalping_user and status='OPEN'
+       and metadata->>'strategy'='TIGER_SCHEME_QUANTUM_SCALPING'
+  loop
+    select public.close_demo_paper_trade(
+      v_scalping_user,v_trade_to_close,1.10000,1,'DERIV',now(),'CI_SCALPING_PORTFOLIO_CLOSE'
+    ) into v_result;
+    if coalesce((v_result->>'ok')::boolean,false) is not true then
+      raise exception 'Expected concurrent scalping position % to close: %',v_trade_to_close,v_result;
+    end if;
+  end loop;
+
   -- A retry with the same request key must be idempotent and not realize P&L twice.
   select public.close_demo_portfolio_trade(
     v_user,v_manual_portfolio_id,'EURUSD',1.10500,1,'DERIV',now(),'CI_MANUAL_PORTFOLIO_CLOSE_1'
@@ -190,5 +417,114 @@ begin
      or coalesce((v_result->>'already_closed')::boolean,false) is not true then
     raise exception 'Expected idempotent portfolio close retry: %',v_result;
   end if;
+
+  -- The scalping RPC must independently enforce its 1% daily loss cap and
+  -- lock the session before another candle can open a paper position.
+  update public.demo_scalping_preferences
+     set paper_execution_enabled=true
+   where session_id=v_scalping_session and user_id=v_scalping_user;
+  insert into public.demo_paper_realized_events(
+    user_id,session_id,trade_id,realized_pnl_delta_usd,realized_at
+  ) values(v_scalping_user,v_scalping_session,v_scalping_trade,-100.00,now());
+
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '5 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_DAILY_LOSS_LIMIT' then
+    raise exception 'Expected the 1 percent daily loss lockout, got %',v_result;
+  end if;
+  if not exists(
+    select 1 from public.demo_paper_sessions
+     where id=v_scalping_session and status='RISK_LOCKED'
+  ) then
+    raise exception 'Expected daily loss breach to lock the scalping DEMO session';
+  end if;
+
+  -- The dedicated worker lease is a strict singleton: only its owner may
+  -- renew or release it, and a different token can take over after expiry.
+  select gen_random_uuid(),gen_random_uuid()
+    into v_lease_token,v_other_lease_token;
+  select public.claim_traderwin_scalping_worker(v_lease_token,90) into v_saved;
+  if v_saved is not true then raise exception 'Expected initial worker lease claim'; end if;
+
+  select public.claim_traderwin_scalping_worker(v_other_lease_token,90) into v_saved;
+  if v_saved is not false then raise exception 'Expected competing worker lease claim to fail'; end if;
+
+  select public.claim_traderwin_scalping_worker(v_lease_token,90) into v_saved;
+  if v_saved is not true then raise exception 'Expected lease owner to renew its own lease'; end if;
+  select public.open_demo_scalping_paper_trade_with_lease(
+    v_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '4 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'ELIGIBLE_RUNNING_DERIV_DEMO_SESSION_REQUIRED' then
+    raise exception 'Expected current lease to pass fencing before the stopped-session guard: %',v_result;
+  end if;
+
+  select public.open_demo_scalping_paper_trade_with_lease(
+    v_other_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '3 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
+    raise exception 'Expected mismatched worker token to be blocked: %',v_result;
+  end if;
+
+
+  select public.release_traderwin_scalping_worker(v_other_lease_token) into v_saved;
+  if v_saved is not false then raise exception 'Expected non-owner lease release to fail'; end if;
+
+  update public.scalping_worker_leases
+     set lease_until=now()-interval '1 second'
+   where lease_key='global' and lease_token=v_lease_token;
+
+  select public.claim_traderwin_scalping_worker(v_other_lease_token,90) into v_saved;
+  if v_saved is not true then raise exception 'Expected expired lease takeover'; end if;
+
+  select public.open_demo_scalping_paper_trade_with_lease(
+    v_lease_token,v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '2 seconds'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
+    raise exception 'Expected displaced worker token to be fenced after takeover: %',v_result;
+  end if;
+
+  select public.mark_demo_scalping_paper_trade_with_lease(
+    v_lease_token,v_scalping_user,v_scalping_trade,1.10000,now()
+  ) into v_saved;
+  if v_saved is not false then raise exception 'Displaced worker must not mark scalping positions'; end if;
+
+  select public.manage_demo_scalping_paper_exit_with_lease(
+    v_lease_token,v_scalping_user,v_scalping_trade,'TP1',1.10750,1,'DERIV',now()
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_WORKER_LEASE_NOT_OWNED' then
+    raise exception 'Displaced worker must not manage scalping exits: %',v_result;
+  end if;
+
+  select public.mark_demo_scalping_paper_trade_with_lease(
+    v_other_lease_token,v_scalping_user,v_scalping_trade,1.10000,now()
+  ) into v_saved;
+  if v_saved is not false then raise exception 'Closed scalping trade must not be marked'; end if;
+
+  select public.manage_demo_scalping_paper_exit_with_lease(
+    v_other_lease_token,v_scalping_user,v_scalping_trade,'TP1',1.10750,1,'DERIV',now()
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_POSITION_NOT_FOUND' then
+    raise exception 'Lease owner should only manage an open tagged scalping BOT position: %',v_result;
+  end if;
+
+  select public.release_traderwin_scalping_worker(v_lease_token) into v_saved;
+  if v_saved is not false then raise exception 'Expected expired lease owner to be unable to release new lease'; end if;
+
+  select public.release_traderwin_scalping_worker(v_other_lease_token) into v_saved;
+  if v_saved is not true then raise exception 'Expected current lease owner to release its lease'; end if;
 end
-$$;
+$body$;
+
+-- Release this file-local allowlist fixture so later SQL suites can seed EURUSD independently.
+delete from public.trading_instrument_approvals
+ where broker='DERIV' and instrument='EURUSD'
+   and provider_symbol='frxEURUSD' and approval_note='Disposable CI fixture';

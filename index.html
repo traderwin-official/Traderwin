@@ -218,6 +218,26 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <div class="field"><label for="demoExecutionMode">How should your DEMO account trade?</label><select id="demoExecutionMode"><option value="MANUAL">Manual — I choose and manage each trade</option><option value="AUTO">Automated — bot trades my saved strategy</option></select></div>
   <p class="muted" id="demoWorkerHealth">Choose Manual or Automated DEMO. Automated mode needs saved Deriv strategy settings and a healthy scheduled worker.</p>
   <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh DEMO status</button>
+  <div class="card" id="demoScalpingPanel" style="margin-top:14px">
+   <h4>Young Tiger Live Scalping — DEMO</h4>
+   <p class="muted">Fast M1 momentum signals from a continuous Deriv tick stream, confirmed by M5 trend and verified bid/ask spread. Enabling this feed only displays signals; automatic DEMO paper entries require a separate confirmation below.</p>
+   <p class="status" id="demoScalpingStatus">Scalping is OFF. Start a verified Deriv DEMO session before enabling it.</p>
+   <button type="button" id="enableDemoScalping">Enable DEMO Scalping Feed</button>
+   <button type="button" id="disableDemoScalping" class="secondary" disabled>Disable Scalping</button>
+   <button type="button" id="refreshDemoScalping" class="secondary">Refresh Scalping Status</button>
+   <p class="status" id="demoScalpingPaperStatus">Automatic DEMO paper trading: OFF</p>
+   <button type="button" id="enableDemoScalpingPaper" disabled>Enable Automatic DEMO Paper Trading</button>
+   <button type="button" id="disableDemoScalpingPaper" class="secondary" disabled>Pause Automatic Paper Trading</button>
+   <p class="muted" id="demoScalpingMessage" role="status" aria-live="polite">Feed access is read-only. Automatic paper trading is a separate opt-in, uses virtual DEMO balances only, and is capped at 0.25% risk per trade, 1% daily loss and one open position. No Deriv broker orders or REAL trades are sent.</p>
+   <div class="live-feed" id="demoScalpingFeed" aria-live="polite">
+    <div class="live-feed-head"><h4>Scalping Live Feed</h4><span class="live-feed-status" id="demoScalpingFeedStatus">Feed is off</span></div>
+    <div class="live-feed-price" id="demoScalpingFeedPrice">Waiting for verified quote</div>
+    <p class="muted" id="demoScalpingFeedDetails">Enable the DEMO scalping feed to view Deriv bid/ask data and signal candidates.</p>
+    <h4>Latest M1 signal candidates</h4>
+    <ol id="demoScalpingSignals"><li class="muted">No signals received.</li></ol>
+    <p class="muted">Signals are research candidates only. They are not orders or guaranteed trade recommendations.</p>
+   </div>
+  </div>
   <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
   <button type="button" id="startDemoSession">Start DEMO Session</button>
   <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
@@ -291,7 +311,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss.</p>
   </div>
   <div class="grid">
-   <p class="muted">The optional combined DEMO portfolio guard activates at USD 20 peak unrealised profit and protects 80% of the peak. It is separate from manual entries and requires its own tested server-side monitoring setup. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
+   <p class="muted">The scheduled DEMO worker checks the combined portfolio using fresh market quotes and USD-normalised profit. Protection activates at USD 20 peak unrealised profit and protects 80% of that peak. The check runs on the worker schedule, so fast price moves, quote gaps and slippage can affect exit timing. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
   </div>
   <button type="button" class="secondary" id="markPaperTrade" disabled>Check Live Quote &amp; SL/TP</button>
   <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
@@ -1340,6 +1360,105 @@ calculateRisk();
     }catch(error){demoWorkerHealth.textContent="Worker status unavailable: "+error.message;}
     finally{refresh.disabled=false;}
    });
+   const scalpStatus=document.getElementById("demoScalpingStatus");
+   const scalpMessage=document.getElementById("demoScalpingMessage");
+   const scalpEnable=document.getElementById("enableDemoScalping");
+   const scalpDisable=document.getElementById("disableDemoScalping");
+   const scalpRefresh=document.getElementById("refreshDemoScalping");
+    const scalpPaperStatus=document.getElementById("demoScalpingPaperStatus");
+    const scalpPaperEnable=document.getElementById("enableDemoScalpingPaper");
+    const scalpPaperDisable=document.getElementById("disableDemoScalpingPaper");
+   const scalpFeedStatus=document.getElementById("demoScalpingFeedStatus");
+   const scalpFeedPrice=document.getElementById("demoScalpingFeedPrice");
+   const scalpFeedDetails=document.getElementById("demoScalpingFeedDetails");
+   const scalpSignals=document.getElementById("demoScalpingSignals");
+   let scalpFeedTimer=null;
+   async function refreshScalpingFeed(){
+    try{
+     const {data:authState,error:authError}=await client.auth.getSession();
+     if(authError||!authState.session)throw new Error("Sign in again to view your private DEMO feed.");
+     const response=await fetch("/api/bots/demo/scalping-feed",{headers:{Authorization:"Bearer "+authState.session.access_token},cache:"no-store"});
+     const feed=await response.json();
+     if(!response.ok)throw new Error(feed.error||"Scalping feed unavailable.");
+     if(!feed.enabled){
+      scalpFeedStatus.textContent="Feed is off";
+      scalpFeedPrice.textContent="Waiting for verified quote";
+      scalpFeedDetails.textContent="Start a verified Deriv DEMO session and enable scalping to view market data.";
+      scalpSignals.replaceChildren();
+      return;
+     }
+     scalpFeedStatus.textContent=feed.feedStatus==="LIVE"?"LIVE · DERIV":feed.feedStatus==="STALE"?"STALE QUOTE":"WAITING FOR MARKET DATA";
+     scalpFeedPrice.textContent=feed.tick?feed.instrument+" · "+Number(feed.tick.quote).toLocaleString("en-US",{maximumFractionDigits:8}):feed.instrument+" · Waiting for quote";
+     if(feed.tick){
+      const hasBidAsk=feed.tick.bid!==null&&feed.tick.ask!==null&&Number.isFinite(Number(feed.tick.bid))&&Number.isFinite(Number(feed.tick.ask));
+      const age=Number.isFinite(feed.quoteAgeMs)?Math.max(0,Math.round(feed.quoteAgeMs/1000))+"s":"unknown";
+      scalpFeedDetails.textContent=hasBidAsk
+       ?"Bid "+Number(feed.tick.bid).toLocaleString("en-US",{maximumFractionDigits:8})+" · Ask "+Number(feed.tick.ask).toLocaleString("en-US",{maximumFractionDigits:8})+" · Spread "+(Number(feed.tick.ask)-Number(feed.tick.bid)).toFixed(6)+" · Quote age "+age
+       :"Verified quote received; Deriv bid/ask is currently unavailable · Quote age "+age;
+     }else scalpFeedDetails.textContent="No verified quote has been stored yet.";
+     scalpSignals.replaceChildren();
+     if(!feed.signals.length){const empty=document.createElement("li");empty.className="muted";empty.textContent="No M1 signal candidates yet. The strategy will wait when conditions are not confirmed.";scalpSignals.appendChild(empty);}
+     feed.signals.forEach(signal=>{
+      const item=document.createElement("li");
+      item.textContent=(signal.direction||"WAIT")+" · Entry "+Number(signal.entry).toFixed(5)+" · SL "+Number(signal.stop_loss).toFixed(5)+" · TP "+Number(signal.take_profit).toFixed(5)+" · "+(signal.fresh?"Fresh":"Older")+" · "+new Date(signal.signal_as_of).toLocaleTimeString();
+      scalpSignals.appendChild(item);
+     });
+    }catch(error){
+     scalpFeedStatus.textContent="Feed unavailable";
+     scalpFeedDetails.textContent=error.message||"Could not load the private scalping feed.";
+    }
+   }
+   function startScalpingFeedPolling(){
+    if(scalpFeedTimer)clearInterval(scalpFeedTimer);
+    refreshScalpingFeed();
+    scalpFeedTimer=setInterval(()=>{if(!document.hidden)refreshScalpingFeed();},3000);
+   }
+   function stopScalpingFeedPolling(){
+    if(scalpFeedTimer){clearInterval(scalpFeedTimer);scalpFeedTimer=null;}
+    scalpFeedStatus.textContent="Feed is off";
+    scalpFeedPrice.textContent="Waiting for verified quote";
+    scalpFeedDetails.textContent="Enable the DEMO scalping feed to view Deriv bid/ask data and signal candidates.";
+    scalpSignals.replaceChildren();
+    const empty=document.createElement("li");empty.className="muted";empty.textContent="No signals received.";scalpSignals.appendChild(empty);
+   }
+   async function loadScalpingPreference(){
+     try{
+      const state=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"STATUS"});
+      scalpStatus.textContent=state.enabled?"Scalping feed: ENABLED · "+state.instrument+" · DEMO only":"Scalping feed: OFF";
+      scalpPaperStatus.textContent=state.paperExecutionEnabled?(state.entryModeEligible?"Automatic DEMO paper trading: ON · virtual ledger only":"Automatic DEMO paper trading: ON · new entries paused because account mode is not DEMO"):"Automatic DEMO paper trading: OFF";
+      scalpEnable.disabled=selectedAccountMode!=="DEMO"||state.accountMode!=="DEMO"||state.sessionStatus!=="RUNNING"||state.enabled;
+      scalpDisable.disabled=!state.enabled;
+      scalpPaperEnable.disabled=selectedAccountMode!=="DEMO"||state.entryModeEligible!==true||state.sessionStatus!=="RUNNING"||!state.enabled||state.paperExecutionEnabled;
+      scalpPaperDisable.disabled=!state.paperExecutionEnabled;
+      if(state.limits)scalpMessage.textContent="Risk ceiling: "+state.limits.riskPerTradePct+"% per trade · "+state.limits.dailyLossPct+"% daily loss · "+state.limits.maxOpenPositions+" open position. Feed and automatic paper execution are controlled separately.";
+      if(state.enabled&&state.entryModeEligible===true&&state.sessionStatus==="RUNNING")startScalpingFeedPolling();else stopScalpingFeedPolling();
+     }catch(e){scalpStatus.textContent="Scalping status unavailable: "+e.message;scalpPaperStatus.textContent="Automatic DEMO paper trading: status unavailable";scalpEnable.disabled=selectedAccountMode!=="DEMO";scalpDisable.disabled=true;scalpPaperEnable.disabled=true;scalpPaperDisable.disabled=true;stopScalpingFeedPolling();}
+    }
+    scalpEnable.addEventListener("click",async()=>{
+     if(!window.confirm("Enable the live Deriv scalping signal feed for this DEMO session? This does not place any order."))return;
+     scalpEnable.disabled=true;scalpMessage.textContent="Verifying your Deriv DEMO account and approved instrument...";
+     try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE"});scalpStatus.textContent="Scalping feed: ENABLED · "+r.instrument+" · DEMO only";scalpMessage.textContent=r.message;scalpDisable.disabled=false;startScalpingFeedPolling();await loadScalpingPreference();}
+     catch(e){scalpMessage.textContent=e.message;scalpEnable.disabled=false;}
+    });
+    scalpDisable.addEventListener("click",async()=>{
+     scalpDisable.disabled=true;
+     try{await callDemoApi("/api/bots/demo/scalping-preferences",{action:"DISABLE"});await loadScalpingPreference();scalpMessage.textContent="Feed and new automatic paper entries are disabled. Any already-open DEMO paper position remains managed to its exit.";}
+     catch(e){scalpMessage.textContent=e.message;scalpDisable.disabled=false;}
+    });
+    scalpPaperEnable.addEventListener("click",async()=>{
+     if(!window.confirm("Enable automatic DEMO paper trading for this session? The bot may open and manage virtual positions in the platform's DEMO paper ledger only. No Deriv broker order or REAL trade will be sent. Maximum risk is 0.25% per trade, daily loss is capped at 1%, and only one position may be open."))return;
+     scalpPaperEnable.disabled=true;scalpMessage.textContent="Verifying the separate automatic DEMO paper-trading permission...";
+     try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE_PAPER_EXECUTION"});scalpPaperStatus.textContent="Automatic DEMO paper trading: ON · virtual ledger only";scalpMessage.textContent=r.message;await loadScalpingPreference();}
+     catch(e){scalpMessage.textContent=e.message;scalpPaperEnable.disabled=false;}
+    });
+    scalpPaperDisable.addEventListener("click",async()=>{
+     scalpPaperDisable.disabled=true;
+     try{await callDemoApi("/api/bots/demo/scalping-preferences",{action:"DISABLE_PAPER_EXECUTION"});await loadScalpingPreference();scalpMessage.textContent="Automatic paper entries are paused. Any already-open DEMO paper position remains managed to its exit.";}
+     catch(e){scalpMessage.textContent=e.message;scalpPaperDisable.disabled=false;}
+    });
+    scalpRefresh.addEventListener("click",loadScalpingPreference);
+   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&scalpFeedTimer)refreshScalpingFeed();});
+   loadScalpingPreference();
    if(selectedAccountMode!=="DEMO"){
     [startDemo,stopDemo,recordPaper,closePaper].forEach(x=>x.disabled=true);
     demoMessage.textContent="Paper simulator is locked in REAL mode. Switch to DEMO to practise.";
