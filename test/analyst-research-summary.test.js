@@ -57,3 +57,19 @@ test("never mixes XAUUSD reference prices into other instruments", () => {
   assert.equal(summary.goldReference, null);
   assert.equal(summary.instrument, "BTCUSD");
 });
+
+
+test("flags a missing or divergent independent XAUUSD reference in the consolidated risk summary", () => {
+  const missing = buildAnalystResearchSummary({
+    instrument: "XAUUSD", marketData: { goldReferenceStatus: "UNKNOWN" }
+  });
+  assert.ok(missing.risk.flags.includes("INDEPENDENT_GOLD_REFERENCE_NOT_VERIFIED"));
+  const divergent = buildAnalystResearchSummary({
+    instrument: "XAUUSD", marketData: { goldReferenceStatus: "BLOCK" }
+  });
+  assert.ok(divergent.risk.flags.includes("INDEPENDENT_GOLD_REFERENCE_DIVERGENCE"));
+  const notGold = buildAnalystResearchSummary({
+    instrument: "EURUSD", marketData: { goldReferenceStatus: "UNKNOWN" }
+  });
+  assert.ok(!notGold.risk.flags.includes("INDEPENDENT_GOLD_REFERENCE_NOT_VERIFIED"));
+});
