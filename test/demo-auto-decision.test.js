@@ -45,9 +45,11 @@ test("accepts a sweep-and-displacement continuation without requiring consolidat
     low: referenceLow - 0.8, high: referenceLow + 0.35, close: referenceLow + 0.25
   };
   // Immediate bullish displacement; there is no sideways consolidation/retest.
+  const priorSweepHigh = Math.max(candles[candles.length - 3].high, candles[candles.length - 2].high);
   candles[candles.length - 1] = {
     ...candles[candles.length - 1], open: referenceLow + 0.3,
-    low: referenceLow + 0.2, high: referenceLow + 2.2, close: referenceLow + 2.0
+    low: referenceLow + 0.2, high: referenceLow + 4.2,
+    close: Math.max(referenceLow + 4.0, priorSweepHigh + 0.5)
   };
   input.quote.quote = candles.at(-1).close;
   const result = decideDemoAutoAction({ ...input, now });
