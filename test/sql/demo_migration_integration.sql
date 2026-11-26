@@ -412,8 +412,8 @@ begin
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
     666,6.66,0.0666,1,now(),now()-interval '4 seconds'
   ) into v_result;
-  if v_result->>'reason' <> 'SCALPING_DEMO_OPT_IN_REQUIRED' then
-    raise exception 'Expected current lease to pass fencing and then respect paper-execution consent: %',v_result;
+  if v_result->>'reason' <> 'ELIGIBLE_RUNNING_DERIV_DEMO_SESSION_REQUIRED' then
+    raise exception 'Expected current lease to pass fencing before the stopped-session guard: %',v_result;
   end if;
 
   select public.open_demo_scalping_paper_trade_with_lease(
