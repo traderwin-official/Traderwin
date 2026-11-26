@@ -56,7 +56,7 @@ begin
   end if;
 
   -- The existing manual partial-exit RPC remains present and separately callable.
-  if to_regprocedure('public.manage_demo_paper_exit(uuid,uuid,text,numeric,numeric,text,timestamptz)') is null then
+  if to_regprocedure('public.manage_demo_manual_partial_exit(uuid,uuid,text,numeric,numeric,text,timestamptz)') is null then
     raise exception 'Existing general DEMO partial-exit RPC must remain available';
   end if;
 end;
