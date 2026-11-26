@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { evaluateMarketCandidate } from "../lib/market-intelligence-gate.js";
+import { attestMarketEvidence } from "../lib/market-intelligence.js";
 
 const now = Date.parse("2026-11-26T06:30:00.000Z");
 const asOf = new Date(now - 1000).toISOString();
@@ -57,7 +58,7 @@ test("trusted independent evidence may pass analysis but never authorizes execut
       category: "news", direction: "BUY", source: "NEWS_PROVIDER",
       confidence: 86, adapterVerified: true, instrument: "XAUUSD", asOf
     }
-  ];
+  ].map(attestMarketEvidence);
   const result = evaluateMarketCandidate({
     ...base,
     evidence,
@@ -82,7 +83,7 @@ test("stale and unverified additional evidence cannot clear the gate", () => {
         confidence: 95, adapterVerified: false, instrument: "XAUUSD",
         timeframe: "M1", asOf
       }
-    ],
+    ].map(attestMarketEvidence),
     maxAgeMs: 120000
   });
   assert.equal(result.direction, "WAIT");
@@ -139,4 +140,18 @@ test("wide spreads, weak reward/risk, news blackout and stale quote context all 
   assert.ok(staleQuote.reasons.includes("QUOTE_NOT_FRESH"));
   assert.ok(staleQuote.reasons.includes("ENTRY_CANDLE_NOT_CLOSED"));
   assert.equal(staleQuote.executionAuthorized, false);
+});
+
+
+test("a caller cannot self-assert adapter verification with a plain boolean", () => {
+  const forged = {
+    category: "price_action", direction: "BUY", source: "FORGED_PROVIDER",
+    confidence: 99, adapterVerified: true, instrument: "XAUUSD",
+    timeframe: "M1", asOf
+  };
+  const result = evaluateMarketCandidate({ ...base, evidence: [forged] });
+  assert.equal(result.direction, "WAIT");
+  assert.ok(result.reasons.includes("UNVERIFIED_EVIDENCE_SOURCE"));
+  assert.equal(result.independentSources, 1);
+  assert.equal(result.executionAuthorized, false);
 });
