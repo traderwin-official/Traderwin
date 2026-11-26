@@ -53,6 +53,15 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - Live execution remains blocked. This update does not create a working bot worker, Deriv OTP/WebSocket order lifecycle, MT5 bridge, or verified payment settlement.
 
 
+
+## 2026-11-26 original automated-strategy hardening (integration only)
+- The original non-scalping DEMO auto strategies now request an independent next-higher timeframe (M5→M15, M15→H1, H1→H4); H4 is explicitly the highest supported timeframe and is not described as having independent higher-timeframe confirmation.
+- New entries are blocked when the higher-timeframe EMA 9/21 direction disagrees with the selected strategy direction, or when the live entry quote is more than 0.75 ATR beyond the completed signal candle (anti-chase guard).
+- After a closed BOT DEMO loss, the worker applies a 30-minute entry cooldown; after two or more consecutive closed BOT losses, it applies a 120-minute cooldown. Existing open positions continue to be managed; cooldown only prevents new entries.
+- These filters are conservative hypotheses, not proof of profitability. They require instrument/timeframe backtesting with spread, slippage and execution costs, followed by extended DEMO forward testing. Do not increase risk or claim expected returns.
+- The Market Analyst checkpoint remains research-only and deterministic: next-higher-timeframe technical agreement, Deriv bid/ask indicative plans, BiQuote calendar blackout, instrument-aware GDELT adverse-news context and XAUUSD independent XAUS reference comparison. GDELT absence is not CLEAR; the analyst's news gate remains fail-closed. It is not yet connected to a generative AI inference provider.
+- No production migration, deployment, or REAL trading action is included in this integration work.
+
 ## 2026-11-26 integration-branch validation update
 - The integration branch contains optional independent strategies; Quantum Scalping remains a DEMO paper strategy and does not replace manual trading or other platform strategies.
 - DEMO paper scalping uses a continuous Deriv public quote feed, lease-fenced server-side paper execution, atomic batch entry, idempotent recovery, stale-feed safeguards and full-position stop-loss/final-take-profit exits.
