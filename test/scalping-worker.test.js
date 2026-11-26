@@ -33,7 +33,7 @@ test("continuous worker executes only opted-in DEMO paper trades and never sends
  assert.match(s,/if\(preferenceError\)throw preferenceError;/);
  assert.match(s,/if\(profileError\)throw profileError;/);
  assert.match(s,/TIGER_SCHEME_QUANTUM_SCALPING/);
- assert.match(s,/latestContiguousCandles\(candles,req\.kind==="M1"\?60:300,240\)/);
+ assert.match(s,/latestContiguousCandles\(candles,interval,240\)/);
  assert.match(s,/async function manageOpenTrades\(instrument,tick\)\{\s*const trades=/);
  assert.match(s,/Promise\.all\(trades\.map\(async trade/);
  assert.match(s,/catch\(e\)\{logError\(e\);return false;\}/);
