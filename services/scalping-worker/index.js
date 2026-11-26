@@ -7,12 +7,13 @@ import { openScalpingPaperPosition, manageScalpingPaperPosition } from "./lib/sc
 import { scalpingSessionPermissions } from "./lib/scalping-session-eligibility.js";
 import { evaluateMarketCandidate } from "./lib/market-intelligence-gate.js";
 import { manageTradesIndependently } from "./lib/scalping-trade-concurrency.js";
+import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const SCALPING_STRATEGY="TIGER_SCHEME_QUANTUM_SCALPING";
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
-const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastMarketIntelligence:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
+const state={startedAt:new Date().toISOString(),socket:"DISCONNECTED",lastTickAt:null,lastSignalAt:null,lastPaperEntryAt:null,lastPaperExitAt:null,lastEntryReason:null,lastMarketIntelligence:null,lastError:null,subscribed:[],readySymbols:[],ticks:0,signals:0,paperEntries:0,paperExits:0,bidAskMissingTicks:0,marketDataQuality:{},newsRisk:{status:"UNKNOWN",reason:"NOT_CHECKED"},leaseOwned:false,leaseLastRenewedAt:null,leaseLastError:null,stopping:false};
 if(!URL||!KEY||KEY.length<30)throw new Error("SUPABASE_URL and service-role key are required.");
 const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const lastPersisted=new Map(),history=new Map(),lastSignal=new Map(),lastEntryAttempt=new Map(),activeTrades=new Map(),tradeLocks=new Set(),lastMarked=new Map();
@@ -206,6 +207,8 @@ async function publishTick(wanted,tick){
   const mid=(payload.bid+payload.ask)/2;
   const spreadBps=Number.isFinite(mid)&&mid>0?((payload.ask-payload.bid)/mid)*10000:null;
   const configuredMaxSpreadBps=Number(process.env.SCALPING_MAX_SPREAD_BPS);
+  const newsRisk=await getGdeltNewsRiskStatus();
+  state.newsRisk=newsRisk;
   const gate=evaluateMarketCandidate({
    instrument:wanted.instrument,timeframe:"M1",direction:result.direction,
    confidence:result.confidence,source:"DERIV",asOf:result.signalAsOf,
@@ -214,7 +217,7 @@ async function publishTick(wanted,tick){
     spreadBps,
     maxSpreadBps:Number.isFinite(configuredMaxSpreadBps)&&configuredMaxSpreadBps>0?configuredMaxSpreadBps:null,
     riskReward:result.riskReward,minimumRiskReward:1.5,
-    entryTriggerConfirmed:true,newsStatus:"UNKNOWN"
+    entryTriggerConfirmed:true,newsStatus:newsRisk.status
    },
    now:Date.now()
   });
