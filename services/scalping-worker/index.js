@@ -228,6 +228,8 @@ async function publishTick(wanted,tick){
   h.current={epoch:minute,open:quote,high:quote,low:quote,close:quote};
  }else{h.current.high=Math.max(h.current.high,quote);h.current.low=Math.min(h.current.low,quote);h.current.close=quote;}
  if(!leaseOwned||stopping||!wanted.sessions.some(x=>x.entryEnabled))return;
+ if(resolveMarketDataGapReview({instrument:wanted.instrument,activeTrades,pendingRefresh:tradeRefreshPending,reviewRequiredByInstrument:marketDataReviewRequired})){delete state.marketDataReviewRequired[wanted.instrument];}
+ if(marketDataReviewRequired.has(wanted.instrument)){state.lastEntryReason="MARKET_DATA_GAP_MANUAL_REVIEW_REQUIRED:"+wanted.instrument;return;}
  await runInstrumentEntryAnalysis({instrument:wanted.instrument,locks:entryAnalysisLocks,analyse:async()=>{
  const m5=mergeCompletedM5(h.m5,h.m1);
  if(m5.length<25||payload.bid===null||payload.ask===null)return;
