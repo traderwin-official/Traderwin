@@ -62,3 +62,15 @@ Run the repository test suite with `npm test`. To evaluate a real strategy, supp
 verified historical M1 OHLC data and instrument-specific spread, slippage and commission
 assumptions. Synthetic test candles are only for checking code behavior; they are not
 evidence of trading performance. This harness does not connect to a broker or execute orders.
+
+To run the research harness against a local CSV file, use a header containing
+`epoch,open,high,low,close` (or `timestamp` / `time` / `date` instead of epoch),
+with one completed M1 candle per row in ascending, contiguous minute order:
+
+```sh
+node scripts/run-scalping-backtest.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xauusd-report.json
+```
+
+The numeric cost inputs are price units for that instrument and must come from
+realistic broker conditions. Do not copy the example assumptions as actual XAUUSD
+spread or slippage values.
