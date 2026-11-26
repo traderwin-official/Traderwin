@@ -21,6 +21,15 @@ begin
       raise exception 'Admin helper must be callable only by authenticated users';
     end if;
   end if;
+  if to_regclass('public.trading_instrument_approval_audit') is not null then
+    if has_table_privilege('service_role','public.trading_instrument_approval_audit','UPDATE')
+       or has_table_privilege('service_role','public.trading_instrument_approval_audit','DELETE')
+       or has_table_privilege('service_role','public.trading_instrument_approval_audit','TRUNCATE')
+       or not has_table_privilege('service_role','public.trading_instrument_approval_audit','INSERT')
+       or not has_table_privilege('service_role','public.trading_instrument_approval_audit','SELECT') then
+      raise exception 'Approval audit table must be append-only for service role';
+    end if;
+  end if;
   if to_regclass('public.service_catalog') is not null then
     if not exists (select 1 from pg_policies where schemaname='public' and tablename='service_catalog' and policyname='Public read active services' and roles @> array['anon']::name[]) then
       raise exception 'Anonymous active catalogue policy missing';
