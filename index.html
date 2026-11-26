@@ -677,8 +677,17 @@ smartButton.addEventListener("click",async()=>{
   const gold=result.goldReference||{};
   const goldCheck=result.goldReferenceComparison||{};
   const goldText=result.instrument==="XAUUSD"?" · Independent gold reference "+(gold.status||"UNKNOWN")+" "+(gold.price!=null?"$"+gold.price+"/oz":"unavailable")+"; broker discrepancy "+(goldCheck.deviationBps!=null?goldCheck.deviationBps+" bps":"unavailable")+" ("+(goldCheck.status||"UNKNOWN")+"). Indicative reference only, not executable.":"";
+  const unified=result.researchSummary||{};
+  const unifiedTech=unified.technical||{};
+  const unifiedFund=unified.fundamental||{};
+  const unifiedQuality=unified.marketQuality||{};
+  const unifiedRisk=unified.risk||{};
+  const unifiedEvents=(unifiedFund.upcomingAndBlackoutEvents||[]).slice(0,3).map(e=>e.name+" ["+e.category+"/"+(e.currency||"n/a")+" · "+e.timing+"]").join(" | ");
+  const unifiedFlags=(unifiedRisk.flags||[]).slice(0,6).join(", ");
+  const unifiedText=" · COMBINED RESEARCH: "+(unified.instrument||result.instrument)+" "+(unified.timeframe||"")+" · technical "+(unifiedTech.candidateDirection||"WAIT")+" ("+(unifiedTech.candidateConfidence??0)+"/100 quality score) · calendar "+(unifiedFund.calendarStatus||"UNKNOWN")+" · adverse news "+(unifiedFund.adverseNewsStatus||"UNKNOWN")+" · quote "+(unifiedQuality.quoteStatus||"UNKNOWN")+" · events "+(unifiedEvents||"none confirmed")+". Risk flags: "+(unifiedFlags||"none reported")+". Execution "+(unified.execution?.authorized===true?"authorized":"NOT AUTHORIZED")+"; research only.";
+
   output.hidden=false;
-  output.textContent="Profile: "+document.getElementById("profileMode").value+" · Decision: "+r.direction+" · Technical score "+(r.candidateConfidence??r.confidence)+"/95 (not win probability) · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+gateText+" "+newsText+" "+goldText+" "+planText+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Research only; no trade was executed.";
+  output.textContent=unifiedText+" Profile: "+document.getElementById("profileMode").value+" · Decision: "+r.direction+" · Technical score "+(r.candidateConfidence??r.confidence)+"/95 (not win probability) · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+gateText+" "+newsText+" "+goldText+" "+planText+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Research only; no trade was executed.";
   status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
  }catch(error){status.textContent=error.message||"Could not analyse the market.";}
  finally{smartButton.disabled=false;}
