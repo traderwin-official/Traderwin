@@ -70,5 +70,5 @@ test("a position exposed to a reconnect gap latches new entries until DB reconci
  assert.match(worker,/recordMarketDataGapReview\(\{gap,reviewRequiredByInstrument:marketDataReviewRequired\}\)/);
  assert.match(worker,/resolveMarketDataGapReview\(\{instrument:wanted\.instrument,activeTrades,pendingRefresh:tradeRefreshPending,reviewRequiredByInstrument:marketDataReviewRequired\}\)/);
  assert.match(worker,/if\(marketDataReviewRequired\.has\(wanted\.instrument\)\)\{state\.lastEntryReason="MARKET_DATA_GAP_MANUAL_REVIEW_REQUIRED:"\+wanted\.instrument;return;\}/);
- assert.match(worker,/marketDataReviewRequired:new Map\(\)/);
+ assert.match(worker,/tradeRefreshPending=new Map\(\),marketDataReviewRequired=new Map\(\)/);
 });
