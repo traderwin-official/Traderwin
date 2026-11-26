@@ -73,6 +73,13 @@ The summary is a presentation/aggregation layer. It does not change the executio
 - Full Traderwin workflow [#1986](https://github.com/traderwin-official/Traderwin/actions/runs/45841589609) passed Node tests, serverless syntax, inline page scripts, worker Docker image build and isolated PostgreSQL DEMO/portfolio migration checks.
 - Validated application branch head: `f32031110fea99754ff129a0496feea157a1fa27`. This is CI validation only, not a live browser journey or production certification. No production migration, deployment, Railway worker deployment, PR merge or REAL trading activation occurred.
 
+## XAUUSD Analyst reference-veto correction (2026-11-26)
+
+- The XAUS independent gold reference comparison was previously calculated and displayed in the Analyst response but was not connected to the final market-intelligence veto. This meant a divergence could appear as context without blocking the candidate.
+- The Analyst now passes the server-verified comparison status into the gate. XAUUSD can pass only when the comparison is `PASS`; a divergence returns `INDEPENDENT_REFERENCE_DIVERGENCE`, while missing, stale or invalid reference data returns `INDEPENDENT_REFERENCE_NOT_VERIFIED`.
+- Non-gold instruments are unaffected. The independent reference remains indicative only and never replaces Deriv bid/ask. The gate remains research-only and never authorizes execution.
+- Added unit tests for PASS/BLOCK/UNKNOWN, non-gold behaviour, consolidated risk flags and route-to-gate wiring. CI is running against the latest branch head; the earlier run exposed one incorrect static test assertion, which has been corrected. Do not treat that earlier failed run as a pass.
+
 ## Not deployed / not yet verified
 
 - No PR merge, production deployment or production Supabase migration has been performed.
