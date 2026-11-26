@@ -44,7 +44,12 @@ test("scalping engine confirms a BUY only on M1 breakout with aligned M5 trend",
  const t={source:"DERIV",instrument:"XAUUSD",providerSymbol:"frxXAUUSD",quote,bid:quote-0.002,ask:quote+0.002,quoteAsOf:new Date(now).toISOString(),receivedAt:new Date(now).toISOString()};
  const trendBase=Math.floor((now/1000)/300)*300;
  const trend=Array.from({length:30},(_,i)=>{const close=1900+i*0.5;return {epoch:trendBase-(29-i)*300,open:close-0.2,high:close+0.5,low:close-0.5,close};});
- const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,tick:t,now});
+ const contextRows=(interval,direction)=>Array.from({length:30},(_,i)=>{
+  const close=direction==="BUY"?1900+i*0.5:1915-i*0.5,open=direction==="BUY"?close-0.2:close+0.2;
+  return {epoch:Math.floor(now/1000/interval)*interval-interval-(29-i)*interval,open,high:Math.max(open,close)+0.5,low:Math.min(open,close)-0.5,close};
+ });
+ const contextCandles={M15:contextRows(900,"BUY"),H1:contextRows(3600,"BUY"),H4:contextRows(14400,"BUY")};
+ const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,contextCandles,tick:t,now});
  assert.equal(result.direction,"BUY");
  assert.ok(result.stopLoss<result.entry);
  assert.ok(result.takeProfit>result.entry);
@@ -206,4 +211,23 @@ test("higher timeframe context becomes unavailable when its latest completed can
  const context={M15:make(900),H1:make(3600),H4:make(14400)};
  assert.ok(higherTimeframeTrendContext(context,now));
  assert.equal(higherTimeframeTrendContext(context,now+900*3000),null);
+});
+
+test("scalping engine waits when H4 context conflicts with a valid M1 and M5 BUY",()=>{
+ const rows=[];let price=2000;
+ for(let i=0;i<60;i++){
+  const open=price;price+=i===59?0.05:(i%2===0?0.05:-0.03);
+  rows.push({epoch:Math.floor(now/1000)-((60-i)*60),open,high:Math.max(open,price)+0.01,low:Math.min(open,price)-0.01,close:price});
+ }
+ const last=rows.at(-1),quote=last.high+0.02;
+ const t={source:"DERIV",instrument:"XAUUSD",providerSymbol:"frxXAUUSD",quote,bid:quote-0.002,ask:quote+0.002,quoteAsOf:new Date(now).toISOString(),receivedAt:new Date(now).toISOString()};
+ const trendBase=Math.floor((now/1000)/300)*300;
+ const trend=Array.from({length:30},(_,i)=>{const close=1900+i*0.5;return {epoch:trendBase-(29-i)*300,open:close-0.2,high:close+0.5,low:close-0.5,close};});
+ const contextRows=(interval,direction)=>Array.from({length:30},(_,i)=>{
+  const close=direction==="BUY"?1900+i*0.5:1915-i*0.5,open=direction==="BUY"?close-0.2:close+0.2;
+  return {epoch:Math.floor(now/1000/interval)*interval-interval-(29-i)*interval,open,high:Math.max(open,close)+0.5,low:Math.min(open,close)-0.5,close};
+ });
+ const result=analyseScalping({instrument:"XAUUSD",candles:rows,trendCandles:trend,contextCandles:{M15:contextRows(900,"BUY"),H1:contextRows(3600,"BUY"),H4:contextRows(14400,"SELL")},tick:t,now});
+ assert.equal(result.direction,"WAIT");
+ assert.equal(result.reason,"HIGHER_TIMEFRAME_TREND_CONFLICT");
 });
