@@ -211,6 +211,31 @@ begin
     v_scalping_session,v_scalping_user,true,true,'DEMO','WEBSITE_PAPER_ONLY',0.25,1.00,15
   );
 
+  -- The database entry RPC independently denies instruments absent from the
+  -- active server-managed Deriv approval registry.
+  insert into public.trading_instrument_approvals(
+    broker,instrument,provider,provider_symbol,status,is_active,
+    approval_note,approved_by,updated_by,approved_at
+  ) values (
+    'DERIV','EURUSD','DERIV','frxEURUSD','APPROVED',true,
+    'Disposable CI fixture',v_scalping_user,v_scalping_user,now()
+  );
+
+  update public.trading_instrument_approvals
+     set status='DISABLED',is_active=false,updated_at=now()
+   where broker='DERIV' and instrument='EURUSD';
+  select public.open_demo_scalping_paper_trade(
+    v_scalping_user,v_scalping_session,'EURUSD','BUY',
+    1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
+    666,6.66,0.0666,1,now(),now()-interval '1 minute'
+  ) into v_result;
+  if v_result->>'reason' <> 'SCALPING_INSTRUMENT_NOT_APPROVED' then
+    raise exception 'Expected disabled instrument to be blocked at the database boundary: %',v_result;
+  end if;
+  update public.trading_instrument_approvals
+     set status='APPROVED',is_active=true,approved_at=now(),updated_at=now()
+   where broker='DERIV' and instrument='EURUSD';
+
   select public.open_demo_scalping_paper_trade(
     v_scalping_user,v_scalping_session,'EURUSD','BUY',
     1.10000,1.09000,1.11500,1.10750,1.11100,1.11500,
