@@ -68,3 +68,13 @@ For example, the FCA's algorithmic-trading rules require resilient systems, limi
 - MT5 DEMO adapter hardening now enforces DEMO-only account snapshots, fresh non-future quote timestamps, verified USD valuations and strict position identity/instrument validation. Bridge close requests are disabled by default and require an explicit DEMO-only server configuration. The actual terminal bridge, account verification, server credentials and end-to-end MT5 tests remain outstanding.
 
 - Dashboard mode-profile reads explicitly authenticate the current user and scope the DEMO/REAL preference query to that user's row, avoiding ambiguous profile reads across accounts.
+
+
+## Market analyst research upgrade (2026-11-26)
+
+- Authenticated market analysis compares the selected completed-candle timeframe with the next higher supported timeframe: M5→M15, M15→H1, H1→H4. H4 cannot claim higher-timeframe confirmation with the currently supported Deriv candle feed.
+- The candidate direction is forced to WAIT unless the higher timeframe independently agrees.
+- Indicative plan levels use the actual Deriv ask for BUY and bid for SELL, a 1.5×ATR stop distance and 1.5R/2R targets. If provider bid/ask is absent, stale, future-dated or invalid, no levels are fabricated.
+- Candidate technical score is distinct from the final market-intelligence gate. Missing independent evidence, spread limits, or verified news status keep the final decision at WAIT.
+- All results are research-only. The analyst never opens, modifies or closes broker or DEMO positions.
+- Unit coverage added for plan direction, side-specific entry, quote freshness and higher-timeframe labeling. CI verification pending.
