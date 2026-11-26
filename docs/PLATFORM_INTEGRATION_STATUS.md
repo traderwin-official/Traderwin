@@ -46,6 +46,15 @@ The summary is a presentation/aggregation layer. It does not change the executio
 - Full Traderwin workflow [#1977](https://github.com/traderwin-official/Traderwin/actions/runs/45824790925) passed: Node tests, serverless JavaScript syntax, inline page scripts, worker Docker image build and isolated PostgreSQL DEMO/portfolio migration checks.
 - The validated application-code head is `28523f299d16a2bb21736d16b62380f9fb04f0eb`; the later documentation-only checkpoint records these results. No preview deployment is claimed.
 - Vercel preview checks remain blocked by the account build-rate limit. No preview deployment is claimed.
+## Latest shared-market allowlist hardening (2026-11-26)
+
+- Tightened `setSharedMarketContext()` so it rejects any instrument not present in the explicit TradingView symbol allowlist before changing chart, Analyst, manual DEMO, bot or account-mode fields.
+- Binary contract categories remain visible as market categories but are disabled for shared spot-chart/DEMO instrument selection; unsupported instruments cannot be injected by typing an arbitrary symbol.
+- Added regression coverage for unknown-instrument rejection and binary contract isolation.
+- Latest Node workflow [#1169](https://github.com/traderwin-official/Traderwin/actions/runs/45839298960) passed **610/610 tests** (0 failed).
+- Full Traderwin workflow [#1979](https://github.com/traderwin-official/Traderwin/actions/runs/45839298858) passed Node tests, serverless JavaScript syntax, inline page-script checks, worker Docker image build and isolated PostgreSQL DEMO/portfolio migration checks.
+- Validated branch head: `6d7eb319b81ec8a55cbe6ff6471e9ba0d5ea13e4`. This is still branch validation only; no production deployment, database migration, Railway worker deployment, PR merge or REAL trading activation occurred.
+
 ## Not deployed / not yet verified
 
 - No PR merge, production deployment or production Supabase migration has been performed.
