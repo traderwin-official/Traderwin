@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
+import router from "../api/router.js";
 
 test("Vercel API stays within the Hobby function limit using one catch-all entry point", async () => {
   const entries = await readdir(new URL("../api/", import.meta.url));
@@ -33,4 +34,28 @@ test("Vercel rewrite sends every API path to the single router function", async 
     source: "/api/:path*",
     destination: "/api/router?__vercel_route=:path*"
   }]);
+});
+
+test("rewritten scalping API path reaches its authenticated handler", async () => {
+  const previousUrl = process.env.SUPABASE_URL;
+  const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-key";
+  const response = {
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; }
+  };
+  try {
+    await router({ method:"GET", query:{__vercel_route:"bots/demo/scalping-feed"}, headers:{} }, response);
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.error, "Sign in is required.");
+    assert.equal(response.headers["Cache-Control"], "no-store");
+  } finally {
+    if (previousUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousUrl;
+    if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
+  }
 });
