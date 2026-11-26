@@ -33,8 +33,7 @@ test("DEMO dashboard shows account history and refreshes it after a manual close
 });
 
 test("DEMO history API is registered as an explicit Vercel route", async () => {
-  const route = await readFile(new URL("../api/bots/demo/history.js", import.meta.url), "utf8");
-  const dispatcher = await readFile(new URL("../api/[...path].js", import.meta.url), "utf8");
-  assert.match(route, /handlers\/bots\/demo\/history\.js/);
+  const dispatcher = await readFile(new URL("../api/router.js", import.meta.url), "utf8");
+  assert.match(dispatcher, /handlers\/bots\/demo\/history\.js/);
   assert.match(dispatcher, /\/api\/bots\/demo\/history/);
 });
