@@ -66,7 +66,7 @@ begin
 
   -- $100 of floating loss brings equity to exactly $8,000 and triggers.
   select public.evaluate_demo_daily_loss_guard(v_user,-100) into v_result;
-  if coalesce((v_result->>'triggered')::boolean,false)
+  if coalesce((v_result->>'triggered')::boolean,false) is not true
      or (v_result->>'current_equity_usd')::numeric<>8000 then
     raise exception 'Exactly 20%% drawdown must trigger: %',v_result;
   end if;
