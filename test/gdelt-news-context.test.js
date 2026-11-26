@@ -29,6 +29,21 @@ test("returns recent contextual headlines and cautious keyword labels", async ()
   assert.equal(result.sentiment, "CONTEXT_ONLY");
 });
 
+test("classifies gold macro headlines by relevance without assigning price direction", async () => {
+  const result = await getGdeltNewsContext("XAUUSD", {
+    now: () => now,
+    fetchImpl: async () => ({ ok: true, json: async () => ({ articles: [
+      { title: "Federal Reserve signals interest rate decision", domain: "macro.test", seendate: "20261126113000" },
+      { title: "Gold market update", domain: "general.test", seendate: "20261126112000" }
+    ] }) })
+  });
+  assert.equal(result.articles[0].macroTopic, "MONETARY_POLICY");
+  assert.equal(result.articles[0].relevance.score, 100);
+  assert.equal(result.articles[0].relevance.level, "HIGH");
+  assert.equal(result.articles[0].relevance.interpretation, "KEYWORD_CONTEXT_ONLY_NO_DIRECTION_INFERRED");
+  assert.equal(result.articles[1].relevance.level, "LOW");
+});
+
 test("never treats empty headlines or provider errors as a clear news window", async () => {
   const empty = await getGdeltNewsContext("XAUUSD", {
     now: () => now, fetchImpl: async () => ({ ok: true, json: async () => ({ articles: [] }) })
