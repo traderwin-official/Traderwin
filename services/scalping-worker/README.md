@@ -94,3 +94,14 @@ node scripts/run-scalping-backtest.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xa
 The downloader accepts 1–120 days of history and excludes the current, potentially incomplete M1 candle. Longer samples improve research coverage, but still require a separate out-of-sample period. The sample cost values above are placeholders only. Use actual broker spread,
 slippage and commission assumptions before interpreting any result. The Deriv
 download is Deriv market data, not an MT5 broker execution record.
+
+For a 70/30 chronological training/holdout report using the same CSV and cost
+assumptions, run:
+
+```sh
+node scripts/run-scalping-walk-forward.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xauusd-walk-forward.json 0.7
+```
+
+The report separates training metrics from later out-of-sample metrics. The
+holdout has its own warm-up and no positions or indicator state carry over the
+split. Keep the holdout untouched when adjusting strategy parameters.
