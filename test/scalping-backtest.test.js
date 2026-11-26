@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {runScalpingBacktest,summarizeScalpingBacktest,parseM1Csv} from "../lib/scalping-backtest.js";
+import {runScalpingBacktest,summarizeScalpingBacktest,parseM1Csv,scalpingExitFillPrice} from "../lib/scalping-backtest.js";
 
 function flatHistory(count=220){
  const base=Math.floor(Date.now()/60000)*60-count*60;
@@ -69,4 +69,11 @@ test("CSV loader accepts session gaps but rejects malformed OHLC",()=>{
  assert.equal(parseM1Csv(gap).length,2);
  const malformed="epoch,open,high,low,close\n"+[base,2000,1990,1999,2000].join(",");
  assert.throws(()=>parseM1Csv(malformed),/valid, minute-aligned and sorted/);
+});
+
+test("backtest exit fills charge the correct bid/ask spread and adverse slippage",()=>{
+ assert.equal(scalpingExitFillPrice("BUY",2000,0.05,0.02),1999.93);
+ assert.equal(scalpingExitFillPrice("SELL",2000,0.05,0.02),2000.07);
+ assert.throws(()=>scalpingExitFillPrice("HOLD",2000,0.05,0.02),/Direction must be BUY or SELL/);
+ assert.throws(()=>scalpingExitFillPrice("BUY",2000,-0.05,0.02),/finite and non-negative/);
 });
