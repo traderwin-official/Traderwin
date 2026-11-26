@@ -64,6 +64,15 @@ The summary is a presentation/aggregation layer. It does not change the executio
 - Full Traderwin workflow [#1981](https://github.com/traderwin-official/Traderwin/actions/runs/45840412352) passed Node tests, serverless syntax, inline page-script checks, worker Docker image build and isolated PostgreSQL DEMO/portfolio migration checks.
 - Validated application-code head: `04bfee92dcca788f44ab04c92e6a441ec05af7a9`. These are automated branch checks, not a live browser journey or production certification. No production migration, deployment, Railway worker deployment, PR merge or REAL trading activation occurred.
 
+## DEMO protective-exit integrity hardening (2026-11-26)
+
+- The DEMO decision engine now evaluates a verified STOP_LOSS before optional TP1/TP2/TP3 fields. A legacy open BOT position with a valid stop can produce the protective CLOSE decision even when its take-profit plan is incomplete.
+- Atomic settlement still requires a positive, fresh Deriv USD conversion. The database RPC updates the USD session balance and daily-loss lock in the same transaction; missing conversion therefore remains fail-closed rather than guessing an exchange rate or closing without consistent account accounting.
+- Regression coverage now includes BUY and SELL stop priority, invalid stop data, missing conversion and SQL checks that reject absent/stale conversion for exit settlement.
+- Node workflow [#1187](https://github.com/traderwin-official/Traderwin/actions/runs/45841589761) passed **614/614 tests** (0 failed).
+- Full Traderwin workflow [#1986](https://github.com/traderwin-official/Traderwin/actions/runs/45841589609) passed Node tests, serverless syntax, inline page scripts, worker Docker image build and isolated PostgreSQL DEMO/portfolio migration checks.
+- Validated application branch head: `f32031110fea99754ff129a0496feea157a1fa27`. This is CI validation only, not a live browser journey or production certification. No production migration, deployment, Railway worker deployment, PR merge or REAL trading activation occurred.
+
 ## Not deployed / not yet verified
 
 - No PR merge, production deployment or production Supabase migration has been performed.
