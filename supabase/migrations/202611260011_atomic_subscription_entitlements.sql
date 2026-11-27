@@ -31,6 +31,8 @@ declare
   v_starts_at timestamptz;
   v_ends_at timestamptz;
   v_event_id uuid;
+  v_amount numeric;
+  v_currency text;
 begin
   if auth.role() is distinct from 'service_role' then
     raise exception 'Service role required';
@@ -48,6 +50,20 @@ begin
     from public.service_catalog
    where service_code = v_order.service_code;
   if not found then raise exception 'SUBSCRIPTION_SERVICE_NOT_FOUND'; end if;
+
+  -- Preserve the purchased subscription price in the legacy NOT NULL columns.
+  -- USD-priced services store the USD list price; KES-only services store KES.
+  v_amount := case
+    when coalesce(v_order.amount_usd, 0) > 0 then v_order.amount_usd
+    else coalesce(v_order.amount_kes, v_order.amount)
+  end;
+  v_currency := case
+    when coalesce(v_order.amount_usd, 0) > 0 then 'USD'
+    else coalesce(nullif(upper(v_order.currency), ''), 'KES')
+  end;
+  if v_amount is null or v_amount <= 0 then
+    raise exception 'PAYMENT_AMOUNT_REQUIRED';
+  end if;
 
   -- Serialize renewals for this member/service, including the first subscription row.
   perform pg_advisory_xact_lock(hashtext(v_order.user_id::text || ':' || v_order.service_code));
@@ -91,13 +107,16 @@ begin
    where payment_order_id = v_order.id;
 
   insert into public.user_subscriptions (
-    user_id, service_code, status, starts_at, ends_at, payment_order_id
+    user_id, service_code, status, amount, currency, starts_at, ends_at, payment_order_id
   )
   values (
-    v_order.user_id, v_order.service_code, 'ACTIVE', v_starts_at, v_ends_at, v_order.id
+    v_order.user_id, v_order.service_code, 'ACTIVE', v_amount, v_currency,
+    v_starts_at, v_ends_at, v_order.id
   )
   on conflict (user_id, service_code) do update
     set status = 'ACTIVE',
+        amount = excluded.amount,
+        currency = excluded.currency,
         starts_at = excluded.starts_at,
         ends_at = excluded.ends_at,
         payment_order_id = excluded.payment_order_id;
