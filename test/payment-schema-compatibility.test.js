@@ -31,6 +31,6 @@ test("payment compatibility migration is additive and does not invent service pr
 });
 
 test("service code uniqueness supports downstream entitlement foreign keys", () => {
-  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS service_catalog_service_code_uidx\\s+ON public\\.service_catalog\\(service_code\\);/);
-  assert.doesNotMatch(migration, /service_catalog_service_code_uidx[\\s\\S]*?WHERE service_code IS NOT NULL/);
+  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS service_catalog_service_code_uidx\s+ON public\.service_catalog\(service_code\);/);
+  assert.doesNotMatch(migration, /service_catalog_service_code_uidx[\s\S]*?WHERE service_code IS NOT NULL/);
 });
