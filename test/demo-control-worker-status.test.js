@@ -68,3 +68,13 @@ test("dashboard profile inputs enforce DEMO risk ceilings while keeping REAL pre
  assert.match(html,/dailyMax=demo\?1:10/);
  assert.match(html,/REAL settings are preferences only/);
 });
+
+
+test("dashboard keeps daily-risk-locked DEMO sessions recoverable after the Nairobi day resets",async()=>{
+ const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
+ assert.match(html,/function syncDemoSessionControls\(session\)/);
+ assert.match(html,/startDemo\.disabled=selectedAccountMode!=="DEMO"\|\|running/);
+ assert.match(html,/Check daily lock \/ start new DEMO/);
+ assert.match(html,/The server enforces the daily-loss lock until the next Nairobi trading day/);
+ assert.doesNotMatch(html,/startDemo\.disabled=selectedAccountMode!=="DEMO"\|\|running\|\|r\.session\.status==="RISK_LOCKED"/);
+});
