@@ -2,7 +2,7 @@ name: Node.js tests
 
 on:
   pull_request:
-    branches: [main, feature/manual-partial-exits, "integration/**"]
+    branches: [main, feature/manual-partial-exits, feat/continuous-demo-scalping-feed, "integration/**"]
   push:
     branches: [main, "feature/**", "integration/**", "fix/**"]
 

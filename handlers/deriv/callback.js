@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeVerifiedDerivAccounts, selectUnambiguousAccountId } from "../../lib/deriv-accounts.js";
 import { encryptToken } from "../../lib/encryption.js";
+import { getDerivDisconnectScalpingPatch } from "../../lib/deriv-disconnect.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -165,6 +166,20 @@ export default async function handler(req, res) {
         }
       }
     );
+
+    // Every fresh OAuth authorization is a reconnect boundary. Revoke the
+    // previous session's feed and automatic-entry consent before saving the
+    // new token, so expired/replaced credentials cannot silently resume a bot.
+    stage = "reset_scalping_consent";
+    const { error: preferenceResetError } = await supabase
+      .from("demo_scalping_preferences")
+      .update(getDerivDisconnectScalpingPatch())
+      .eq("user_id", session.userId);
+
+    if (preferenceResetError) {
+      console.error("Deriv reconnect preference reset failed:", preferenceResetError.message);
+      return finish("error");
+    }
 
     const { error: saveError } = await supabase
       .from("deriv_connections")

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getDerivDisconnectScalpingPatch } from "../../lib/deriv-disconnect.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -26,6 +27,19 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Your login session is invalid." });
     }
 
+    // Revoke entry consent before deleting authorization. If this update
+    // fails, retain the connection and fail closed; open paper positions are
+    // still managed by the worker independently of these entry switches.
+    const { error: preferenceError } = await admin
+      .from("demo_scalping_preferences")
+      .update(getDerivDisconnectScalpingPatch())
+      .eq("user_id", auth.user.id);
+
+    if (preferenceError) {
+      console.error("Deriv disconnect preference reset failed:", preferenceError.message);
+      return res.status(503).json({ error: "Could not safely pause DEMO automation before disconnecting." });
+    }
+
     const { error } = await admin
       .from("deriv_connections")
       .delete()
@@ -33,7 +47,7 @@ export default async function handler(req, res) {
 
     if (error) {
       console.error("Deriv disconnect failed:", error.message);
-      return res.status(503).json({ error: "Could not disconnect Deriv right now." });
+      return res.status(503).json({ error: "DEMO automation has been paused, but Deriv could not be disconnected. Retry disconnect." });
     }
 
     return res.status(200).json({ disconnected: true });

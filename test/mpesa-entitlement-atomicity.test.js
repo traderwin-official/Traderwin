@@ -1,0 +1,41 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+test("subscription entitlement ledger permanently deduplicates every payment order", async () => {
+  const sql = await readFile(new URL("../supabase/migrations/202611260011_atomic_subscription_entitlements.sql", import.meta.url), "utf8");
+  assert.match(sql, /subscription_entitlement_events/);
+  assert.match(sql, /payment_order_id uuid primary key/);
+  assert.match(sql, /on conflict \(payment_order_id\) do nothing/);
+  assert.match(sql, /ALREADY_APPLIED/);
+  assert.match(sql, /pg_advisory_xact_lock/);
+  assert.match(sql, /on conflict \(user_id, service_code\) do update/);
+  assert.match(sql, /auth\.role\(\) is distinct from 'service_role'/);
+  assert.match(sql, /revoke all on function public\.fulfill_paid_subscription_order\(uuid\)/);
+  assert.match(sql, /grant execute on function public\.fulfill_paid_subscription_order\(uuid\) to service_role/);
+});
+
+test("M-Pesa callback delegates subscription fulfilment to one atomic database transaction", async () => {
+  const source = await readFile(new URL("../handlers/payments/mpesa/callback.js", import.meta.url), "utf8");
+  assert.ok(source.includes("admin.rpc("));
+  assert.ok(source.includes("fulfill_paid_subscription_order"));
+  assert.ok(source.includes("p_order_id: paidOrder.id"));
+  assert.match(source, /Paid service entitlement activation failed/);
+  assert.doesNotMatch(source, /from\("user_subscriptions"\)\.upsert/);
+  assert.doesNotMatch(source, /existingSubscription\?\.payment_order_id/);
+});
+
+test("member payment-status polling retries paid entitlement recovery for that member's order", async () => {
+  const source = await readFile(new URL("../handlers/payments/mpesa/status.js", import.meta.url), "utf8");
+  assert.match(source, /\.eq\("id", orderId\)\.eq\("user_id", auth\.user\.id\)/);
+  assert.match(source, /if \(data\.status === "PAID"\)/);
+  assert.match(source, /fulfill_paid_subscription_order/);
+  assert.match(source, /entitlementStatus/);
+});
+
+test("payment UI keeps a paid order retryable until its entitlement is active", async () => {
+  const source = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(source, /entitlementPending=status==="PAID"&&result\.entitlementStatus==="PENDING"/);
+  assert.match(source, /status!=="PENDING"&&!entitlementPending/);
+  assert.match(source, /Service activation is still processing/);
+});

@@ -32,3 +32,25 @@ test("builds the STK password from shortcode, passkey and timestamp", () => {
   assert.equal(buildStkPassword("123456", "secret", "20261112113045"),
     Buffer.from("123456secret20261112113045").toString("base64"));
 });
+
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+test("paid M-Pesa callbacks can retry atomic subscription fulfilment", () => {
+  const callbackPath = new URL("../handlers/payments/mpesa/callback.js", import.meta.url);
+  const source = readFileSync(fileURLToPath(callbackPath), "utf8");
+  assert.match(source, /\["PENDING",\s*"PAID"\]\.includes\(order\.status\)/);
+  assert.match(source, /if \(order\.status === "PAID"\)/);
+  assert.match(source, /Another callback may have won the PENDING -> PAID race/);
+  assert.match(source, /refreshed\?\.status !== "PAID"/);
+  assert.match(source, /admin\.rpc\(\s*"fulfill_paid_subscription_order"/);
+  assert.match(source, /Payment entitlement already active/);
+  assert.doesNotMatch(source, /from\("user_subscriptions"\)\.upsert/);
+});
+
+test("STK checkout handles a concurrent pending-order uniqueness conflict safely", () => {
+  const checkoutPath = new URL("../handlers/payments/mpesa/stk-push.js", import.meta.url);
+  const source = readFileSync(fileURLToPath(checkoutPath), "utf8");
+  assert.match(source, /orderError\?\.code === "23505"/);
+  assert.match(source, /payment request for this service is already being processed/i);
+});

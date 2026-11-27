@@ -1,0 +1,109 @@
+name: Quantum Scalping historical research
+
+on:
+  workflow_dispatch:
+    inputs:
+      instrument:
+        description: "Traderwin instrument name (for example XAUUSD)"
+        required: true
+        type: string
+        default: "XAUUSD"
+      provider_symbol:
+        description: "Exact active Deriv symbol (verify it in Deriv's active-symbol list)"
+        required: true
+        type: string
+        default: "frxXAUUSD"
+      days:
+        description: "Historical M1 data window (1–120 days)"
+        required: true
+        type: number
+        default: 30
+      spread:
+        description: "Realistic full spread in instrument price units (required; do not guess)"
+        required: true
+        type: string
+      slippage:
+        description: "Adverse slippage in instrument price units (required)"
+        required: true
+        type: string
+      commission:
+        description: "Round-trip commission in instrument price units (required; enter 0 only if genuinely zero)"
+        required: true
+        type: string
+      train_fraction:
+        description: "Chronological training fraction (0.5–0.9)"
+        required: true
+        type: string
+        default: "0.7"
+
+permissions:
+  contents: read
+
+jobs:
+  historical-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate research inputs
+        env:
+          DAYS: ${{ inputs.days }}
+          SPREAD: ${{ inputs.spread }}
+          SLIPPAGE: ${{ inputs.slippage }}
+          COMMISSION: ${{ inputs.commission }}
+          TRAIN_FRACTION: ${{ inputs.train_fraction }}
+        run: |
+          node --input-type=module -e '
+            const days = Number(process.env.DAYS);
+            const spread = Number(process.env.SPREAD);
+            const slippage = Number(process.env.SLIPPAGE);
+            const commission = Number(process.env.COMMISSION);
+            const fraction = Number(process.env.TRAIN_FRACTION);
+            if (!Number.isInteger(days) || days < 1 || days > 120) throw new Error("days must be an integer from 1 to 120");
+            for (const [name, value] of [["spread", spread], ["slippage", slippage], ["commission", commission]]) {
+              if (!Number.isFinite(value) || value < 0) throw new Error(name + " must be a non-negative finite number");
+            }
+            if (!process.env.SPREAD.trim() || !process.env.SLIPPAGE.trim() || !process.env.COMMISSION.trim()) throw new Error("All execution-cost assumptions must be supplied explicitly");
+            if (!Number.isFinite(fraction) || fraction < 0.5 || fraction > 0.9) throw new Error("train_fraction must be between 0.5 and 0.9");
+          '
+
+      - name: Download completed Deriv M1 candles
+        env:
+          PROVIDER_SYMBOL: ${{ inputs.provider_symbol }}
+          DAYS: ${{ inputs.days }}
+        run: node scripts/fetch-deriv-m1-history.js "$PROVIDER_SYMBOL" "$DAYS" ./deriv-m1-history.csv
+
+      - name: Run full-sample research report
+        env:
+          INSTRUMENT: ${{ inputs.instrument }}
+          SPREAD: ${{ inputs.spread }}
+          SLIPPAGE: ${{ inputs.slippage }}
+          COMMISSION: ${{ inputs.commission }}
+        run: node scripts/run-scalping-backtest.js ./deriv-m1-history.csv "$INSTRUMENT" "$SPREAD" "$SLIPPAGE" "$COMMISSION" ./full-sample-report.json
+
+      - name: Run chronological out-of-sample evaluation
+        env:
+          INSTRUMENT: ${{ inputs.instrument }}
+          SPREAD: ${{ inputs.spread }}
+          SLIPPAGE: ${{ inputs.slippage }}
+          COMMISSION: ${{ inputs.commission }}
+          TRAIN_FRACTION: ${{ inputs.train_fraction }}
+        run: node scripts/run-scalping-walk-forward.js ./deriv-m1-history.csv "$INSTRUMENT" "$SPREAD" "$SLIPPAGE" "$COMMISSION" ./walk-forward-report.json "$TRAIN_FRACTION"
+
+      - name: Upload candles and research reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-scalping-research-${{ inputs.instrument }}-${{ github.run_number }}
+          path: |
+            deriv-m1-history.csv
+            full-sample-report.json
+            walk-forward-report.json
+          if-no-files-found: error
+          retention-days: 14

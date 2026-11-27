@@ -29,3 +29,14 @@ test("Tiger indicator publishes support and resistance proximity and confluence"
  assert.ok(Number.isInteger(i.bullishLocationScore));
  assert.ok(Number.isInteger(i.bearishLocationScore));
 });
+
+test("Tiger indicator records the actual higher timeframe used for trend confirmation",()=>{
+ const c=Array.from({length:80},(_,i)=>{
+  const mid=100+i*.03+Math.sin(i*.7)*2;
+  const open=mid,close=mid+Math.cos(i*.7)*.2;
+  return {open,high:Math.max(open,close)+.4,low:Math.min(open,close)-.4,close};
+ });
+ const result=analyseTigerFibonacciPsychology(c,{trendCandles:c,trendTimeframe:"H4",instrument:"XAUUSD"});
+ assert.equal(result.indicators.higherTimeframe,"H4");
+ assert.equal(result.indicators.higherTimeframeTrend,result.indicators.h1Trend);
+});

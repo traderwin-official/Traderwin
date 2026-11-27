@@ -34,6 +34,87 @@ test("opens a virtual position only on a new confirmed BUY/SELL candle", () => {
   assert.ok(result.riskAmount <= 50.01);
 });
 
+test("accepts a sweep-and-displacement continuation without requiring consolidation", () => {
+  const input = structuredClone(base);
+  const candles = input.market.candles;
+  const referenceLow = Math.min(...candles.slice(-13, -3).map(c => c.low));
+  const referenceHigh = Math.max(...candles.slice(-13, -3).map(c => c.high));
+  // A quick downside liquidity sweep that closes back above the old low.
+  candles[candles.length - 2] = {
+    ...candles[candles.length - 2], open: referenceLow + 0.2,
+    low: referenceLow - 0.8, high: referenceLow + 0.35, close: referenceLow + 0.25
+  };
+  // Immediate bullish displacement; there is no sideways consolidation/retest.
+  const priorSweepHigh = Math.max(candles[candles.length - 3].high, candles[candles.length - 2].high);
+  const continuationClose = Math.max(referenceLow + 4.0, priorSweepHigh + 0.5);
+  candles[candles.length - 1] = {
+    ...candles[candles.length - 1], open: referenceLow + 0.3,
+    low: referenceLow + 0.2, high: continuationClose + 0.2,
+    close: continuationClose
+  };  input.quote.quote = candles.at(-1).close;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "OPEN");
+  assert.equal(result.direction, "BUY");
+  assert.equal(result.reason, "LIQUIDITY_SWEEP_CONTINUATION");
+  assert.equal(result.analysis.indicators.sweepContinuation.sweep, "BULLISH");
+});
+
+test("does not treat a liquidity sweep without directional displacement as an entry", () => {
+  const input = structuredClone(base);
+  const candles = input.market.candles;
+  const referenceLow = Math.min(...candles.slice(-13, -3).map(c => c.low));
+  candles[candles.length - 2] = {
+    ...candles[candles.length - 2], low: referenceLow - 0.8, close: referenceLow + 0.1
+  };
+  candles[candles.length - 1] = {
+    ...candles[candles.length - 1], open: referenceLow + 0.2,
+    low: referenceLow + 0.1, high: referenceLow + 0.4, close: referenceLow + 0.25
+  };
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.notEqual(result.reason, "LIQUIDITY_SWEEP_CONTINUATION");
+});
+
+test("blocks a new entry during the post-loss cooldown", () => {
+  const input = structuredClone(base);
+  input.session.lossCooldownUntil = new Date(now + 10 * 60_000).toISOString();
+  input.session.consecutiveBotLosses = 1;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "WAIT");
+  assert.equal(result.reason, "POST_LOSS_COOLDOWN");
+});
+
+test("requires independent higher-timeframe EMA agreement before opening", () => {
+  const input = structuredClone(base);
+  input.market.trendTimeframe = "M15";
+  input.market.trendCandleAsOf = new Date(now).toISOString();
+  input.market.trendCandles = Array.from({ length: 40 }, (_, i) => {
+    const open = 140 - i * 0.5;
+    return { epoch: now / 1000 - (40 - i) * 900, open, high: open + 0.2, low: open - 0.6, close: open - 0.5 };
+  });
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "WAIT");
+  assert.equal(result.reason, "HIGHER_TIMEFRAME_TREND_MISMATCH");
+  assert.equal(result.higherTimeframeDirection, "SELL");
+});
+
+test("blocks missing or stale higher-timeframe candles instead of trusting old trend context", () => {
+  const input = structuredClone(base);
+  input.market.trendTimeframe = "H1";
+  input.market.trendCandleAsOf = new Date(now - 3 * 3600_000).toISOString();
+  input.market.trendCandles = input.market.candles;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "BLOCK");
+  assert.equal(result.reason, "HIGHER_TIMEFRAME_DATA_UNAVAILABLE_OR_STALE");
+});
+
+test("does not chase an entry after price has stretched from the signal candle", () => {
+  const input = structuredClone(base);
+  input.quote.quote = 125;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "WAIT");
+  assert.equal(result.reason, "ENTRY_TOO_EXTENDED_FROM_SIGNAL_CANDLE");
+});
+
 test("AUTO_SELECT chooses the strongest validated strategy and still waits on unconfirmed setups", () => {
   const input = structuredClone(base);
   input.settings.strategy = "AUTO_SELECT_V1";
@@ -214,3 +295,49 @@ test("blocks DEMO entries and position management when USD conversion is unavail
   delete input.quote.quoteToUsd;
   assert.equal(decideDemoAutoAction({ ...input, now }).reason, "USD_CONVERSION_UNAVAILABLE");
 });
+
+
+test("honours a verified stop loss even when a legacy open position has no complete take-profit plan", () => {
+  for (const [direction, stop, quote] of [["BUY", 118, 117.9], ["SELL", 122, 122.1]]) {
+    const input = structuredClone(base);
+    input.market = null;
+    input.openTrade = {
+      id: "legacy-no-tp-" + direction, symbol: "XAUUSD", direction,
+      entry_price: 120, stop_loss: stop, virtual_units: 2, status: "OPEN"
+    };
+    input.quote.quote = quote;
+    const result = decideDemoAutoAction({ ...input, now });
+    assert.equal(result.action, "CLOSE");
+    assert.equal(result.reason, "STOP_LOSS");
+    assert.equal(result.tradeId, input.openTrade.id);
+  }
+});
+
+test("blocks open-position management when the protective stop itself is invalid", () => {
+  const input = structuredClone(base);
+  input.market = null;
+  input.openTrade = {
+    id: "missing-stop", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, virtual_units: 2, status: "OPEN"
+  };
+  assert.equal(decideDemoAutoAction({ ...input, now }).reason, "STOP_LOSS_UNAVAILABLE");
+});
+
+
+test("does not attempt an atomic stop exit without USD conversion needed for balance and daily-loss settlement", () => {
+  const input = structuredClone(base);
+  input.market = null;
+  input.openTrade = {
+    id: "stop-without-usd-rate", symbol: "XAUUSD", direction: "BUY",
+    entry_price: 120, stop_loss: 118, take_profit: 126,
+    tp1_price: 122, tp2_price: 124, tp3_price: 126,
+    tp1_done: false, tp2_done: false, tp3_done: false,
+    virtual_units: 2, status: "OPEN"
+  };
+  input.quote.quote = 117.9;
+  input.quote.quoteToUsd = null;
+  const result = decideDemoAutoAction({ ...input, now });
+  assert.equal(result.action, "BLOCK");
+  assert.equal(result.reason, "USD_CONVERSION_UNAVAILABLE");
+});
+

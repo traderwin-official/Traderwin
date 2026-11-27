@@ -1,0 +1,119 @@
+# Young Tiger FX — DEMO scalping strategy worker
+
+This worker implements **Tiger Scheme AI Bot — Quantum Scalping**, one optional automated strategy within the wider Young Tiger FX platform. It is an additive strategy module, not a replacement for the platform or its other strategies and services. It generates M1/M5 candidates and manages virtual DEMO paper positions in the isolated `demo_paper_*` ledger. It does not send Deriv broker orders and cannot execute REAL trades.
+
+## Runtime and deployment
+
+Deploy as a Railway service from this repository with the root directory left at the repository root. Railway uses `services/scalping-worker/Dockerfile` and `services/scalping-worker/railway.json`.
+
+Required service variables:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_EXPECTED_PROJECT_REF` (the exact 20-character ref matching the isolated DEMO project)
+
+Expose the generated Railway domain on port 8080. Configure a health check at `/healthz`.
+
+The worker refuses to start if the URL and expected project ref do not match, or if the URL points to the known production Supabase project. Never set the expected ref to the production project.
+
+## Entry activation gates
+
+The worker opens a paper position only for a session that:
+- belongs to the user's own Deriv DEMO paper ledger;
+- is RUNNING and has both feed access (`enabled`) and a separate explicit automatic paper-trading opt-in (`paper_execution_enabled`) in the private `demo_scalping_preferences` row;
+- has `account_mode: "DEMO"` and a supported paper-only execution setting in its server-side `config_snapshot`;
+- uses an active, explicitly approved Deriv instrument;
+- has fresh, timestamped Deriv bid and ask values and a fresh quote-currency-to-USD conversion.
+
+Enabling the feed alone never opens a position; `paper_execution_enabled` defaults to false and must be explicitly enabled from the dashboard. Either disabled flag blocks new entries. Existing scalping BOT positions remain subscribed and managed to their stop or single full-position target even if the user disables new entries or pauses the session.
+
+## Strategy and execution
+
+- M1 is the fast entry timeframe; completed M5 candles confirm direction.
+- The strategy uses EMA9/EMA21, RSI14, ATR/spread filters, momentum breakout and Fibonacci context.
+- Conflicting or incomplete conditions return WAIT.
+- The server-side entry RPC permits up to 15 concurrent DEMO paper positions, blocks duplicate M1-candle entries, caps each position at 0.25%, and limits combined open stop-risk to 1% of starting equity. The daily realized-loss cap is also 1%.
+- Manual DEMO positions may coexist with the automated portfolio and share its 15-position ceiling. The scalping worker only manages tagged BOT positions; monitoring or closing manual positions requires the account owner's separate explicit portfolio permissions.
+- Position size uses the verified USD value of the instrument's quote currency. Unsupported or stale conversions fail closed.
+- Scalping paper positions use one final take-profit target (1.5R–3R) and close the entire remaining position at that target. Stop-loss also closes the entire remaining position. There are no TP1/TP2 partial exits in this fast scalping strategy. This rule is scoped to scalping only; it does not remove or change partial-exit features used by manual trading or other strategies.
+- Exit decisions use the correct side of the spread: bid for BUY positions and ask for SELL positions. Missing bid/ask or stale quotes never trigger an exit.
+- Database RPCs are the only entry/exit path. Worker entry, mark and staged-exit writes are fenced by the current singleton lease and limited to tagged scalping BOT positions; the underlying shared DEMO ledger RPCs retain their existing callers and protections.
+
+## Data path and health
+
+- One persistent Deriv public WebSocket connection subscribes to approved symbols.
+- After reconnect, live ticks resume immediately while M1/M5/M15/H1/H4 candle history warms in parallel. This lets the worker assess open DEMO positions against fresh bid/ask quotes during warm-up; new entries remain blocked until all five histories are complete and pass the contiguous-candle checks. All five histories refresh every 60 seconds; M1/M5 refresh lets the worker recover from a market-session gap without remaining stuck below its contiguous warm-up threshold.
+- Latest ticks and signal candidates are persisted to private Supabase tables. The worker health response also reports per-instrument quote-side readiness and counts spot-only ticks; a spot quote without both valid bid and ask is never eligible for a new entry.
+- Open scalping positions are refreshed without replacing in-flight trade state and managed concurrently from the same tick stream; each position can take profit or stop out independently while the others remain open.
+- `GET /healthz` reports connection state, last tick, signal/entry/exit timestamps, subscription set and any last error. It reports the service healthy once the lease and quote WebSocket are connected, even while candle history is warming; `readySymbols` remains the separate indicator-readiness signal, and entry analysis stays blocked until all required histories pass validation.
+
+## Pre-deployment readiness check
+
+Before starting the service, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in a secure local environment (never commit the service-role key or put it in browser variables), then run `node scripts/check-scalping-runtime-readiness.js` from the repository root. The check is read-only: it verifies that the required tables and service RPCs are exposed to the service role and that at least one DERIV instrument has an explicit active approval. It never creates approvals or trades. Keep the service stopped if it reports any missing prerequisite.
+
+## Safety and rollout
+
+- DEMO virtual paper ledger only. The public Deriv WebSocket is read-only; no account token, OTP, broker order, or REAL execution is used.
+- Do not deploy until the migration has been reviewed and explicitly approved for the target Supabase project.
+- Do not add the service-role key to a browser environment, GitHub source, or chat.
+- Keep the service stopped until code checks are green and the Railway trial credit balance has been checked. Do not upgrade to a paid Railway plan without the account owner's explicit approval.
+
+## Reconnect gap handling
+
+The worker records per-instrument quote-stream gaps longer than 30 seconds. After reconnect it manages existing DEMO positions only from the first fresh, validated bid/ask quote and keeps new entries blocked while the required contiguous candle history warms. Historical spot ticks or OHLC candles are not treated as executable bid/ask prices and are never used to invent a missed stop/target fill. If an open position existed during a detected gap, the health payload flags the gap for manual review; this diagnostic does not claim that a missed exit has been reconstructed.
+
+## Historical strategy research
+
+The repository also contains an offline research harness at `lib/scalping-backtest.js`.
+It replays completed M1 candles, derives M5 confirmation only from prior complete candles,
+evaluates entries at the next bar open, applies a fixed spread on both sides, adverse
+slippage and round-trip commission assumptions, and resolves same-bar stop/target ambiguity
+conservatively in favor of the stop. It reports expectancy, profit factor, win rate,
+drawdown, losing streaks and a portfolio-risk-weighted return estimate.
+
+Run the repository test suite with `npm test`. To evaluate a real strategy, supply
+verified historical M1 OHLC data and instrument-specific spread, slippage and commission
+assumptions. Synthetic test candles are only for checking code behavior; they are not
+evidence of trading performance. This harness does not connect to a broker or execute orders.
+
+To run the research harness against a local CSV file, use a header containing
+`epoch,open,high,low,close` (or `timestamp` / `time` / `date` instead of epoch),
+with one completed M1 candle per row in ascending time order. Session and weekend gaps are allowed; the backtester resets its warm-up after each gap and never bridges missing minutes:
+
+```sh
+node scripts/run-scalping-backtest.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xauusd-report.json
+```
+
+The numeric cost inputs are price units for that instrument and must come from
+realistic broker conditions. Do not copy the example assumptions as actual XAUUSD
+spread or slippage values.
+
+For a chronological 70/30 training and holdout evaluation, the library also exports
+`runScalpingWalkForward({ instrument, candles, spreadPriceUnits, slippagePriceUnits,`
+`commissionPriceUnitsRoundTrip, trainFraction: 0.7 })` from
+`lib/scalping-backtest.js`. It reports training and later out-of-sample metrics
+separately. Each period has an independent warm-up and no positions or indicator
+state carry across the split. Keep the holdout untouched when choosing strategy
+parameters; use a new later period for any subsequent confirmation.
+
+Deriv's public market-data WebSocket can download recent M1 candles without an account token.
+Check the current active symbol name first (for example, do not assume a display label is the API symbol):
+
+```sh
+node scripts/fetch-deriv-m1-history.js frxXAUUSD 90 ./xauusd-m1.csv
+node scripts/run-scalping-backtest.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xauusd-report.json
+```
+
+The downloader accepts 1–120 days of history and excludes the current, potentially incomplete M1 candle. Longer samples improve research coverage, but still require a separate out-of-sample period. The sample cost values above are placeholders only. Use actual broker spread,
+slippage and commission assumptions before interpreting any result. The Deriv
+download is Deriv market data, not an MT5 broker execution record.
+
+For a 70/30 chronological training/holdout report using the same CSV and cost
+assumptions, run:
+
+```sh
+node scripts/run-scalping-walk-forward.js ./xauusd-m1.csv XAUUSD 0.30 0.05 0.00 ./xauusd-walk-forward.json 0.7
+```
+
+The report separates training metrics from later out-of-sample metrics. The
+holdout has its own warm-up and no positions or indicator state carry over the
+split. Keep the holdout untouched when adjusting strategy parameters.

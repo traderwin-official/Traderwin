@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { evaluateMarketConfluence } from "../lib/market-intelligence.js";
+import { evaluateMarketConfluence, attestMarketEvidence } from "../lib/market-intelligence.js";
 
 const now = Date.parse("2026-11-16T12:00:00.000Z");
 const rawEvidence = [
@@ -18,7 +18,7 @@ const evidenceFor = (instrument = "XAUUSD", timeframe = "M5") => rawEvidence.map
   ...(item.category === "multi_timeframe"
     ? {timeframes:[timeframe,"H1"]}
     : {timeframe})
-})).map((item, index) => ({
+})).map((item, index) => attestMarketEvidence({
   ...item,
   asOf: new Date(now - (index + 1) * 1000).toISOString()
 }));
@@ -47,7 +47,7 @@ test("minimum four-category evidence can reach the configured confidence thresho
 });
 
 test("case-only source-name variants do not count as independent providers", () => {
-  const variants = evidence.map(item=>({...item,source:"Provider-A"}));
+  const variants = evidence.map(item=>attestMarketEvidence({...item,source:"Provider-A"}));
   const result = evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence:variants,market,risk,now});
   assert.equal(result.independentSources,1);
   assert.ok(result.reasons.includes("INSUFFICIENT_INDEPENDENT_SOURCES"));
@@ -61,8 +61,8 @@ test("missing liquidity confirmation blocks a sensitive scalp", () => {
 });
 
 test("stale or future evidence is rejected", () => {
-  const stale = evidenceFor("EURUSD").map(x=>({...x,asOf:new Date(now-600000).toISOString()}));
-  const future = [{...evidenceFor("EURUSD")[0],asOf:new Date(now+10000).toISOString()}];
+  const stale = evidenceFor("EURUSD").map(x=>attestMarketEvidence({...x,asOf:new Date(now-600000).toISOString()}));
+  const future = [attestMarketEvidence({...evidenceFor("EURUSD")[0],asOf:new Date(now+10000).toISOString()})];
   const result = evaluateMarketConfluence({instrument:"EURUSD",timeframe:"M5",evidence:[...stale,...future],market,risk,now});
   assert.equal(result.direction,"WAIT");
   assert.equal(result.acceptedEvidence.length,0);
@@ -81,14 +81,14 @@ test("spread, news blackout and weak reward-risk block a trade", () => {
 });
 
 test("conflicting signal sources force WAIT", () => {
-  const mixed = evidenceFor("BTCUSD").map((x,i)=>i<3?x:{...x,direction:"SELL"});
+  const mixed = evidenceFor("BTCUSD").map((x,i)=>i<3?x:attestMarketEvidence({...x,direction:"SELL"}));
   const result = evaluateMarketConfluence({instrument:"BTCUSD",timeframe:"M5",evidence:mixed,market,risk,now});
   assert.equal(result.direction,"WAIT");
   assert.ok(result.reasons.includes("SIGNAL_CONFLICT_OR_WEAK_AGREEMENT"));
 });
 
 test("duplicate evidence from the same category and provider is ignored", () => {
-  const mixed=[...evidence,{...evidence[0],source:"TA-ENGINE"}];
+  const mixed=[...evidence,attestMarketEvidence({...evidence[0],source:"TA-ENGINE"})];
   const result=evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence:mixed,market,risk,now});
   assert.equal(result.acceptedEvidence.length,6);
   assert.equal(result.independentSources,6);
@@ -117,7 +117,7 @@ test("evidence for another instrument is rejected", () => {
 });
 
 test("chart evidence must match the requested timeframe", () => {
-  const wrongTimeframe=evidence.map(item=>item.category==="technical"?{...item,timeframe:"H1"}:item);
+  const wrongTimeframe=evidence.map(item=>item.category==="technical"?attestMarketEvidence({...item,timeframe:"H1"}):item);
   const result=evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence:wrongTimeframe,market,risk,now});
   assert.equal(result.direction,"WAIT");
   assert.ok(result.reasons.includes("EVIDENCE_CONTEXT_MISMATCH"));
@@ -125,7 +125,7 @@ test("chart evidence must match the requested timeframe", () => {
 });
 
 test("multi-timeframe evidence must include the requested and a higher timeframe", () => {
-  const wrong=evidence.map(item=>item.category==="multi_timeframe"?{...item,timeframes:["H1","H4"]}:item);
+  const wrong=evidence.map(item=>item.category==="multi_timeframe"?attestMarketEvidence({...item,timeframes:["H1","H4"]}):item);
   const result=evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence:wrong,market,risk,now});
   assert.equal(result.direction,"WAIT");
   assert.ok(result.reasons.includes("EVIDENCE_CONTEXT_MISMATCH"));
@@ -150,4 +150,40 @@ test("missing news status fails closed", () => {
 test("invalid time or timeframe configuration fails closed", () => {
   assert.equal(evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"M5",evidence,market,risk,now:NaN}).direction,"WAIT");
   assert.ok(evaluateMarketConfluence({instrument:"XAUUSD",timeframe:"TICK",evidence,market,risk,now}).reasons.includes("INVALID_TIMEFRAME"));
+});
+
+
+test("XAUUSD independent reference must pass before a market candidate can pass", () => {
+  const blocked = evaluateMarketConfluence({
+    instrument: "XAUUSD", timeframe: "M5", evidence, market, risk: {
+      ...risk, independentReferenceRequired: true, independentReferenceStatus: "BLOCK"
+    }, now
+  });
+  assert.equal(blocked.direction, "WAIT");
+  assert.ok(blocked.reasons.includes("INDEPENDENT_REFERENCE_DIVERGENCE"));
+
+  const unknown = evaluateMarketConfluence({
+    instrument: "XAUUSD", timeframe: "M5", evidence, market, risk: {
+      ...risk, independentReferenceRequired: true, independentReferenceStatus: "UNKNOWN"
+    }, now
+  });
+  assert.equal(unknown.direction, "WAIT");
+  assert.ok(unknown.reasons.includes("INDEPENDENT_REFERENCE_NOT_VERIFIED"));
+
+  const passed = evaluateMarketConfluence({
+    instrument: "XAUUSD", timeframe: "M5", evidence, market, risk: {
+      ...risk, independentReferenceRequired: true, independentReferenceStatus: "PASS"
+    }, now
+  });
+  assert.equal(passed.direction, "BUY");
+  assert.ok(!passed.reasons.includes("INDEPENDENT_REFERENCE_DIVERGENCE"));
+});
+
+test("independent gold reference is not required for non-gold instruments", () => {
+  const result = evaluateMarketConfluence({
+    instrument: "EURUSD", timeframe: "M5", evidence: evidenceFor("EURUSD"), market,
+    risk: { ...risk, independentReferenceRequired: false, independentReferenceStatus: "NOT_APPLICABLE" }, now
+  });
+  assert.equal(result.direction, "BUY");
+  assert.ok(!result.reasons.includes("INDEPENDENT_REFERENCE_NOT_VERIFIED"));
 });

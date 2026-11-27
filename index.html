@@ -69,6 +69,49 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
 .position-origin.automatic{background:#302716;color:#f5bd45}
 @media(max-width:600px){.live-positions{padding:12px}.live-position-table th,.live-position-table td{padding:9px 7px}}
 
+
+/* Young Tiger FX visual polish */
+:root{--ytx-cyan:#58d7e8;--ytx-violet:#9b8cff;--ytx-glow:rgba(245,189,69,.22)}
+html{scroll-behavior:smooth}
+body{background:radial-gradient(ellipse at 12% 0%,rgba(34,79,119,.2),transparent 36%),radial-gradient(ellipse at 90% 14%,rgba(108,74,161,.13),transparent 30%),var(--bg)}
+.logo{background:linear-gradient(90deg,#f5bd45,#fff0a6,#58d7e8,#f5bd45);background-size:250% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ytx-shimmer 7s linear infinite}
+.logo span{-webkit-text-fill-color:#fff}
+.hero{position:relative;overflow:hidden;background:radial-gradient(ellipse at 80% 15%,rgba(245,189,69,.15),transparent 38%),linear-gradient(120deg,#101b2d,#17243a 60%,#101b2d)}
+.hero:after{content:"";position:absolute;width:300px;height:300px;border:1px solid rgba(245,189,69,.13);border-radius:50%;right:-100px;top:-150px;box-shadow:0 0 0 35px rgba(245,189,69,.025),0 0 0 70px rgba(88,215,232,.025);pointer-events:none;animation:ytx-orbit 18s linear infinite}
+.hero h1 span{background:linear-gradient(90deg,#f5bd45,#fff0a6,#58d7e8,#b6a5ff,#f5bd45);background-size:300% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ytx-shimmer 8s linear infinite}
+.tag{border:1px solid rgba(245,189,69,.35);box-shadow:0 0 20px rgba(245,189,69,.09);animation:ytx-soft-pulse 3s ease-in-out infinite}
+.ytx-ticker{overflow:hidden;white-space:nowrap;background:#091321;border-top:1px solid #24354a;border-bottom:1px solid #24354a;padding:11px 0}
+.ytx-ticker-track{display:inline-flex;gap:42px;min-width:max-content;padding-left:100%;animation:ytx-marquee 38s linear infinite}
+.ytx-ticker span{font-size:11px;font-weight:800;letter-spacing:1.2px;color:#b9c7d9}
+.ytx-ticker b{color:var(--gold)}
+.ytx-ticker .ytx-dot{color:var(--ytx-cyan)}
+.dashboard-panel{position:relative;overflow:hidden;background:radial-gradient(ellipse at 100% 0%,rgba(88,215,232,.1),transparent 36%),linear-gradient(135deg,#101d31,#151d2b 60%,#28200f);box-shadow:0 18px 48px #0007,0 0 0 1px rgba(245,189,69,.05)}
+.dashboard-panel:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#f5bd45,#58d7e8,#9b8cff);opacity:.9}
+.dashboard-head h2 span{background:linear-gradient(90deg,#f5bd45,#58d7e8,#b6a5ff);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ytx-shimmer 9s linear infinite}
+.dashboard-action{position:relative;overflow:hidden;isolation:isolate;box-shadow:0 5px 18px rgba(0,0,0,.12)}
+.dashboard-action:before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.075) 48%,transparent 72%);transform:translateX(-130%);transition:transform .65s ease;z-index:-1}
+.dashboard-action:hover:before{transform:translateX(130%)}
+.dashboard-action:hover{transform:translateY(-5px) scale(1.012);box-shadow:0 12px 28px rgba(0,0,0,.35),0 0 18px rgba(245,189,69,.12)}
+.dashboard-icon{display:inline-block;filter:drop-shadow(0 0 8px rgba(245,189,69,.18));transition:transform .25s}
+.dashboard-action:hover .dashboard-icon{transform:translateY(-3px) rotate(-5deg) scale(1.12)}
+.card{transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.card:hover{border-color:rgba(88,215,232,.42);box-shadow:0 10px 26px rgba(0,0,0,.2)}
+.section-title span{background:linear-gradient(90deg,#f5bd45,#58d7e8,#b6a5ff);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ytx-shimmer 10s linear infinite}
+button{transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
+button:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 7px 18px rgba(245,189,69,.18)}
+button:active:not(:disabled){transform:translateY(0) scale(.98)}
+.dashboard-mode{box-shadow:0 0 16px rgba(37,197,138,.1);animation:ytx-status-glow 4s ease-in-out infinite}
+.ytx-rotating-word{display:inline-block;min-width:8ch;color:var(--gold);transition:color .45s ease,text-shadow .45s ease}
+.ytx-rotating-word.ytx-cyan{color:var(--ytx-cyan);text-shadow:0 0 16px rgba(88,215,232,.3)}
+.ytx-rotating-word.ytx-violet{color:var(--ytx-violet);text-shadow:0 0 16px rgba(155,140,255,.3)}
+@keyframes ytx-marquee{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+@keyframes ytx-shimmer{to{background-position:250% center}}
+@keyframes ytx-orbit{to{transform:rotate(360deg)}}
+@keyframes ytx-soft-pulse{0%,100%{box-shadow:0 0 12px rgba(245,189,69,.06)}50%{box-shadow:0 0 22px rgba(245,189,69,.2)}}
+@keyframes ytx-status-glow{0%,100%{box-shadow:0 0 0 rgba(37,197,138,0)}50%{box-shadow:0 0 15px rgba(37,197,138,.13)}}
+@media(max-width:600px){.ytx-ticker-track{animation-duration:48s}.hero:after{width:180px;height:180px;right:-100px;top:-75px}.dashboard-action:hover{transform:translateY(-2px)}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.ytx-ticker-track{animation:none;padding-left:12px;white-space:normal;flex-wrap:wrap}}
+
 </style>
 </head>
 
@@ -87,6 +130,8 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   <a href="#academy">Academy</a>
  </nav>
 </header>
+<div class="ytx-ticker" aria-label="Young Tiger FX platform highlights"><div class="ytx-ticker-track" aria-hidden="true"><span><b>YOUNG TIGER FX</b> · TRADE WITH DISCIPLINE</span><span class="ytx-dot">◆</span><span>MARKET ANALYSIS <b>●</b> RISK FIRST</span><span class="ytx-dot">◆</span><span>DEMO PRACTICE <b>●</b> VIRTUAL FUNDS</span><span class="ytx-dot">◆</span><span>DERIV MARKET DATA WHEN AVAILABLE</span><span class="ytx-dot">◆</span><span><b>REAL TRADING LOCKED</b> · SAFETY BEFORE EXECUTION</span><span class="ytx-dot">◆</span></div></div>
+
 
 <div class="hero">
  <div class="tag">YOUR TRADING JOURNEY STARTS HERE</div>
@@ -104,9 +149,17 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <div class="dashboard-actions">
    <a class="dashboard-action" href="#demoSimulator"><span class="dashboard-icon">📊</span><strong>Trade DEMO</strong><small>Open the virtual trading terminal</small></a>
-   <a class="dashboard-action" href="#botSetupForm"><span class="dashboard-icon">🤖</span><strong>Bot &amp; Strategy</strong><small>Choose auto-select or your own strategy</small></a>
-   <a class="dashboard-action" href="/bot-shop.html"><span class="dashboard-icon">⚡</span><strong>Standalone Bot</strong><small>View independent bot products</small></a>
-   <a class="dashboard-action" href="#analysis"><span class="dashboard-icon">📈</span><strong>Market Analysis</strong><small>Charts, timeframes and market tools</small></a>
+   <a class="dashboard-action" href="/demo-sandbox.html" target="_blank" rel="noopener"><span class="dashboard-icon">🧪</span><strong>Practice Sandbox</strong><small>Standalone virtual practice · illustrative prices</small></a>
+   <a class="dashboard-action" href="#strategyCentre"><span class="dashboard-icon">🧭</span><strong>Strategy Centre</strong><small>Explore independent trading approaches</small></a>
+   <a class="dashboard-action" href="#livePositionsMonitor"><span class="dashboard-icon">🗂️</span><strong>Portfolio</strong><small>Review open positions and exposure</small></a>
+   <a class="dashboard-action" href="#analysis"><span class="dashboard-icon">📈</span><strong>Market Analysis</strong><small>Charts, live prices and analysis tools</small></a>
+   <a class="dashboard-action" href="#signals"><span class="dashboard-icon">🔔</span><strong>Signals</strong><small>View signal-centre availability</small></a>
+   <a class="dashboard-action" href="#academy"><span class="dashboard-icon">🎓</span><strong>Academy</strong><small>Trading education and learning</small></a>
+   <a class="dashboard-action" href="#membership"><span class="dashboard-icon">👤</span><strong>Membership</strong><small>Plans and account eligibility</small></a>
+   <a class="dashboard-action" href="#payments"><span class="dashboard-icon">💳</span><strong>Payments</strong><small>Secure service checkout</small></a>
+   <a class="dashboard-action" href="/bot-shop.html"><span class="dashboard-icon">⚡</span><strong>Standalone Bot</strong><small>Explore separate bot products</small></a>
+   <a class="dashboard-action" href="#derivCard"><span class="dashboard-icon">🔗</span><strong>Broker Connections</strong><small>Manage supported account links</small></a>
+   <a class="dashboard-action" href="/onboarding.html"><span class="dashboard-icon">🛡️</span><strong>Account &amp; Risk</strong><small>Review account mode and risk limits</small></a>
   </div>
   <p class="dashboard-foot">Your key trading tools are gathered here. DEMO uses virtual funds; live broker execution remains locked and requires separate approval.</p>
  </div>
@@ -146,6 +199,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
     <option value="SP:SPX">S&P 500</option>
    </select>
   </div>
+  <p id="sharedMarketContextStatus" class="muted" role="status" aria-live="polite">Shared market context: XAUUSD · M15. Choose a market card or change the chart to align your analyst and DEMO setup.</p>
   <div class="tabs" id="timeTabs">
    <button data-time="5">M5</button>
    <button data-time="15" class="active">M15</button>
@@ -197,7 +251,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field"><label for="smartTimeframe">Signal timeframe</label><select id="smartTimeframe"><option>M15</option><option>M5</option><option>H1</option><option>H4</option></select></div>
    <div class="field"><label for="smartStrategy">Indicator / strategy</label><select id="smartStrategy"><option value="MULTI_CONFIRMATION_V1">Smart Multi-Confirmation</option><option value="AUTO_SELECT_V1">Auto-select strongest validated strategy</option><option value="TIGER_FIBONACCI_PSYCHOLOGY_V1">Tiger Fibonacci Psychology + Support &amp; Resistance</option><option value="MANUAL_REVIEW">Manual review only</option></select></div>
   </div>
-  <p class="muted">The Tiger indicator checks H1 trend direction, confirmed swing Fibonacci 50% / 61.8% / 78.6%, psychological round numbers, support and resistance, rejection or liquidity sweep, and selected-timeframe structure. It is analysis only in both DEMO and REAL profiles.</p>
+  <p class="muted">The analyst checks the selected timeframe against the next higher timeframe (M5→M15, M15→H1, H1→H4), plus EMA, RSI, ATR, Fibonacci, psychological levels, support/resistance and price-action confirmation. H4 has no higher timeframe in this feed and will not be presented as multi-timeframe confirmed. It is analysis only in both DEMO and REAL profiles.</p>
   <button type="button" id="runSmartAnalysis">Analyse Live Market</button>
   <p id="smartAnalysisStatus" class="muted" role="status" aria-live="polite">Ready to analyse fresh Deriv market data.</p>
   <div id="smartAnalysisResult" class="notice" hidden></div>
@@ -211,14 +265,48 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   DEMO automation uses virtual paper trades and verified market data only. REAL broker execution remains separately locked and is never enabled by saving preferences or starting a DEMO session.
  </div>
 
+ <div class="card" id="strategyCentre" style="margin-top:15px">
+  <div class="dashboard-head"><h3>Young Tiger FX <span class="gold">Strategy Centre</span></h3><span class="dashboard-mode">STRATEGIES ARE OPTIONAL</span></div>
+  <p class="muted">Choose how you want to trade. Young Tiger FX remains the main platform: each strategy is an independent tool, and you can keep using manual trading, portfolio controls, charts, education and other services without enabling any bot.</p>
+  <div class="grid">
+   <div class="card"><h4>Manual Trading</h4><p class="muted">You choose entries and manage your own positions in the DEMO terminal. Automated strategy permissions do not apply to your manual positions unless you separately authorize a specific portfolio permission.</p><a href="#demoSimulator" class="gold">Open DEMO terminal →</a></div>
+   <div class="card"><h4>Smart Multi-Confirmation</h4><p class="muted">A configurable strategy preference using EMA, RSI, ATR and breakout confirmation. Automated execution depends on a compatible, healthy and authorized DEMO worker.</p><a href="#botSetupForm" class="gold">Configure strategy →</a></div>
+   <div class="card"><h4>Auto-select</h4><p class="muted">Compares the supported strategy choices and should wait when evidence conflicts or confirmation is insufficient. It is not a guarantee of profitable signals.</p><a href="#botSetupForm" class="gold">Configure strategy →</a></div>
+   <div class="card"><h4>Tiger Fibonacci Psychology</h4><p class="muted">A separate strategy preference based on higher-timeframe trend, Fibonacci levels, support/resistance and liquidity context. Availability depends on worker validation.</p><a href="#botSetupForm" class="gold">Configure strategy →</a></div>
+   <div class="card"><h4>Quantum Scalping</h4><p class="muted">An optional fast-trading strategy module. Its current implementation is restricted to verified Deriv DEMO data and virtual paper execution. It does not replace other strategies or manual trading.</p><a href="#demoScalpingPanel" class="gold">Open scalping controls →</a></div>
+   <div class="card"><h4>Manual Review</h4><p class="muted">Use analysis and candidate signals for review without automatic entries. You remain responsible for deciding whether to place a manual DEMO trade.</p><a href="#smart-analyst" class="gold">Open market analyst →</a></div>
+  </div>
+  <p class="notice" style="margin-top:14px">A saved strategy preference is not proof that a strategy is currently running. Check the DEMO worker status and strategy-specific controls before relying on automation. REAL execution remains separately locked.</p>
+ </div>
+
  <div class="card" id="demoSimulator" style="margin-top:15px">
   <h3>Website DEMO Trading</h3>
-  <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss, three target prices and their exit allocations, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
+  <p class="muted">Practise directly on Young Tiger Forex Platform. The chart uses verified live Deriv market data where available; your DEMO balance, entries and profit/loss are virtual. Choose an approved instrument, set your stop-loss and three take-profit levels with allocations for your manual DEMO setup, then open or close positions here. No external bot, broker order or real money is involved. DEMO trading is free.</p>
   <p class="status" id="demoSessionStatus">Session: Not started</p>
   <div class="field"><label for="demoExecutionMode">How should your DEMO account trade?</label><select id="demoExecutionMode"><option value="MANUAL">Manual — I choose and manage each trade</option><option value="AUTO">Automated — bot trades my saved strategy</option></select></div>
   <p class="muted" id="demoWorkerHealth">Choose Manual or Automated DEMO. Automated mode needs saved Deriv strategy settings and a healthy scheduled worker.</p>
   <button type="button" id="refreshDemoWorkerStatus" class="secondary">Refresh DEMO status</button>
-  <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
+  <div class="card" id="demoScalpingPanel" style="margin-top:14px">
+   <h4>Quantum Scalping — Optional DEMO Strategy</h4>
+   <p class="muted">An optional fast M1 strategy using a continuous Deriv tick stream, M5 trend confirmation and verified bid/ask spread. It is one strategy inside Young Tiger FX, not a replacement for manual trading or other strategies. Enabling this feed only displays signals; automatic DEMO paper entries require a separate confirmation below.</p>
+   <p class="status" id="demoScalpingStatus">Scalping is OFF. Start a verified Deriv DEMO session before enabling it.</p>
+   <button type="button" id="enableDemoScalping">Enable DEMO Scalping Feed</button>
+   <button type="button" id="disableDemoScalping" class="secondary" disabled>Disable Scalping</button>
+   <button type="button" id="refreshDemoScalping" class="secondary">Refresh Scalping Status</button>
+   <p class="status" id="demoScalpingPaperStatus">Automatic DEMO paper trading: OFF</p>
+   <button type="button" id="enableDemoScalpingPaper" disabled>Enable Automatic DEMO Paper Trading</button>
+   <button type="button" id="disableDemoScalpingPaper" class="secondary" disabled>Pause Automatic Paper Trading</button>
+   <p class="muted" id="demoScalpingMessage" role="status" aria-live="polite">Feed access is read-only. Automatic paper trading is a separate opt-in, uses virtual DEMO balances only, and is capped at 0.25% risk per trade, 1% daily loss and a maximum of 15 open DEMO paper positions shared with the portfolio cap. No Deriv broker orders or REAL trades are sent.</p>
+   <div class="live-feed" id="demoScalpingFeed" aria-live="polite">
+    <div class="live-feed-head"><h4>Scalping Live Feed</h4><span class="live-feed-status" id="demoScalpingFeedStatus">Feed is off</span></div>
+    <div class="live-feed-price" id="demoScalpingFeedPrice">Waiting for verified quote</div>
+    <p class="muted" id="demoScalpingFeedDetails">Enable the DEMO scalping feed to view Deriv bid/ask data and signal candidates.</p>
+    <h4>Latest M1 signal candidates</h4>
+    <ol id="demoScalpingSignals"><li class="muted">No signals received.</li></ol>
+    <p class="muted">Signals are research candidates only. They are not orders or guaranteed trade recommendations.</p>
+   </div>
+  </div>
+  <p class="result" id="demoVirtualBalance">Virtual balance: Loading saved account…</p>
   <button type="button" id="startDemoSession">Start DEMO Session</button>
   <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
   <p id="demoSessionMessage" class="muted" role="status" aria-live="polite"></p>
@@ -288,10 +376,10 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
      <tbody id="demoHistoryRows"><tr><td colspan="7" style="padding:10px">Loading…</td></tr></tbody>
     </table>
    </div>
-   <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss.</p>
+   <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss. Your balance and history belong to the signed-in email shown at the top-left; use the same email on every device.</p>
   </div>
   <div class="grid">
-   <p class="muted">The optional combined DEMO portfolio guard activates at USD 20 peak unrealised profit and protects 80% of the peak. It is separate from manual entries and requires its own tested server-side monitoring setup. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
+   <p class="muted">The scheduled DEMO worker checks the combined portfolio using fresh market quotes and USD-normalised profit. Protection activates at USD 20 peak unrealised profit and protects 80% of that peak. The check runs on the worker schedule, so fast price moves, quote gaps and slippage can affect exit timing. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
   </div>
   <button type="button" class="secondary" id="markPaperTrade" disabled>Check Live Quote &amp; SL/TP</button>
   <p id="paperProtectionMessage" class="muted" role="status" aria-live="polite"></p>
@@ -373,10 +461,11 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field"><label for="profileInstrument">Instrument</label><input id="profileInstrument" value="XAUUSD" maxlength="80"></div>
   </div>
   <div class="grid">
-   <div class="field"><label for="profileRisk">Risk per trade (%)</label><input id="profileRisk" type="number" min="0.1" max="2" step="0.1" value="0.5"></div>
-   <div class="field"><label for="profileDailyLoss">Daily loss limit (%)</label><input id="profileDailyLoss" type="number" min="0.5" max="10" step="0.5" value="2"></div>
+   <div class="field"><label for="profileRisk">Risk per trade (%)</label><input id="profileRisk" type="number" min="0.01" max="0.25" step="0.01" value="0.25"></div>
+   <div class="field"><label for="profileDailyLoss">Daily loss limit (%)</label><input id="profileDailyLoss" type="number" min="0.1" max="1" step="0.1" value="1"></div>
    <div class="field"><label for="profileGiveback">Profit giveback limit (%)</label><input id="profileGiveback" type="number" min="1" max="50" step="1" value="20"></div>
   </div>
+  <p class="muted" id="profileRiskHint">DEMO hard caps: 0.25% maximum risk per trade and 1% maximum daily loss. REAL settings are preferences only; live execution remains locked.</p>
   <p class="muted">Profit protection default: once a trade has been profitable, the protective level follows its peak profit. A 20% giveback means the bot aims to retain 80% of the highest unrealised profit, subject to spread, slippage, gaps and broker stop rules.</p>
   <button type="button" id="saveModeProfile">Save This Mode's Settings</button>
   <p id="modeProfileMessage" class="muted" role="status" aria-live="polite"></p>
@@ -514,6 +603,63 @@ const marketData={
  "Binary Options":[["Rise/Fall","Directional contracts"],["Higher/Lower","Price direction contracts"],["Touch/No Touch","Price level contracts"]]
 };
 
+const marketContextSymbols={
+ XAUUSD:"OANDA:XAUUSD",XAGUSD:"OANDA:XAGUSD",EURUSD:"OANDA:EURUSD",
+ GBPUSD:"OANDA:GBPUSD",USDJPY:"OANDA:USDJPY",AUDUSD:"OANDA:AUDUSD",
+ USDCAD:"OANDA:USDCAD",USDCHF:"OANDA:USDCHF",NZDUSD:"OANDA:NZDUSD",
+ BTCUSD:"BITSTAMP:BTCUSD",ETHUSD:"BINANCE:ETHUSDT",SOLUSD:"COINBASE:SOLUSD",
+ USOIL:"TVC:USOIL",UKOIL:"TVC:UKOIL",NATGAS:"TVC:NATGAS",
+ US500:"SP:SPX",NAS100:"NASDAQ:NDX",US30:"DJ:DJI",
+ AAPL:"NASDAQ:AAPL",TSLA:"NASDAQ:TSLA",MSFT:"NASDAQ:MSFT"
+};
+function marketContextSymbol(label){
+ const key=String(label||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase();
+ return Object.prototype.hasOwnProperty.call(marketContextSymbols,key)?key:null;
+}
+function setSharedMarketContext(instrument){
+ const symbol=String(instrument||"").trim().toUpperCase();
+ if(!/^[A-Z0-9_]{2,24}$/.test(symbol))return false;
+ if(!Object.prototype.hasOwnProperty.call(marketContextSymbols,symbol))return false;
+ const chartSymbol=marketContextSymbols[symbol];
+ if(chartSymbol){
+  const chart=document.getElementById("symbol");
+  let option=Array.from(chart.options).find(item=>item.value===chartSymbol);
+  if(!option){option=new Option(symbol+" · "+chartSymbol,chartSymbol);chart.add(option);}
+  chart.value=chartSymbol;
+  loadChart();
+ }
+ ["smartInstrument","paperSymbol","botInstrument","profileInstrument"].forEach(id=>{
+  const field=document.getElementById(id);
+  if(field)field.value=symbol;
+ });
+ const notice=document.getElementById("sharedMarketContextStatus");
+ if(notice)notice.textContent="Shared market: "+symbol+" · Chart, analyst and DEMO setup aligned. Confirm the instrument is supported by your selected broker before using it.";
+ return true;
+}
+function currentChartInstrument(){
+ const selected=document.getElementById("symbol").value;
+ return Object.keys(marketContextSymbols).find(key=>marketContextSymbols[key]===selected)||"XAUUSD";
+}
+function setSharedTimeframe(timeframe){
+ const tf=String(timeframe||"").toUpperCase();
+ if(!["M5","M15","H1","H4"].includes(tf))return;
+ const smart=document.getElementById("smartTimeframe");
+ const demo=document.getElementById("demoTimeframe");
+ const bot=document.getElementById("botTimeframe");
+ if(smart)smart.value=tf;
+ if(demo)demo.value=tf;
+ if(bot)bot.value=tf;
+ const intervalByTimeframe={M5:"5",M15:"15",H1:"60",H4:"240"};
+ const interval=intervalByTimeframe[tf];
+ selectedTime=interval;
+ document.querySelectorAll("#timeTabs button").forEach(button=>{
+  button.classList.toggle("active",button.dataset.time===interval);
+ });
+ loadChart();
+ const notice=document.getElementById("sharedMarketContextStatus");
+ if(notice)notice.textContent="Shared market: "+currentChartInstrument()+" · "+tf+" timeframe aligned across chart, analyst and DEMO setup.";
+}
+
 function showMarkets(category){
  const container=document.getElementById("marketCards");
  container.innerHTML="";
@@ -527,8 +673,19 @@ function showMarkets(category){
   description.textContent=item[1];
   const note=document.createElement("p");
   note.className="muted";
-  note.textContent="Select this instrument in the chart above to view available chart data.";
-  card.append(heading,description,note);
+  note.textContent="Load this market into your shared chart, analyst and DEMO setup.";
+  const useButton=document.createElement("button");
+  useButton.type="button";
+  useButton.className="secondary";
+  useButton.textContent="Use this market";
+  const canonical=marketContextSymbol(item[0]);
+  useButton.disabled=!canonical;
+  useButton.addEventListener("click",()=>{
+   if(!canonical)return;
+   setSharedMarketContext(canonical);
+   document.getElementById("analysis").scrollIntoView({behavior:"smooth",block:"start"});
+  });
+  card.append(heading,description,note,useButton);
   container.appendChild(card);
  });
 }
@@ -566,25 +723,34 @@ function loadChart(){
  });
 }
 
-document.getElementById("symbol").addEventListener("change",loadChart);
-document.getElementById("demoTimeframe").addEventListener("change",event=>{
- const intervalByTimeframe={M5:"5",M15:"15",H1:"60",H4:"240"};
- const next=intervalByTimeframe[event.target.value];
- if(!next)return;
- selectedTime=next;
- document.querySelectorAll("#timeTabs button").forEach(button=>{
-  button.classList.toggle("active",button.dataset.time===next);
- });
+document.getElementById("symbol").addEventListener("change",()=>{
+ setSharedMarketContext(currentChartInstrument());
  loadChart();
+});
+document.getElementById("demoTimeframe").addEventListener("change",event=>{
+ setSharedTimeframe(event.target.value);
 });
 
 document.querySelectorAll("#timeTabs button").forEach(button=>{
  button.addEventListener("click",()=>{
-  document.querySelectorAll("#timeTabs button").forEach(b=>b.classList.remove("active"));
-  button.classList.add("active");
-  selectedTime=button.dataset.time;
-  loadChart();
+  const timeframeByInterval={"5":"M5","15":"M15","60":"H1","240":"H4"};
+  const timeframe=timeframeByInterval[button.dataset.time];
+  if(timeframe)setSharedTimeframe(timeframe);
+  else{
+   document.querySelectorAll("#timeTabs button").forEach(b=>b.classList.remove("active"));
+   button.classList.add("active");
+   selectedTime=button.dataset.time;
+   loadChart();
+  }
  });
+});
+
+document.getElementById("smartInstrument").addEventListener("change",event=>{
+ const value=String(event.target.value||"").trim().toUpperCase();
+ if(value)setSharedMarketContext(value);
+});
+document.getElementById("smartTimeframe").addEventListener("change",event=>{
+ setSharedTimeframe(event.target.value);
 });
 
 const smartButton=document.getElementById("runSmartAnalysis");
@@ -595,7 +761,9 @@ smartButton.addEventListener("click",async()=>{
  output.hidden=true;
  status.textContent="Fetching completed candles and analysing...";
  try{
-  const {data:sessionData,error:sessionError}=await client.auth.getSession();
+  const authClient=window.traderwinAuth;
+  if(!authClient) throw new Error("Authentication is still initializing. Please try again.");
+  const {data:sessionData,error:sessionError}=await authClient.auth.getSession();
   if(sessionError||!sessionData.session) throw new Error("Please sign in again.");
   const response=await fetch("/api/analysis/market",{
    method:"POST",
@@ -611,14 +779,40 @@ smartButton.addEventListener("click",async()=>{
   const result=await response.json().catch(()=>({}));
   if(!response.ok) throw new Error(result.error||"Market analysis failed.");
   const r=result.result,ind=r.indicators||{};
-  const fmt=v=>Number.isFinite(Number(v))?Number(v).toFixed(5):"Unavailable";
+  const fmt=v=>v===null||v===undefined||v===""?"Unavailable":Number.isFinite(Number(v))?Number(v).toFixed(5):"Unavailable";
   const sr="Support: "+fmt(ind.support?.price)+" ("+(ind.support?.strength||"n/a")+") · Resistance: "+fmt(ind.resistance?.price)+" ("+(ind.resistance?.strength||"n/a")+")"+(typeof ind.nearSupport==="boolean"?" · Near support: "+(ind.nearSupport?"YES":"NO")+" · Near resistance: "+(ind.nearResistance?"YES":"NO")+" · S/R confluence: "+(ind.supportResistanceConfluence?"YES":"NO"):"");
   const fib=ind.fibonacci? " · Fib 50% "+fmt(ind.fibonacci["50"])+", 61.8% "+fmt(ind.fibonacci["61.8"])+", 78.6% "+fmt(ind.fibonacci["78.6"]):"";
+  const plan=r.tradePlan||{};
+  const mtf=r.multiTimeframe||{};
+  const planText=plan.status==="INDICATIVE_ONLY"
+   ?" · Indicative plan (not executable): "+plan.direction+" entry "+fmt(plan.entry)+" ("+plan.entrySide+") · SL "+fmt(plan.stopLoss)+" · TP1 "+fmt(plan.takeProfit1)+" (1.5R) · TP2 "+fmt(plan.takeProfit2)+" (2R)"
+   :" · Trade plan unavailable: "+(plan.reason||plan.status||"no directional setup");
   const extra=r.strategy==="TIGER_FIBONACCI_PSYCHOLOGY_V1"
-   ?" · H1 trend "+(ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+" · SL "+fmt(ind.stopLoss)+" · TP "+fmt(ind.takeProfit)+fib
+   ?" · Higher-timeframe trend "+(ind.higherTimeframeTrend||ind.h1Trend||"n/a")+" · Psychological level "+fmt(ind.psychologicalLevel)+" · Liquidity "+(ind.liquiditySweep||"none")+" · Rejection "+(ind.rejection||"none")+" · Structure "+(ind.structureConfirmation||"none")+fib
    :"";
+  const gate=result.marketIntelligence||{};
+  const gateText=" · Higher timeframe "+(mtf.higherTimeframe||"unavailable")+" "+(mtf.higherTimeframeDirection||"n/a")+" ("+(mtf.status||"unknown")+") · Quality gate "+(gate.decision||"unknown")+" · Reasons "+((gate.reasons||[]).join(", ")||"none");
+  const news=result.newsContext||{};
+  const newsRisk=result.newsRisk||{};
+  const calendar=result.calendarRisk||{};
+  const headlines=(news.articles||[]).slice(0,3).map(a=>"["+a.tone+" · "+(a.macroTopic||"GENERAL_MARKET")+" · relevance "+(a.relevance?.level||"LOW")+" "+(a.relevance?.score??35)+"/100] "+a.title+" ("+a.domain+")").join(" | ");
+  const calendarEvents=(calendar.events||[]).map(e=>({...e,upcoming:false})).concat((calendar.upcomingEvents||[]).map(e=>({...e,upcoming:true}))).slice(0,4).map(e=>(e.upcoming?"Upcoming ":"")+e.name+" ["+(e.category||"macro")+"/"+(e.currency||"")+(e.relevance?" · relevance "+e.relevance.level+" "+e.relevance.score+"/100":"")+"] "+(e.time||"")+" · source "+(e.source||"unavailable")+" · time "+(e.timeMode||"unknown")).join(" | ");
+  const riskHeadlines=(newsRisk.articles||[]).slice(0,2).map(a=>a.title+" ("+(a.domain||"source unknown")+")").join(" | ");
+  const newsText=" · News gate "+(newsRisk.status||"UNKNOWN")+" ("+(newsRisk.reason||"not verified")+") · Economic calendar "+(calendar.status||"UNKNOWN")+" ("+(calendar.reason||"not verified")+") "+(calendarEvents||"No confirmed matching event returned")+". Adverse headlines: "+(riskHeadlines||"none detected in provider window; this is not clearance")+". Context: "+(headlines||"No contextual headlines available")+". Headline labels are not a validated sentiment model.";
+  const gold=result.goldReference||{};
+  const goldCheck=result.goldReferenceComparison||{};
+  const goldText=result.instrument==="XAUUSD"?" · Independent gold reference "+(gold.status||"UNKNOWN")+" "+(gold.price!=null?"$"+gold.price+"/oz":"unavailable")+"; broker discrepancy "+(goldCheck.deviationBps!=null?goldCheck.deviationBps+" bps":"unavailable")+" ("+(goldCheck.status||"UNKNOWN")+"). Indicative reference only, not executable.":"";
+  const unified=result.researchSummary||{};
+  const unifiedTech=unified.technical||{};
+  const unifiedFund=unified.fundamental||{};
+  const unifiedQuality=unified.marketQuality||{};
+  const unifiedRisk=unified.risk||{};
+  const unifiedEvents=(unifiedFund.upcomingAndBlackoutEvents||[]).slice(0,3).map(e=>e.name+" ["+e.category+"/"+(e.currency||"n/a")+" · "+e.timing+"]").join(" | ");
+  const unifiedFlags=(unifiedRisk.flags||[]).slice(0,6).join(", ");
+  const unifiedText=" · COMBINED RESEARCH: "+(unified.instrument||result.instrument)+" "+(unified.timeframe||"")+" · technical "+(unifiedTech.candidateDirection||"WAIT")+" ("+(unifiedTech.candidateConfidence??0)+"/100 quality score) · calendar "+(unifiedFund.calendarStatus||"UNKNOWN")+" · adverse news "+(unifiedFund.adverseNewsStatus||"UNKNOWN")+" · quote "+(unifiedQuality.quoteStatus||"UNKNOWN")+" · events "+(unifiedEvents||"none confirmed")+". Risk flags: "+(unifiedFlags||"none reported")+". Execution "+(unified.execution?.authorized===true?"authorized":"NOT AUTHORIZED")+"; research only.";
+
   output.hidden=false;
-  output.textContent="Profile: "+document.getElementById("profileMode").value+" · "+r.direction+" · Confidence "+r.confidence+"/95 · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Analysis only; no trade was executed.";
+  output.textContent=unifiedText+" Profile: "+document.getElementById("profileMode").value+" · Decision: "+r.direction+" · Technical score "+(r.candidateConfidence??r.confidence)+"/95 (not win probability) · "+r.strategy+(r.selectedStrategy?" · Auto-selected: "+r.selectedStrategy:"")+". "+r.explanation+" "+gateText+" "+newsText+" "+goldText+" "+planText+" "+sr+extra+" Source: "+result.source+" "+result.providerSymbol+"; latest completed candle "+new Date(result.latestCandleAsOf).toLocaleString()+". Research only; no trade was executed.";
   status.textContent="Analysis completed at "+new Date(result.analysedAt).toLocaleString()+".";
  }catch(error){status.textContent=error.message||"Could not analyse the market.";}
  finally{smartButton.disabled=false;}
@@ -852,12 +1046,14 @@ calculateRisk();
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||"Status unavailable");
     if(result.connected){
-     derivStatus.textContent="Deriv connected · DEMO account "+String(result.demoAccountId||"not selected").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". REAL account "+(result.realAccountId?"found but still locked":"not detected")+". Token storage is encrypted server-side.";
+     derivStatus.textContent="Deriv connected · verified DEMO account "+String(result.demoAccountId||"").replace(/.(?=.{4})/g,"•")+" · token expires "+(result.tokenExpiresAt?new Date(result.tokenExpiresAt).toLocaleDateString():"unknown")+". "+(result.realAccountAvailable?"A REAL account exists but remains locked.":"No active REAL account detected.")+" Token storage is encrypted server-side.";
      connectButton.disabled=true;connectButton.textContent="Deriv Connected";disconnectButton.style.display="inline-block";
      await refreshDerivAccounts(session.session.access_token);
     }else{
-     derivStatus.textContent="Deriv is not connected yet.";connectButton.disabled=false;connectButton.textContent="Connect Deriv";
-     disconnectButton.style.display="none";derivAccountPicker.style.display="none";
+     const state=result.connectionState;
+     derivStatus.textContent=state==="AUTHORIZATION_EXPIRED"?"Deriv authorization has expired. Reconnect to refresh account verification.":state==="DEMO_ACCOUNT_REQUIRES_REVERIFICATION"?"The selected DEMO account is no longer verified. Reconnect and select an active DEMO account.":"Deriv is not connected yet.";
+     connectButton.disabled=false;connectButton.textContent="Connect Deriv";
+     disconnectButton.style.display=result.hasConnection?"inline-block":"none";derivAccountPicker.style.display="none";
     }
    }catch(error){
     console.warn("Deriv status could not be loaded:",error.message);
@@ -1007,12 +1203,17 @@ calculateRisk();
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||"Could not check payment status.");
     const status=result.order.status;
+    const entitlementPending=status==="PAID"&&result.entitlementStatus==="PENDING";
     paymentMessage.textContent=status==="PAID"
-     ?"Payment confirmed. Your service access is being activated."
+     ?entitlementPending
+      ?"Payment confirmed. Service activation is still processing. Check again shortly to retry activation."
+      :"Payment confirmed and service access is active."
      :status==="FAILED"?"Payment was not completed. You can start a new request."
      :"Payment is still pending. Complete the M-Pesa prompt, then check again.";
-    if(status==="PAID") await refreshRealSubscriptionStatus();
-    if(status!=="PENDING") activePaymentOrderId=null;
+    if(status==="PAID"&&!entitlementPending) await refreshRealSubscriptionStatus();
+    // Keep the order available for another authenticated recovery attempt if
+    // payment was verified but the entitlement transaction is still pending.
+    if(status!=="PENDING"&&!entitlementPending) activePaymentOrderId=null;
    }catch(error){
     paymentMessage.textContent=error.message||"Could not check payment status.";
    }finally{
@@ -1150,19 +1351,37 @@ calculateRisk();
   const profileDaily=document.getElementById("profileDailyLoss");
   const profileGiveback=document.getElementById("profileGiveback");
   const profileMessage=document.getElementById("modeProfileMessage");
+  const profileRiskHint=document.getElementById("profileRiskHint");
+  function applyModeRiskLimits(){
+   const demo=profileMode.value==="DEMO";
+   profileRisk.min=demo?"0.01":"0.1";profileRisk.max=demo?"0.25":"2";profileRisk.step=demo?"0.01":"0.1";
+   profileDaily.min=demo?"0.1":"0.5";profileDaily.max=demo?"1":"10";profileDaily.step=demo?"0.1":"0.5";
+   if(demo){
+    profileRisk.value=String(Math.min(Number(profileRisk.value)||0.25,0.25));
+    profileDaily.value=String(Math.min(Number(profileDaily.value)||1,1));
+    profileRiskHint.textContent="DEMO hard caps: 0.25% maximum risk per trade and 1% maximum daily loss. The database enforces these limits even if a saved preference is higher.";
+   }else{
+    profileRiskHint.textContent="REAL settings are preferences only. Live execution remains locked; these values cannot authorize or place broker orders.";
+   }
+  }
   async function loadModeProfile(){
+   applyModeRiskLimits();
    profileMessage.textContent="Loading "+profileMode.value+" profile...";
    try{
-    const {data:p,error}=await client.from("bot_mode_profiles").select("broker,instrument,strategy,max_risk_per_trade_pct,max_daily_loss_pct,profit_giveback_pct").eq("account_mode",profileMode.value).maybeSingle();
+    const {data:auth,error:authError}=await client.auth.getUser();
+    if(authError||!auth.user)throw new Error("Please sign in again to load your account profile.");
+    const {data:p,error}=await client.from("bot_mode_profiles").select("broker,instrument,strategy,max_risk_per_trade_pct,max_daily_loss_pct,profit_giveback_pct").eq("user_id",auth.user.id).eq("account_mode",profileMode.value).maybeSingle();
     if(error)throw error;
     if(p){profileBroker.value=({"DERIV":"DERIV","Deriv":"DERIV","MT5":"MT5","MetaTrader 5":"MT5"})[p.broker]||"DERIV";profileInstrument.value=p.instrument;profileStrategy.value=p.strategy||"MULTI_CONFIRMATION_V1";profileRisk.value=p.max_risk_per_trade_pct;profileDaily.value=p.max_daily_loss_pct;profileGiveback.value=p.profit_giveback_pct;}
-    profileMessage.textContent=profileMode.value+" preferences loaded. Real execution remains locked.";
+    applyModeRiskLimits();
+    profileMessage.textContent=profileMode.value+" preferences loaded. "+(profileMode.value==="REAL"?"Real execution remains locked.":"DEMO risk hard caps are enforced by the database.");
    }catch(e){profileMessage.textContent="Mode profiles will be available after the dual-mode database migration is applied. "+e.message;}
   }
   profileMode.addEventListener("change",loadModeProfile);
   document.getElementById("saveModeProfile").addEventListener("click",async()=>{
    const risk=Number(profileRisk.value),daily=Number(profileDaily.value),giveback=Number(profileGiveback.value),instrument=profileInstrument.value.trim();
-   if(!instrument||!Number.isFinite(risk)||risk<.1||risk>2||!Number.isFinite(daily)||daily<.5||daily>10||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk (0.1–2%), daily loss (0.5–10%) and giveback (1–50%).";return;}
+   const demo=profileMode.value==="DEMO",riskMin=demo?0.01:0.1,riskMax=demo?0.25:2,dailyMin=demo?0.1:0.5,dailyMax=demo?1:10;
+   if(!instrument||!Number.isFinite(risk)||risk<riskMin||risk>riskMax||!Number.isFinite(daily)||daily<dailyMin||daily>dailyMax||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk ("+riskMin+"–"+riskMax+"%), daily loss ("+dailyMin+"–"+dailyMax+"%) and giveback (1–50%).";return;}
    const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user){profileMessage.textContent="Please sign in again.";return;}
    const button=document.getElementById("saveModeProfile");button.disabled=true;
    try{
@@ -1201,6 +1420,24 @@ calculateRisk();
    const recordPaper=document.getElementById("recordPaperTrade");
    const closePaper=document.getElementById("closePaperTrade");
    let activeDemoSession=null;
+   function syncDemoSessionControls(session){
+    const state=String(session?.status||"STOPPED").toUpperCase();
+    const running=state==="RUNNING";
+    activeDemoSession=running?session:null;
+    demoStatus.textContent="Session: "+(session?state:"Not started");
+    const settingsLocked=["RUNNING","PAUSED","RISK_LOCKED"].includes(state);
+    document.getElementById("demoExecutionMode").disabled=settingsLocked;
+    document.getElementById("demoTimeframe").disabled=settingsLocked;
+    // The server enforces the daily-loss lock until the next Nairobi trading day.
+    // Keep Start enabled so the server can safely begin a fresh session after expiry.
+    startDemo.disabled=selectedAccountMode!=="DEMO"||running;
+    stopDemo.disabled=!running;
+    recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
+    startDemo.textContent=state==="RISK_LOCKED"?"Check daily lock / start new DEMO":state==="PAUSED"?"Resume DEMO Session":"Start DEMO Session";
+    if(state==="RISK_LOCKED"){
+     demoMessage.textContent="Daily-loss protection is active until the next Nairobi trading day. The server will reject new entries until the lock expires; then use the button above to start a fresh DEMO session.";
+    }
+   }
    async function callDemoApi(path,payload){
     const {data:s,error:e}=await client.auth.getSession();
     if(e||!s.session)throw new Error("Please sign in again.");
@@ -1237,9 +1474,10 @@ calculateRisk();
       });
      }
     }catch(error){
+     demoBalance.textContent="Virtual balance: Unavailable — saved account data could not be verified.";
      summary.textContent="History unavailable: "+error.message;
      rows.replaceChildren();
-     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="Please refresh after the account-balance database upgrade is applied.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
+     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="Saved records could not be loaded. They have not been reset; try Refresh History when the service is available.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
     }finally{if(refresh)refresh.disabled=false;}
    }
    document.getElementById("refreshDemoTradeHistory").addEventListener("click",loadDemoTradeHistory);
@@ -1336,10 +1574,111 @@ calculateRisk();
     try{
      const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
      showDemoWorkerHealth(status.workerHeartbeat);
-     if(status.session)demoStatus.textContent="Session: "+status.session.status;
+     syncDemoSessionControls(status.session);
+     renderOpenPaperPositions(status.openTrades||(status.openTrade?[status.openTrade]:[]));
+     await loadLivePositions();
     }catch(error){demoWorkerHealth.textContent="Worker status unavailable: "+error.message;}
     finally{refresh.disabled=false;}
    });
+   const scalpStatus=document.getElementById("demoScalpingStatus");
+   const scalpMessage=document.getElementById("demoScalpingMessage");
+   const scalpEnable=document.getElementById("enableDemoScalping");
+   const scalpDisable=document.getElementById("disableDemoScalping");
+   const scalpRefresh=document.getElementById("refreshDemoScalping");
+    const scalpPaperStatus=document.getElementById("demoScalpingPaperStatus");
+    const scalpPaperEnable=document.getElementById("enableDemoScalpingPaper");
+    const scalpPaperDisable=document.getElementById("disableDemoScalpingPaper");
+   const scalpFeedStatus=document.getElementById("demoScalpingFeedStatus");
+   const scalpFeedPrice=document.getElementById("demoScalpingFeedPrice");
+   const scalpFeedDetails=document.getElementById("demoScalpingFeedDetails");
+   const scalpSignals=document.getElementById("demoScalpingSignals");
+   let scalpFeedTimer=null;
+   async function refreshScalpingFeed(){
+    try{
+     const {data:authState,error:authError}=await client.auth.getSession();
+     if(authError||!authState.session)throw new Error("Sign in again to view your private DEMO feed.");
+     const response=await fetch("/api/bots/demo/scalping-feed",{headers:{Authorization:"Bearer "+authState.session.access_token},cache:"no-store"});
+     const feed=await response.json();
+     if(!response.ok)throw new Error(feed.error||"Scalping feed unavailable.");
+     if(!feed.enabled){
+      scalpFeedStatus.textContent="Feed is off";
+      scalpFeedPrice.textContent="Waiting for verified quote";
+      scalpFeedDetails.textContent="Start a verified Deriv DEMO session and enable scalping to view market data.";
+      scalpSignals.replaceChildren();
+      return;
+     }
+     scalpFeedStatus.textContent=feed.feedStatus==="LIVE"?"LIVE · DERIV":feed.feedStatus==="STALE"?"STALE QUOTE":"WAITING FOR MARKET DATA";
+     scalpFeedPrice.textContent=feed.tick?feed.instrument+" · "+Number(feed.tick.quote).toLocaleString("en-US",{maximumFractionDigits:8}):feed.instrument+" · Waiting for quote";
+     if(feed.tick){
+      const hasBidAsk=feed.tick.bid!==null&&feed.tick.ask!==null&&Number.isFinite(Number(feed.tick.bid))&&Number.isFinite(Number(feed.tick.ask));
+      const age=Number.isFinite(feed.quoteAgeMs)?Math.max(0,Math.round(feed.quoteAgeMs/1000))+"s":"unknown";
+      scalpFeedDetails.textContent=hasBidAsk
+       ?"Bid "+Number(feed.tick.bid).toLocaleString("en-US",{maximumFractionDigits:8})+" · Ask "+Number(feed.tick.ask).toLocaleString("en-US",{maximumFractionDigits:8})+" · Spread "+(Number(feed.tick.ask)-Number(feed.tick.bid)).toFixed(6)+" · Quote age "+age
+       :"Verified quote received; Deriv bid/ask is currently unavailable · Quote age "+age;
+     }else scalpFeedDetails.textContent="No verified quote has been stored yet.";
+     scalpSignals.replaceChildren();
+     if(!feed.signals.length){const empty=document.createElement("li");empty.className="muted";empty.textContent="No M1 signal candidates yet. The strategy will wait when conditions are not confirmed.";scalpSignals.appendChild(empty);}
+     feed.signals.forEach(signal=>{
+      const item=document.createElement("li");
+      item.textContent=(signal.direction||"WAIT")+" · Entry "+Number(signal.entry).toFixed(5)+" · SL "+Number(signal.stop_loss).toFixed(5)+" · TP "+Number(signal.take_profit).toFixed(5)+" · "+(signal.fresh?"Fresh":"Older")+" · "+new Date(signal.signal_as_of).toLocaleTimeString();
+      scalpSignals.appendChild(item);
+     });
+    }catch(error){
+     scalpFeedStatus.textContent="Feed unavailable";
+     scalpFeedDetails.textContent=error.message||"Could not load the private scalping feed.";
+    }
+   }
+   function startScalpingFeedPolling(){
+    if(scalpFeedTimer)clearInterval(scalpFeedTimer);
+    refreshScalpingFeed();
+    scalpFeedTimer=setInterval(()=>{if(!document.hidden)refreshScalpingFeed();},3000);
+   }
+   function stopScalpingFeedPolling(){
+    if(scalpFeedTimer){clearInterval(scalpFeedTimer);scalpFeedTimer=null;}
+    scalpFeedStatus.textContent="Feed is off";
+    scalpFeedPrice.textContent="Waiting for verified quote";
+    scalpFeedDetails.textContent="Enable the DEMO scalping feed to view Deriv bid/ask data and signal candidates.";
+    scalpSignals.replaceChildren();
+    const empty=document.createElement("li");empty.className="muted";empty.textContent="No signals received.";scalpSignals.appendChild(empty);
+   }
+   async function loadScalpingPreference(){
+     try{
+      const state=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"STATUS"});
+      scalpStatus.textContent=state.enabled?"Scalping feed: ENABLED · "+state.instrument+" · DEMO only":"Scalping feed: OFF";
+      scalpPaperStatus.textContent=state.paperExecutionEnabled?(state.entryModeEligible?"Automatic DEMO paper trading: ON · virtual ledger only":"Automatic DEMO paper trading: ON · new entries paused because account mode is not DEMO"):"Automatic DEMO paper trading: OFF";
+      scalpEnable.disabled=selectedAccountMode!=="DEMO"||state.accountMode!=="DEMO"||state.sessionStatus!=="RUNNING"||state.enabled;
+      scalpDisable.disabled=!state.enabled;
+      scalpPaperEnable.disabled=selectedAccountMode!=="DEMO"||state.entryModeEligible!==true||state.sessionStatus!=="RUNNING"||!state.enabled||state.paperExecutionEnabled;
+      scalpPaperDisable.disabled=!state.paperExecutionEnabled;
+      if(state.limits)scalpMessage.textContent="Risk ceiling: "+state.limits.riskPerTradePct+"% per trade · "+state.limits.dailyLossPct+"% daily loss · "+state.limits.maxOpenPositions+" open position. Feed and automatic paper execution are controlled separately.";
+      if(state.enabled&&state.entryModeEligible===true&&state.sessionStatus==="RUNNING")startScalpingFeedPolling();else stopScalpingFeedPolling();
+     }catch(e){scalpStatus.textContent="Scalping status unavailable: "+e.message;scalpPaperStatus.textContent="Automatic DEMO paper trading: status unavailable";scalpEnable.disabled=selectedAccountMode!=="DEMO";scalpDisable.disabled=true;scalpPaperEnable.disabled=true;scalpPaperDisable.disabled=true;stopScalpingFeedPolling();}
+    }
+    scalpEnable.addEventListener("click",async()=>{
+     if(!window.confirm("Enable the live Deriv scalping signal feed for this DEMO session? This does not place any order."))return;
+     scalpEnable.disabled=true;scalpMessage.textContent="Verifying your Deriv DEMO account and approved instrument...";
+     try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE"});scalpStatus.textContent="Scalping feed: ENABLED · "+r.instrument+" · DEMO only";scalpMessage.textContent=r.message;scalpDisable.disabled=false;startScalpingFeedPolling();await loadScalpingPreference();}
+     catch(e){scalpMessage.textContent=e.message;scalpEnable.disabled=false;}
+    });
+    scalpDisable.addEventListener("click",async()=>{
+     scalpDisable.disabled=true;
+     try{await callDemoApi("/api/bots/demo/scalping-preferences",{action:"DISABLE"});await loadScalpingPreference();scalpMessage.textContent="Feed and new automatic paper entries are disabled. Any already-open DEMO paper position remains managed to its exit.";}
+     catch(e){scalpMessage.textContent=e.message;scalpDisable.disabled=false;}
+    });
+    scalpPaperEnable.addEventListener("click",async()=>{
+     if(!window.confirm("Enable automatic DEMO paper trading for this session? The bot may open and manage virtual positions in the platform's DEMO paper ledger only. No Deriv broker order or REAL trade will be sent. Maximum risk is 0.25% per trade, daily loss is capped at 1%, and a maximum of 15 open DEMO paper positions shared with the account portfolio cap."))return;
+     scalpPaperEnable.disabled=true;scalpMessage.textContent="Verifying the separate automatic DEMO paper-trading permission...";
+     try{const r=await callDemoApi("/api/bots/demo/scalping-preferences",{action:"ENABLE_PAPER_EXECUTION"});scalpPaperStatus.textContent="Automatic DEMO paper trading: ON · virtual ledger only";scalpMessage.textContent=r.message;await loadScalpingPreference();}
+     catch(e){scalpMessage.textContent=e.message;scalpPaperEnable.disabled=false;}
+    });
+    scalpPaperDisable.addEventListener("click",async()=>{
+     scalpPaperDisable.disabled=true;
+     try{await callDemoApi("/api/bots/demo/scalping-preferences",{action:"DISABLE_PAPER_EXECUTION"});await loadScalpingPreference();scalpMessage.textContent="Automatic paper entries are paused. Any already-open DEMO paper position remains managed to its exit.";}
+     catch(e){scalpMessage.textContent=e.message;scalpPaperDisable.disabled=false;}
+    });
+    scalpRefresh.addEventListener("click",loadScalpingPreference);
+   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&scalpFeedTimer)refreshScalpingFeed();});
+   loadScalpingPreference();
    if(selectedAccountMode!=="DEMO"){
     [startDemo,stopDemo,recordPaper,closePaper].forEach(x=>x.disabled=true);
     demoMessage.textContent="Paper simulator is locked in REAL mode. Switch to DEMO to practise.";
@@ -1348,17 +1687,17 @@ calculateRisk();
     startDemo.disabled=true;demoMessage.textContent="Starting your website DEMO trading session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim(),timeframe:document.getElementById("demoTimeframe").value,executionMode:document.getElementById("demoExecutionMode").value});
-     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     syncDemoSessionControls(r.session);
      showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-     stopDemo.disabled=false;recordPaper.disabled=false;document.getElementById("demoExecutionMode").disabled=true;document.getElementById("demoTimeframe").disabled=true;demoMessage.textContent=r.message;
+     demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
    });
    stopDemo.addEventListener("click",async()=>{
     stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
-     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
+     syncDemoSessionControls(r.session||null);demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
    });
    const allocationInputs=["paperTp1Percent","paperTp2Percent","paperTp3Percent"].map(id=>document.getElementById(id));
@@ -1510,9 +1849,7 @@ calculateRisk();
    {
     callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
      if(r.session){
-      activeDemoSession=r.session.status==="RUNNING"?r.session:null;
       showDemoWorkerHealth(r.workerHeartbeat);
-      demoStatus.textContent="Session: "+r.session.status;
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
       if(["M5","M15","H1","H4"].includes(String(r.session.timeframe||"").toUpperCase()))document.getElementById("demoTimeframe").value=String(r.session.timeframe).toUpperCase();
       const running=r.session.status==="RUNNING";
@@ -1521,15 +1858,13 @@ calculateRisk();
       document.getElementById("demoExecutionMode").value=autoDemoEnabled?"AUTO":"MANUAL";
       document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
       document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
-      startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
-      stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
-      demoMessage.textContent="Your existing DEMO session has been restored. The scheduled worker manages BOT trades and checks manual SL/TP only when you separately enable that permission.";
+      syncDemoSessionControls(r.session);
+      if(r.session.status!=="RISK_LOCKED")demoMessage.textContent="Your existing DEMO session has been restored. The scheduled worker manages BOT trades and checks manual SL/TP only when you separately enable that permission.";
      }else{
-      demoStatus.textContent="Session: Not started";
+      syncDemoSessionControls(null);
       showDemoWorkerHealth(null);
       const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
       if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
-      startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
      }
      renderOpenPaperPositions(r.openTrades||(r.openTrade?[r.openTrade]:[]));
      if(r.session){
@@ -1546,7 +1881,15 @@ calculateRisk();
 
    loadDemoTradeHistory();
    
-   // SIGN OUT BUTTON
+   // SIGNED-IN ACCOUNT SUMMARY AND SETTINGS SHORTCUT
+  const accountLink=document.createElement("a");
+  accountLink.href="/onboarding.html";
+  accountLink.setAttribute("aria-label","Open account mode and risk settings");
+  accountLink.style.cssText="position:fixed;top:12px;left:12px;z-index:99999;max-width:calc(100vw - 125px);padding:9px 12px;background:#172337;color:#f5bd45;border:1px solid #52627a;border-radius:8px;font-size:12px;font-weight:bold;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  accountLink.textContent=(data.session.user.email||"My Account")+" · "+selectedAccountMode+" · Account & Risk";
+  document.body.appendChild(accountLink);
+
+  // SIGN OUT BUTTON
   const logout=document.createElement("button");
   logout.textContent="Sign Out";
   logout.style.cssText="position:fixed;top:12px;right:12px;z-index:99999;padding:10px 16px;background:#d7a83c;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer";
@@ -1578,5 +1921,21 @@ calculateRisk();
 })();
 </script>
 
+
+<script>
+(function(){
+ const words=["DISCIPLINE","PRECISION","PATIENCE","STRATEGY","CONSISTENCY"];
+ const target=document.querySelector(".hero h1 span");
+ if(!target||target.dataset.ytxAnimated)return;
+ target.dataset.ytxAnimated="1";
+ const original=target.textContent;
+ target.innerHTML='WIN WITH <span class="ytx-rotating-word">DISCIPLINE</span>.';
+ const word=target.querySelector(".ytx-rotating-word");
+ let index=0;
+ const colours=["","ytx-cyan","ytx-violet"];
+ const reduced=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+ if(!reduced)setInterval(()=>{index=(index+1)%words.length;word.classList.remove("ytx-cyan","ytx-violet");if(colours[index%colours.length])word.classList.add(colours[index%colours.length]);word.textContent=words[index];},3200);
+})();
+</script>
 </body>
 </html>

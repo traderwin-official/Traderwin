@@ -1,3 +1,5 @@
+> **Historical checkpoint:** This document contains an earlier upgrade branch and PR reference. For the current branch, PR, integrated capabilities, validation and remaining work, use [PLATFORM_INTEGRATION_STATUS.md](PLATFORM_INTEGRATION_STATUS.md). Do not treat the old branch/PR/test references below as the current state.
+
 # Young Tiger Forex Platform — upgrade readiness
 
 This document describes the isolated integration branch `integration/young-tiger-platform` and its draft PR #33. It is not the live production deployment. No production Supabase migration or production Vercel deployment has been performed.
@@ -7,7 +9,7 @@ This document describes the isolated integration branch `integration/young-tiger
 - Young Tiger FX branding is applied across the public dashboard, authentication, onboarding and bot-shop pages.
 - Supabase authentication and the DEMO/REAL onboarding preference flow remain in the platform foundation.
 - Deriv public quote and OHLC adapters provide verified market data for a limited supported-instrument allow-list. Unsupported instruments or unavailable USD conversions fail closed.
-- The authenticated technical analyst (EMA, RSI, ATR, momentum and breakout confirmations) remains research-only; it does not execute trades.
+- The authenticated research-only market analyst fetches completed Deriv OHLC candles and a fresh public quote; compares M5→M15, M15→H1 and H1→H4 direction; and can return indicative bid/ask-based entry, ATR stop, 1.5R/2R target levels. It reports confidence as a technical score, not a probability of profit. H4 has no higher timeframe in the current feed. The market-intelligence gate still blocks signals when independent evidence, spread limits or news status are missing. It does not execute trades.
 - Deriv OAuth uses PKCE and signed, short-lived HttpOnly state; access tokens are encrypted server-side. The callback stores only sanitized verified account metadata, requests `trade` and `account_manage`, and never silently selects among multiple DEMO accounts. Authenticated account-list and DEMO-only selection endpoints are now present. REAL account identifiers may be recorded as verification metadata, but REAL selection and execution remain locked.
 - M-Pesa payment ledger and STK Push scaffolding remain in place. REAL subscription pricing is USD 75 for the first paid month and USD 175 for subsequent monthly renewals. Payment grants eligibility only; it never authorizes live trading.
 - A new isolated DEMO paper ledger (`demo_paper_*`) is implemented without altering the legacy production `demo_bot_*` tables.

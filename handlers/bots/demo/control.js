@@ -42,14 +42,15 @@ export default async function handler(req,res){
    let modeProfile=null;
    if(executionMode==="AUTO"){
     const {data:modeProfiles,error:modeError}=await db.from("bot_mode_profiles")
-     .select("risk_per_trade,max_daily_loss").eq("user_id",uid).eq("broker","DERIV")
+     .select("max_risk_per_trade_pct,max_daily_loss_pct").eq("user_id",uid).eq("broker","DERIV")
      .eq("instrument",requestedInstrument).eq("account_mode","DEMO").limit(2);
     if(modeError)return res.status(503).json({error:"Could not verify DEMO risk preferences."});
     if((modeProfiles||[]).length>1)return res.status(409).json({error:"More than one matching DEMO risk profile exists; resolve the duplicate before starting automation."});
     modeProfile=modeProfiles?.[0]||null;
    }
-   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.risk_per_trade||p.max_risk_per_trade_pct));
-   const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss||p.max_daily_loss_pct));
+   // The DEMO paper ledger enforces these platform-wide ceilings in SQL as well.
+   const risk=Math.min(Number(p.max_risk_per_trade_pct),Number(modeProfile?.max_risk_per_trade_pct||p.max_risk_per_trade_pct),0.25);
+   const daily=Math.min(Number(p.max_daily_loss_pct),Number(modeProfile?.max_daily_loss_pct||p.max_daily_loss_pct),1.00);
    let selectedStrategy="MANUAL",timeframe=requestedTimeframe;
    if(executionMode==="AUTO"){
     const {data:botSettings,error:botSettingsError}=await db.from("bot_settings")
@@ -69,7 +70,7 @@ export default async function handler(req,res){
     if(!["AUTO_SELECT_V1","MULTI_CONFIRMATION_V1","TIGER_FIBONACCI_PSYCHOLOGY_V1"].includes(selectedStrategy))
      return res.status(400).json({error:"Choose Auto-select, Smart Multi-Confirmation or Tiger Fibonacci Psychology for automated trading. Manual review does not place automatic entries."});
    }
-   if(!Number.isFinite(risk)||risk<=0||risk>2||!Number.isFinite(daily)||daily<=0||daily>10)return res.status(409).json({error:"Your saved risk limits are invalid."});
+   if(!Number.isFinite(risk)||risk<=0||risk>0.25||!Number.isFinite(daily)||daily<=0||daily>1.00)return res.status(409).json({error:"Your saved risk limits are invalid."});
    const maxOpenPositions=3;
    const brokerAccountRef="DEMO:"+uid;
    const {data:emergency,error:emergencyError}=await db.from("demo_paper_emergency_controls").select("entries_blocked").eq("user_id",uid).eq("broker","DERIV").eq("broker_account_ref",brokerAccountRef).maybeSingle();
@@ -111,14 +112,16 @@ export default async function handler(req,res){
    const {data:session,error}=await db.from("demo_paper_sessions").insert({
     user_id:uid,broker:"DERIV",broker_account_ref:brokerAccountRef,instrument:requestedInstrument,
     strategy:selectedStrategy,timeframe,status:"RUNNING",starting_balance:carriedBalance,current_balance:carriedBalance,
-    risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:maxOpenPositions,max_total_open_risk_pct:2.00,
+    risk_per_trade_pct:risk,max_daily_loss_pct:daily,max_open_positions:maxOpenPositions,max_total_open_risk_pct:1.00,
      config_snapshot:{broker:"DERIV_PUBLIC_MARKET_DATA",instrument:requestedInstrument,strategy:selectedStrategy,timeframe,account_mode:"DEMO",execution:executionMode==="AUTO"?"WEBSITE_DEMO_AUTO_PAPER_ONLY":"WEBSITE_PAPER_ONLY"}
    }).select("*").single();
    if(error||!session){console.error("DEMO paper session start:",error?.message);return res.status(409).json({error:"Could not create the DEMO paper session."});}
    return res.status(201).json({ok:true,session,message:executionMode==="AUTO"?"Automated DEMO session started. The selected strategy will open and manage virtual BOT positions only; no broker orders or real money are involved.":"Website manual DEMO session started. Open and close virtual positions here; no broker orders or real money are involved."});
   }
   if(!latest||!["RUNNING","PAUSED"].includes(latest.status))return res.status(200).json({ok:true,session:latest,message:"No active DEMO session is running."});
-  const {data:openTrade,error:tradeError}=await db.from("demo_paper_trades").select("id,trade_origin").eq("session_id",latest.id).eq("user_id",uid).eq("status","OPEN").eq("trade_origin","BOT").maybeSingle();
+  // AUTO sessions may hold several BOT positions; only existence is needed
+  // to decide whether the session must remain PAUSED for protective management.
+  const {data:openTrade,error:tradeError}=await db.from("demo_paper_trades").select("id,trade_origin").eq("session_id",latest.id).eq("user_id",uid).eq("status","OPEN").eq("trade_origin","BOT").limit(1).maybeSingle();
   if(tradeError)return res.status(503).json({error:"Could not verify the open paper position."});
   const nextStatus=openTrade?.trade_origin==="BOT"?"PAUSED":"STOPPED";
   const {data:stopped,error}=await db.from("demo_paper_sessions").update({status:nextStatus,stopped_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",latest.id).eq("user_id",uid).select("*").single();

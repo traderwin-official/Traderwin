@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {calculateScalpingRisk,buildScalpingTargets,evaluateScalpingExit} from "../lib/scalping-execution.js";
+
+test("scalping sizing remains within 0.25 percent DEMO risk",()=>{const s=calculateScalpingRisk({balance:10000,entry:2000,stopLoss:1990});assert.ok(s.riskAmount<=25);assert.ok(s.riskPct<=0.25);});
+test("target validation keeps the final target between 1.5R and 3R",()=>{assert.equal(buildScalpingTargets({direction:"BUY",entry:2000,stopLoss:1990,takeProfit:2015}).rewardRisk,1.5);assert.throws(()=>buildScalpingTargets({direction:"BUY",entry:2000,stopLoss:1990,takeProfit:2014}),/between 1.5R and 3R/);});
+test("BUY scalper closes the entire position at its single take-profit",()=>{const now=Date.now();const trade={side:"BUY",stop_loss:1990,take_profit:2015,tp1_done:false,tp2_done:false,tp3_done:false};assert.deepEqual(evaluateScalpingExit({trade,bid:2015,ask:2015.1,quoteAsOf:now,receivedAt:now,now}),{action:"EXIT",reason:"TAKE_PROFIT",price:2015});});
+test("SELL scalper closes the entire position at its single take-profit using ask",()=>{const now=Date.now();const trade={side:"SELL",stop_loss:2010,take_profit:1980};assert.deepEqual(evaluateScalpingExit({trade,bid:1979.9,ask:1980,quoteAsOf:now,receivedAt:now,now}),{action:"EXIT",reason:"TAKE_PROFIT",price:1980});});
+test("stop-loss takes priority and closes the whole position",()=>{const now=Date.now();const trade={side:"BUY",stop_loss:1990,take_profit:2015};assert.equal(evaluateScalpingExit({trade,bid:1989.9,ask:1990,quoteAsOf:now,receivedAt:now,now}).reason,"STOP_LOSS");});
+test("stale or missing executable quotes never trigger exits",()=>{const now=Date.now(),trade={side:"BUY",stop_loss:1990,take_profit:2015};assert.equal(evaluateScalpingExit({trade,bid:2016,ask:2016.1,quoteAsOf:now-15000,receivedAt:now-15000,now}).reason,"EXIT_QUOTE_STALE");assert.equal(evaluateScalpingExit({trade,bid:2016,ask:null,quoteAsOf:now,receivedAt:now,now}).reason,"VERIFIED_BID_ASK_REQUIRED");});

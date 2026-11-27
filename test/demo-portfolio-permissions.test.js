@@ -9,6 +9,9 @@ test("manual DEMO permission API requires an authenticated DEMO session and expl
   assert.match(source, /monitorManualTrades/);
   assert.match(source, /closeManualTrades/);
   assert.match(source, /body\.closeManualTrades&&!body\.monitorManualTrades/);
+  assert.match(source, /bot_trade_management,close_managed_positions/);
+  assert.match(source, /permission\?permission\.bot_trade_management===true:true/);
+  assert.match(source, /permission\?permission\.close_managed_positions===true:true/);
   assert.match(source, /manual_trade_management:body\.monitorManualTrades/);
   assert.match(source, /close_manual_trades:body\.closeManualTrades/);
   assert.match(source, /onConflict:"user_id,account_mode,broker,broker_account_ref"/);

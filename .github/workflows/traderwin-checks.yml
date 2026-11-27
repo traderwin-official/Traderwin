@@ -1,7 +1,8 @@
 name: Traderwin checks
+# The SQL contract step intentionally validates every overload of worker RPCs.
 on:
   pull_request:
-    branches: [main, upgrade/full-platform-build, "integration/**"]
+    branches: [main, upgrade/full-platform-build, feat/continuous-demo-scalping-feed, "integration/**"]
   push:
     branches: [main, upgrade/full-platform-build, integration/young-tiger-platform, "feature/**"]
 permissions:
@@ -31,9 +32,11 @@ jobs:
       - run: npm test
       - name: Check serverless JavaScript syntax
         run: |
-          find api handlers lib -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          find api handlers lib scripts services/scalping-worker -type f -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Check inline page scripts
         run: node scripts/check-inline-scripts.mjs
+      - name: Build continuous scalping worker image (no deployment)
+        run: docker build --file services/scalping-worker/Dockerfile --tag traderwin-scalping-worker:ci .
       - name: Validate isolated DEMO and portfolio migrations on disposable PostgreSQL
         env:
           PGPASSWORD: postgres
@@ -57,9 +60,43 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611250001_manual_demo_stop_limit_entry_types.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611250002_demo_paper_trade_target_allocations.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611250003_manual_demo_partial_exit_rpcs.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611250004_scalping_market_ticks.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260001_scalping_demo_execution_guard.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260002_scalping_multi_position_portfolio.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260003_scalping_worker_lease_fencing.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260004_scalping_worker_management_lease_fencing.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260005_security_definer_acl_hardening.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260006_payment_schema_compatibility.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260013_real_trading_subscription_catalogue.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260007_scalping_tick_entry_idempotency.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_tick_entry_idempotency_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260008_scalping_atomic_batch_entries.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260009_scalping_batch_response_recovery.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260010_scalping_full_position_exits.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_full_position_exits_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_atomic_batch_entries_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/security_definer_acl_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/demo_tenant_rls_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/scalping_worker_rpc_acl_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/trading_instrument_approval_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/deriv_account_selection_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/demo_migration_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/demo_paper_daily_realization_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/manual_demo_pending_batches_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/manual_demo_partial_exit_rpc_contract.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611270001_demo_risk_budget_guard.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/demo_risk_budget_guard_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260011_atomic_subscription_entitlements.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260012_pending_payment_order_guard.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/pending_payment_order_guard_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/subscription_entitlement_atomicity_integration.sql
+      - name: Validate legacy M-Pesa schema compatibility on disposable PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          createdb -h 127.0.0.1 -U postgres traderwin_payment_compat_test
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f test/sql/payment_schema_compatibility_bootstrap.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260006_payment_schema_compatibility.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260013_real_trading_subscription_catalogue.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f test/sql/payment_schema_compatibility_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260006_payment_schema_compatibility.sql

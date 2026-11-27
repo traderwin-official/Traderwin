@@ -1,6 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { getDerivCandles } from "../../lib/deriv-candles.js";
-import { analyseStrategy } from "../../lib/strategy-engine.js";
+import { analyseStrategy, analyseCandles } from "../../lib/strategy-engine.js";
+import { buildAnalystTradePlan } from "../../lib/analyst-trade-plan.js";
+import { getDerivPublicQuote } from "../../lib/deriv-public-quote.js";
+import { loadApprovedInstrument } from "../../lib/deriv/load-approved-instrument.js";
+import { evaluateMarketCandidate } from "../../lib/market-intelligence-gate.js";
+import { getGdeltNewsContext } from "../../lib/gdelt-news-context.js";
+import { getGdeltNewsRiskStatus } from "../../lib/gdelt-news-risk.js";
+import { getBiQuoteCalendarRiskStatus } from "../../lib/biquote-calendar-risk.js";
+import { getXausGoldReference, compareGoldReference } from "../../lib/xaus-gold-reference.js";
+import { buildAnalystResearchSummary } from "../../lib/analyst-research-summary.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -38,13 +47,135 @@ export default async function handler(req, res) {
     if (!["AUTO_SELECT_V1", "MULTI_CONFIRMATION_V1", "TIGER_FIBONACCI_PSYCHOLOGY_V1", "MANUAL_REVIEW"].includes(strategy)) {
       return res.status(400).json({ error: "Choose a supported strategy." });
     }
-    const market = await getDerivCandles(instrument, timeframe);
-    const trendMarket = ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) && timeframe !== "H1"
-      ? await getDerivCandles(instrument, "H1")
-      : market;
-    const result = analyseStrategy(market.candles, strategy, {
-      trendCandles: trendMarket.candles,
+    const higherTimeframe = ({ M5: "M15", M15: "H1", H1: "H4" })[timeframe] || null;
+    const marketPromise = getDerivCandles(instrument, timeframe, { timeoutMs: 6000 });
+    const trendPromise = higherTimeframe
+      ? getDerivCandles(instrument, higherTimeframe, { timeoutMs: 6000 })
+      : Promise.resolve(null);
+    const quotePromise = getDerivPublicQuote(instrument, { timeoutMs: 4000 }).catch(() => null);
+    const newsPromise = getGdeltNewsContext(instrument);
+    const newsRiskPromise = getGdeltNewsRiskStatus({ instrument });
+    const calendarRiskPromise = getBiQuoteCalendarRiskStatus({ instrument });
+    const goldReferencePromise = instrument === "XAUUSD" ? getXausGoldReference() : Promise.resolve(null);
+    const [market, trendMarket, quote, newsContext, newsRisk, calendarRisk, goldReference] = await Promise.all([
+      marketPromise, trendPromise, quotePromise, newsPromise, newsRiskPromise, calendarRiskPromise, goldReferencePromise
+    ]);
+    const combinedNewsStatus = newsRisk.status === "BLACKOUT" || calendarRisk.status === "BLACKOUT"
+      ? "BLACKOUT" : "UNKNOWN";
+    const candidate = analyseStrategy(market.candles, strategy, {
+      trendCandles: trendMarket?.candles || market.candles,
+      trendTimeframe: higherTimeframe || timeframe,
       instrument
+    });
+    const higherResult = trendMarket ? analyseCandles(trendMarket.candles) : null;
+    const mtfAgrees = Boolean(higherResult &&
+      ["BUY", "SELL"].includes(candidate.direction) &&
+      higherResult.direction === candidate.direction);
+    const mtfStatus = !higherResult ? "HIGHER_TIMEFRAME_UNAVAILABLE"
+      : mtfAgrees ? "ALIGNED"
+      : ["BUY", "SELL"].includes(candidate.direction) && ["BUY", "SELL"].includes(higherResult.direction)
+        ? "CONFLICT" : "NO_HIGHER_TIMEFRAME_SIGNAL";
+    const result = {
+      ...candidate,
+      direction: mtfAgrees ? candidate.direction : "WAIT",
+      confidence: mtfAgrees ? Math.min(candidate.confidence, higherResult.confidence) : 0,
+      multiTimeframe: {
+        signalTimeframe: timeframe,
+        higherTimeframe: higherTimeframe || null,
+        status: mtfStatus,
+        signalDirection: candidate.direction,
+        higherTimeframeDirection: higherResult?.direction || "UNAVAILABLE",
+        higherTimeframeConfidence: higherResult?.confidence ?? null
+      },
+      explanation: mtfAgrees
+        ? candidate.explanation + ` Higher-timeframe ${higherTimeframe} confirmation agrees.`
+        : "WAIT: selected-timeframe and higher-timeframe evidence are not aligned or the higher timeframe is unavailable."
+    };
+    const approval = await loadApprovedInstrument(admin, {
+      broker: "DERIV", instrument, providerSymbol: market.providerSymbol
+    });
+    const quoteStamp = Date.parse(quote?.quoteAsOf || "");
+    const quoteFresh = Boolean(
+      quote && quote.source === "DERIV" && quote.providerSymbol === market.providerSymbol &&
+      Number.isFinite(quoteStamp) && Date.now() - quoteStamp >= 0 && Date.now() - quoteStamp <= 30000
+    );
+    const bid = Number(quote?.bid), ask = Number(quote?.ask), mid = (bid + ask) / 2;
+    const spreadBps = quoteFresh && Number.isFinite(bid) && Number.isFinite(ask) &&
+      bid > 0 && ask >= bid && Number.isFinite(mid) && mid > 0
+      ? ((ask - bid) / mid) * 10000
+      : null;
+    const goldReferenceComparison = instrument === "XAUUSD"
+      ? compareGoldReference({ brokerMid: quoteFresh ? mid : null, reference: goldReference })
+      : null;
+    const configuredMaxSpreadBps = Number(process.env.MARKET_ANALYST_MAX_SPREAD_BPS);
+    const tradePlan = buildAnalystTradePlan({
+      direction: mtfAgrees ? candidate.direction : "WAIT",
+      quote,
+      atr: candidate.indicators?.atr14,
+      instrument,
+      timeframe
+    });
+    const marketIntelligence = evaluateMarketCandidate({
+      instrument: market.instrument,
+      timeframe: market.timeframe,
+      direction: result.direction,
+      confidence: result.confidence,
+      source: market.source,
+      asOf: market.latestCandleAsOf,
+      market: {
+        tradable: approval.approved === true,
+        quoteFresh,
+        candleClosed: true
+      },
+      risk: {
+        spreadBps,
+        maxSpreadBps: Number.isFinite(configuredMaxSpreadBps) && configuredMaxSpreadBps > 0
+          ? configuredMaxSpreadBps : null,
+        riskReward: tradePlan.status === "INDICATIVE_ONLY" ? tradePlan.riskReward1 : null,
+        minimumRiskReward: 1.5,
+        entryTriggerConfirmed: mtfAgrees && ["BUY", "SELL"].includes(String(candidate.direction || "").toUpperCase()),
+        newsStatus: combinedNewsStatus,
+        highImpactNewsWindow: combinedNewsStatus === "BLACKOUT",
+        independentReferenceRequired: instrument === "XAUUSD",
+        independentReferenceStatus: instrument === "XAUUSD"
+          ? (goldReferenceComparison?.status || "UNKNOWN") : "NOT_APPLICABLE"
+      },
+      maxAgeMs: Math.max(120000, Number(market.granularity || 0) * 2000)
+    });
+    const gatedResult = {
+      ...result,
+      tradePlan,
+      direction: marketIntelligence.direction,
+      candidateDirection: result.direction,
+      candidateConfidence: result.confidence,
+      confidence: marketIntelligence.confidence,
+      marketIntelligence
+    };
+    const analysedAt = new Date().toISOString();
+    const marketData = {
+      quoteStatus: quoteFresh ? "FRESH" : "UNAVAILABLE_OR_UNVERIFIED",
+      quoteAsOf: quote?.quoteAsOf || null,
+      approvalStatus: approval.status || "BLOCKED",
+      spreadBps,
+      multiTimeframeStatus: mtfStatus,
+      higherTimeframeDirection: higherResult?.direction || null,
+      tradePlanStatus: tradePlan.status,
+      goldReferenceStatus: goldReferenceComparison?.status || "NOT_APPLICABLE",
+      goldReferenceDeviationBps: goldReferenceComparison?.deviationBps ?? null
+    };
+    const researchSummary = buildAnalystResearchSummary({
+      instrument: market.instrument,
+      timeframe: market.timeframe,
+      candidate: result,
+      tradePlan,
+      marketData,
+      marketIntelligence,
+      newsContext,
+      newsRisk,
+      calendarRisk,
+      goldReference,
+      goldReferenceComparison,
+      analysedAt
     });
     return res.status(200).json({
       ok: true,
@@ -54,12 +185,24 @@ export default async function handler(req, res) {
       source: market.source,
       strategy,
       accountMode,
-      trendTimeframe: ["TIGER_FIBONACCI_PSYCHOLOGY_V1", "AUTO_SELECT_V1"].includes(strategy) ? "H1" : timeframe,
+      trendTimeframe: higherTimeframe,
       latestCandleAsOf: market.latestCandleAsOf,
-      analysedAt: new Date().toISOString(),
-      result,
+      analysedAt,
+      result: gatedResult,
+      candidate: result,
+      marketIntelligence,
+      newsContext,
+      newsRisk,
+      calendarRisk,
+      goldReference,
+      goldReferenceComparison,
+      marketData,
+      researchSummary,
       execution: "NONE",
-      message: "Smart strategy analysis only. No order was opened, modified or closed."
+      executionAuthorized: false,
+      message: marketIntelligence.direction === "WAIT"
+        ? "WAIT: verified independent evidence, news status or spread approval is incomplete. No order was opened, modified or closed."
+        : "Analysis passed the market-intelligence quality gate but still requires separate risk and broker authorization. No order was opened, modified or closed."
     });
   } catch (error) {
     console.error("Market analysis failed:", error.message);

@@ -55,11 +55,16 @@ export default async function handler(req, res) {
     catch (error) { return res.status(409).json({ error: error.message || "This service is not priced for checkout." }); }
     const amount = pricing.amountKes;
     const { data: order, error: orderError } = await admin.from("payment_orders").insert({
-      user_id: auth.user.id, service_code: service.service_code, amount_kes: amount,
+      user_id: auth.user.id, service_code: service.service_code, amount, amount_kes: amount,
       amount_usd: pricing.amountUsd, fx_rate_kes: pricing.fxRateKes,
       fx_source: pricing.fxSource, fx_as_of: pricing.fxAsOf, price_basis: pricing.priceBasis,
       currency: "KES", payment_method: "MPESA", phone_number: phone, status: "PENDING"
     }).select("id").single();
+    if (orderError?.code === "23505") {
+      return res.status(409).json({
+        error: "A payment request for this service is already being processed. Check its status before trying again."
+      });
+    }
     if (orderError || !order) {
       console.error("M-Pesa order creation failed:", orderError?.message);
       return res.status(503).json({ error: "Could not create the payment order." });
@@ -86,7 +91,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "M-Pesa could not start the payment prompt. Please try again." });
     }
     const { error: updateError } = await admin.from("payment_orders")
-      .update({ checkout_request_id: stkResult.CheckoutRequestID }).eq("id", order.id).eq("status", "PENDING");
+      .update({ checkout_request_id: stkResult.CheckoutRequestID, provider_checkout_id: stkResult.CheckoutRequestID }).eq("id", order.id).eq("status", "PENDING");
     if (updateError) {
       console.error("Could not save M-Pesa checkout reference:", updateError.message);
       return res.status(503).json({ error: "Payment prompt started, but Traderwin could not save its reference. Contact support before retrying." });

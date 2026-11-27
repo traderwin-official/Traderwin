@@ -26,8 +26,7 @@ test("DEMO live positions UI filters MANUAL and AUTOMATIC and never implies REAL
 });
 
 test("DEMO live positions endpoint is registered as an explicit Vercel route", async () => {
-  const route = await readFile(new URL("../api/bots/demo/positions.js", import.meta.url), "utf8");
-  const dispatcher = await readFile(new URL("../api/[...path].js", import.meta.url), "utf8");
-  assert.match(route, /handlers\/bots\/demo\/positions\.js/);
+  const dispatcher = await readFile(new URL("../api/router.js", import.meta.url), "utf8");
+  assert.match(dispatcher, /handlers\/bots\/demo\/positions\.js/);
   assert.match(dispatcher, /\/api\/bots\/demo\/positions/);
 });
