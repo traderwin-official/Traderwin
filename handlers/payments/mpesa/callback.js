@@ -69,7 +69,8 @@ export default async function handler(req, res) {
       paidOrder = { id: order.id, user_id: order.user_id, service_code: order.service_code };
     } else {
       const { data, error: updateError } = await admin.from("payment_orders").update({
-        status: "PAID", provider_reference: receipt, confirmed_at: new Date().toISOString()
+        status: "PAID", provider_reference: receipt, provider_receipt: receipt,
+        confirmed_at: new Date().toISOString(), paid_at: new Date().toISOString()
       }).eq("id", order.id).eq("status", "PENDING")
         .select("id,user_id,service_code").maybeSingle();
       if (updateError) {
