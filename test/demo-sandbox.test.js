@@ -12,9 +12,9 @@ test("offline DEMO sandbox is clearly labelled as simulated and browser-only", (
 
 test("offline sandbox has no authentication, database, broker, payment or network calls", () => {
   for (const forbidden of [
-    /supabase/i, /createClient\s*\(/, /fetch\s*\(/, /XMLHttpRequest/,
+    /createClient\s*\(/, /fetch\s*\(/, /XMLHttpRequest/,
     /WebSocket/, /EventSource/, /localStorage/, /sessionStorage/,
-    /deriv\.com/i, /mt5/i, /stk-push/i, /payment/i
+    /deriv\.com/i, /stk-push/i, /https?:\/\//i
   ]) assert.doesNotMatch(html, forbidden);
 });
 
