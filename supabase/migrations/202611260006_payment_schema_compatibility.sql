@@ -85,9 +85,10 @@ BEGIN
 END
 $migration$;
 
+-- A non-partial unique index is required because subscription entitlement rows
+-- reference service_catalog(service_code) with a foreign key.
 CREATE UNIQUE INDEX IF NOT EXISTS service_catalog_service_code_uidx
-  ON public.service_catalog(service_code)
-  WHERE service_code IS NOT NULL;
+  ON public.service_catalog(service_code);
 
 CREATE UNIQUE INDEX IF NOT EXISTS payment_orders_checkout_request_id_uidx
   ON public.payment_orders(checkout_request_id)
