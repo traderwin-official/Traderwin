@@ -102,10 +102,10 @@ $test$;
 
 
 -- The entitlement migration references this key with a foreign key.
-CREATE TEMP TABLE payment_service_code_fk_probe (
+CREATE TABLE public.payment_service_code_fk_probe (
   service_code text REFERENCES public.service_catalog(service_code)
 );
-DROP TABLE payment_service_code_fk_probe;
+DROP TABLE public.payment_service_code_fk_probe;
 
 DO $$
 DECLARE
