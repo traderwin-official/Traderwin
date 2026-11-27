@@ -331,7 +331,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
      <tbody id="demoHistoryRows"><tr><td colspan="7" style="padding:10px">Loading…</td></tr></tbody>
     </table>
    </div>
-   <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss.</p>
+   <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss. Your balance and history belong to the signed-in email shown at the top-left; use the same email on every device.</p>
   </div>
   <div class="grid">
    <p class="muted">The scheduled DEMO worker checks the combined portfolio using fresh market quotes and USD-normalised profit. Protection activates at USD 20 peak unrealised profit and protects 80% of that peak. The check runs on the worker schedule, so fast price moves, quote gaps and slippage can affect exit timing. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
@@ -1414,7 +1414,7 @@ calculateRisk();
      demoBalance.textContent="Virtual balance: Unavailable — saved account data could not be verified.";
      summary.textContent="History unavailable: "+error.message;
      rows.replaceChildren();
-     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="Please refresh after the account-balance database upgrade is applied.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
+     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="Saved records could not be loaded. They have not been reset; try Refresh History when the service is available.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
     }finally{if(refresh)refresh.disabled=false;}
    }
    document.getElementById("refreshDemoTradeHistory").addEventListener("click",loadDemoTradeHistory);
