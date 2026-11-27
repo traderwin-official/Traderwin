@@ -70,5 +70,6 @@ jobs:
           createdb -h 127.0.0.1 -U postgres traderwin_payment_compat_test
           psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f test/sql/payment_schema_compatibility_bootstrap.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260006_payment_schema_compatibility.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260013_real_trading_subscription_catalogue.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f test/sql/payment_schema_compatibility_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611260006_payment_schema_compatibility.sql
