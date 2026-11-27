@@ -112,6 +112,15 @@ button:active:not(:disabled){transform:translateY(0) scale(.98)}
 @media(max-width:600px){.ytx-ticker-track{animation-duration:48s}.hero:after{width:180px;height:180px;right:-100px;top:-75px}.dashboard-action:hover{transform:translateY(-2px)}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.ytx-ticker-track{animation:none;padding-left:12px;white-space:normal;flex-wrap:wrap}}
 
+
+
+/* AI Intelligence Hub: ambient neural-network background behind dashboard shortcuts */
+.dashboard-panel{isolation:isolate}
+.dashboard-neural-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.68}
+.dashboard-panel>:not(.dashboard-neural-canvas){position:relative;z-index:1}
+.dashboard-action{background:linear-gradient(145deg,rgba(17,34,55,.91),rgba(8,18,33,.94))}
+@media(prefers-reduced-motion:reduce){.dashboard-neural-canvas{opacity:.35}}
+
 </style>
 </head>
 
@@ -143,6 +152,7 @@ button:active:not(:disabled){transform:translateY(0) scale(.98)}
 
 <section class="dashboard-hub" id="dashboardHub" aria-label="Trading dashboard quick actions">
  <div class="dashboard-panel">
+  <canvas class="dashboard-neural-canvas" aria-hidden="true"></canvas>
   <div class="dashboard-head">
    <h2>Young Tiger <span>Trading Dashboard</span></h2>
    <span class="dashboard-mode">DEMO PRACTICE · REAL LOCKED</span>
@@ -1937,5 +1947,56 @@ calculateRisk();
  if(!reduced)setInterval(()=>{index=(index+1)%words.length;word.classList.remove("ytx-cyan","ytx-violet");if(colours[index%colours.length])word.classList.add(colours[index%colours.length]);word.textContent=words[index];},3200);
 })();
 </script>
+
+<script>
+(function(){
+ const canvas=document.querySelector('.dashboard-neural-canvas');
+ if(!canvas||canvas.dataset.ready)return;
+ canvas.dataset.ready='1';
+ const ctx=canvas.getContext('2d');if(!ctx)return;
+ const panel=canvas.parentElement;
+ const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ let width=0,height=0,dpr=1,raf=0,last=0,nodes=[],edges=[],phase=0;
+ function build(){
+  nodes=[];edges=[];
+  const cx=width*.52,cy=height*.53,rx=Math.min(width*.29,260),ry=Math.min(height*.43,170);
+  const cols=9,rows=7;
+  for(let side of [-1,1])for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+   const u=c/(cols-1),v=r/(rows-1)*2-1;
+   const x=cx+side*(rx*(.12+u*.88));
+   const y=cy+v*ry*(.72+.28*Math.sin(u*Math.PI));
+   const nx=(x-cx)/(rx),ny=(y-cy)/ry;
+   if(nx*nx+ny*ny<1.08 && ((c*7+r*11+(side===1?3:0))%4!==0))nodes.push({x,y,side, pulse:(c*13+r*7)%97/97});
+  }
+  for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+   const a=nodes[i],b=nodes[j],d=Math.hypot(a.x-b.x,a.y-b.y);
+   if(d<Math.min(width,height)*.105 && (a.side===b.side||d<rx*.13))edges.push([i,j,d]);
+  }
+ }
+ function resize(){
+  const rect=panel.getBoundingClientRect();dpr=Math.min(window.devicePixelRatio||1,1.5);width=rect.width;height=rect.height;
+  canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);build();draw(0);
+ }
+ function draw(t){
+  ctx.clearRect(0,0,width,height);
+  const glow=ctx.createRadialGradient(width*.52,height*.52,4,width*.52,height*.52,Math.max(width,height)*.48);
+  glow.addColorStop(0,'rgba(56,150,190,.105)');glow.addColorStop(.58,'rgba(92,87,180,.045)');glow.addColorStop(1,'rgba(5,12,24,0)');ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);
+  ctx.lineWidth=.7;
+  for(const [i,j,d] of edges){const a=nodes[i],b=nodes[j];ctx.strokeStyle='rgba(91,174,220,'+(0.10+0.08*Math.sin(phase*.7+i*.13))+')';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+  for(let i=0;i<nodes.length;i++){
+   const n=nodes[i],pulse=(Math.sin(phase*1.25+n.pulse*6.28)+1)/2;
+   ctx.beginPath();ctx.fillStyle='rgba(100,215,238,'+(0.28+pulse*.38)+')';ctx.arc(n.x,n.y,1.1+pulse*1.35,0,Math.PI*2);ctx.fill();
+   if(pulse>.92){ctx.beginPath();ctx.fillStyle='rgba(245,189,69,.32)';ctx.arc(n.x,n.y,4+pulse*2,0,Math.PI*2);ctx.fill();}
+  }
+  // Soft central synapse / brainstem motif; decorative only.
+  const x=width*.52,y=height*.53;
+  ctx.strokeStyle='rgba(245,189,69,.16)';ctx.lineWidth=1.1;ctx.beginPath();ctx.moveTo(x,y-23);ctx.bezierCurveTo(x-18,y-37,x-31,y-12,x-17,y+2);ctx.bezierCurveTo(x-30,y+18,x-12,y+29,x,y+17);ctx.bezierCurveTo(x+12,y+29,x+30,y+18,x+17,y+2);ctx.bezierCurveTo(x+31,y-12,x+18,y-37,x,y-23);ctx.stroke();
+ }
+ function tick(t){if(!last||t-last>40){phase+=.018;draw(t);last=t;}raf=requestAnimationFrame(tick);}
+ if('ResizeObserver'in window){new ResizeObserver(resize).observe(panel);}else window.addEventListener('resize',resize);
+ resize();if(!reduce)raf=requestAnimationFrame(tick);
+})();
+</script>
+
 </body>
 </html>
