@@ -5,6 +5,8 @@ import { readFileSync } from "node:fs";
 const checkout = readFileSync(new URL("../handlers/payments/mpesa/stk-push.js", import.meta.url), "utf8");
 const callback = readFileSync(new URL("../handlers/payments/mpesa/callback.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/202611260006_payment_schema_compatibility.sql", import.meta.url), "utf8");
+const catalogueMigration = readFileSync(new URL("../supabase/migrations/202611260013_real_trading_subscription_catalogue.sql", import.meta.url), "utf8");
+const entitlementMigration = readFileSync(new URL("../supabase/migrations/202611260011_atomic_subscription_entitlements.sql", import.meta.url), "utf8");
 
 test("M-Pesa checkout writes both legacy-required and current KES amount fields", () => {
   assert.match(checkout, /service_code:\s*service\.service_code,\s*amount,\s*amount_kes:\s*amount/);
@@ -15,8 +17,10 @@ test("M-Pesa checkout writes both legacy-required and current KES amount fields"
 test("verified M-Pesa callback mirrors legacy aliases and supplies required subscription amount/currency", () => {
   assert.match(callback, /provider_reference:\s*receipt,\s*provider_receipt:\s*receipt/);
   assert.match(callback, /confirmed_at:\s*confirmedAt,\s*paid_at:\s*confirmedAt/);
-  assert.match(callback, /amount:\s*subscriptionAmount/);
-  assert.match(callback, /currency:\s*subscriptionCurrency/);
+  assert.match(callback, /admin\.rpc\(\s*"fulfill_paid_subscription_order"/);
+  assert.match(entitlementMigration, /amount, currency, starts_at, ends_at, payment_order_id/);
+  assert.match(entitlementMigration, /amount = excluded\.amount/);
+  assert.match(entitlementMigration, /currency = excluded\.currency/);
   assert.match(callback, /amount_usd,\s*amount_kes/);
 });
 
@@ -33,4 +37,12 @@ test("payment compatibility migration is additive and does not invent service pr
 test("service code uniqueness supports downstream entitlement foreign keys", () => {
   assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS service_catalog_service_code_uidx\s+ON public\.service_catalog\(service_code\);/);
   assert.doesNotMatch(migration, /service_catalog_service_code_uidx[\s\S]*?WHERE service_code IS NOT NULL/);
+});
+
+
+test("approved REAL subscription catalogue publishes USD 75 first month and USD 175 renewals", () => {
+  assert.match(catalogueMigration, /'REAL_TRADING'/);
+  assert.match(catalogueMigration, /75\.00/);
+  assert.match(catalogueMigration, /175\.00/);
+  assert.match(catalogueMigration, /Payment alone does not unlock broker execution/);
 });
