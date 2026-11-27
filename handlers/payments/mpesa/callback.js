@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     if (!checkoutId) return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback received" });
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: order, error: orderError } = await admin.from("payment_orders")
-      .select("id,user_id,service_code,amount_kes,phone_number,status").eq("checkout_request_id", checkoutId).maybeSingle();
+      .select("id,user_id,service_code,amount_usd,amount_kes,phone_number,status").eq("checkout_request_id", checkoutId).maybeSingle();
     // A previously paid order remains eligible for idempotent entitlement repair.
     // Do not short-circuit PAID rows: a prior callback may have recorded payment
     // successfully but failed while activating the subscription.
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
         status: "PAID", provider_reference: receipt, provider_receipt: receipt,
         confirmed_at: confirmedAt, paid_at: confirmedAt
       }).eq("id", order.id).eq("status", "PENDING")
-        .select("id,user_id,service_code").maybeSingle();
+        .select("id,user_id,service_code,amount_usd,amount_kes").maybeSingle();
       if (updateError) {
         console.error("Verified M-Pesa payment could not be recorded:", updateError.message);
         return res.status(200).json({ ResultCode: 0, ResultDesc: "Verified payment received; recording pending" });
