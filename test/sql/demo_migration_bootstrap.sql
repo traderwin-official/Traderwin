@@ -52,7 +52,17 @@ as $bootstrap$ begin return new; end $bootstrap$;
 
 create table public.service_catalog (
   id uuid primary key default gen_random_uuid(),
-  active boolean not null default true
+  service_name text not null default 'Test Service',
+  service_type text not null default 'PREMIUM_TOOL'
+    check (service_type in ('BOT','MEMBERSHIP','COURSE','SIGNALS','PREMIUM_TOOL')),
+  description text,
+  price numeric(12,2) not null default 0 check (price >= 0),
+  currency text not null default 'KES',
+  billing_period text not null default 'MONTHLY'
+    check (billing_period in ('ONE_TIME','DAILY','WEEKLY','MONTHLY','YEARLY')),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 alter table public.service_catalog enable row level security;
 create policy "Public read active services" on public.service_catalog
@@ -88,14 +98,17 @@ create table public.deriv_connections (
 
 -- Minimal payment/subscription foundation for atomic entitlement integration tests.
 alter table public.service_catalog
-  add column service_code text unique,
-  add column billing_period text not null default 'MONTHLY'
-    check (billing_period in ('ONE_TIME','MONTHLY','YEARLY'));
+  add column service_code text unique;
 
 create table public.payment_orders (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   service_code text not null references public.service_catalog(service_code),
+  amount numeric(12,2) not null,
+  currency text not null default 'KES',
+  provider_checkout_id text unique,
+  provider_receipt text unique,
+  paid_at timestamptz,
   status text not null check (status in ('PENDING','PAID','FAILED','CANCELLED','REFUNDED')),
   created_at timestamptz not null default now()
 );
@@ -105,6 +118,8 @@ create table public.user_subscriptions (
   user_id uuid not null references auth.users(id) on delete cascade,
   service_code text not null references public.service_catalog(service_code),
   status text not null default 'PENDING',
+  amount numeric(12,2) not null,
+  currency text not null default 'KES',
   starts_at timestamptz,
   ends_at timestamptz,
   payment_order_id uuid references public.payment_orders(id),
