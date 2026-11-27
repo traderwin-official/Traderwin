@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const checkout = readFileSync(new URL("../handlers/payments/mpesa/stk-push.js", import.meta.url), "utf8");
 const callback = readFileSync(new URL("../handlers/payments/mpesa/callback.js", import.meta.url), "utf8");
-const migration = readFileSync(new URL("../supabase/migrations/202611270002_payment_schema_compatibility.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("../supabase/migrations/202611260006_payment_schema_compatibility.sql", import.meta.url), "utf8");
 
 test("M-Pesa checkout writes both legacy-required and current KES amount fields", () => {
   assert.match(checkout, /service_code:\s*service\.service_code,\s*amount,\s*amount_kes:\s*amount/);
