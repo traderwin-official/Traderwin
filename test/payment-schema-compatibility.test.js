@@ -14,7 +14,7 @@ test("M-Pesa checkout writes both legacy-required and current KES amount fields"
   assert.match(checkout, /checkout_request_id:\s*stkResult\.CheckoutRequestID,\s*provider_checkout_id:\s*stkResult\.CheckoutRequestID/);
 });
 
-test("verified M-Pesa callback mirrors legacy aliases and supplies required subscription amount/currency", () => {
+test("verified M-Pesa callback mirrors legacy aliases and invokes atomic subscription fulfilment", () => {
   assert.match(callback, /provider_reference:\s*receipt,\s*provider_receipt:\s*receipt/);
   assert.match(callback, /confirmed_at:\s*confirmedAt,\s*paid_at:\s*confirmedAt/);
   assert.match(callback, /admin\.rpc\(\s*"fulfill_paid_subscription_order"/);
