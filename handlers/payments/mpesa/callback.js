@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     if (!checkoutId) return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback received" });
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: order, error: orderError } = await admin.from("payment_orders")
-      .select("id,user_id,service_code,amount_kes,phone_number,status").eq("checkout_request_id", checkoutId).maybeSingle();
+      .select("id,user_id,service_code,amount_usd,amount_kes,phone_number,status").eq("checkout_request_id", checkoutId).maybeSingle();
     if (orderError || !order || order.status !== "PENDING") return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged" });
     // The public callback is not trusted by itself. Verify the checkout with Daraja.
     const timestamp = createNairobiTimestamp();
@@ -57,10 +57,12 @@ export default async function handler(req, res) {
       console.error("M-Pesa callback metadata did not match the pending order.");
       return res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged for manual review" });
     }
+    const confirmedAt = new Date().toISOString();
     const { data: paidOrder, error: updateError } = await admin.from("payment_orders").update({
-      status: "PAID", provider_reference: receipt, confirmed_at: new Date().toISOString()
+      status: "PAID", provider_reference: receipt, provider_receipt: receipt,
+      confirmed_at: confirmedAt, paid_at: confirmedAt
     }).eq("id", order.id).eq("status", "PENDING")
-      .select("id,user_id,service_code").maybeSingle();
+      .select("id,user_id,service_code,amount_usd,amount_kes").maybeSingle();
     if (updateError) {
       console.error("Verified M-Pesa payment could not be recorded:", updateError.message);
       return res.status(200).json({ ResultCode: 0, ResultDesc: "Verified payment received; recording pending" });
@@ -71,6 +73,12 @@ export default async function handler(req, res) {
       if (serviceError || !service) {
         console.error("Paid service entitlement could not be resolved:", serviceError?.message || "Service missing");
       } else {
+        const subscriptionAmount = Number(paidOrder.amount_usd ?? paidOrder.amount_kes);
+        const subscriptionCurrency = Number(paidOrder.amount_usd) > 0 ? "USD" : "KES";
+        if (!Number.isFinite(subscriptionAmount) || subscriptionAmount <= 0) {
+          console.error("Verified M-Pesa payment has no valid subscription amount snapshot.");
+          return res.status(200).json({ ResultCode: 0, ResultDesc: "Payment verified; entitlement amount needs review" });
+        }
         const { data: existingSubscription, error: existingSubscriptionError } = await admin
           .from("user_subscriptions").select("ends_at,status")
           .eq("user_id", paidOrder.user_id).eq("service_code", paidOrder.service_code).maybeSingle();
@@ -89,6 +97,8 @@ export default async function handler(req, res) {
           user_id: paidOrder.user_id,
           service_code: paidOrder.service_code,
           status: "ACTIVE",
+          amount: subscriptionAmount,
+          currency: subscriptionCurrency,
           starts_at: startsAt.toISOString(),
           ends_at: service.billing_period === "ONE_TIME" ? null : endsAt.toISOString(),
           payment_order_id: paidOrder.id

@@ -63,3 +63,12 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/demo_paper_daily_realization_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/manual_demo_pending_batches_integration.sql
           psql -h 127.0.0.1 -U postgres -d traderwin_test -v ON_ERROR_STOP=1 -f test/sql/manual_demo_partial_exit_rpc_contract.sql
+      - name: Validate legacy M-Pesa schema compatibility on disposable PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          createdb -h 127.0.0.1 -U postgres traderwin_payment_compat_test
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f test/sql/payment_schema_compatibility_bootstrap.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611270002_payment_schema_compatibility.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f test/sql/payment_schema_compatibility_integration.sql
+          psql -h 127.0.0.1 -U postgres -d traderwin_payment_compat_test -v ON_ERROR_STOP=1 -f supabase/migrations/202611270002_payment_schema_compatibility.sql
