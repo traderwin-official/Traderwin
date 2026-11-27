@@ -30,6 +30,8 @@ test("DEMO dashboard shows account history and refreshes it after a manual close
   assert.match(page, /\/api\/bots\/demo\/history/);
   assert.match(page, /await loadDemoTradeHistory\(\)/);
   assert.match(page, /Balance carries across sessions/);
+  assert.match(page, /use the same email on every device/);
+  assert.match(page, /Saved records could not be loaded/);
 });
 
 test("DEMO history API is registered as an explicit Vercel route", async () => {
