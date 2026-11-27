@@ -15,3 +15,10 @@ test("account mode profile reads are scoped to the authenticated user and select
   assert.match(html, /async function loadModeProfile\(\)[\s\S]*?client\.auth\.getUser\(\)/);
   assert.match(html, /from\("bot_mode_profiles"\)[\s\S]*?eq\("user_id",auth\.user\.id\)\.eq\("account_mode",profileMode\.value\)/);
 });
+
+
+test("dashboard exposes the isolated browser-only practice sandbox", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /href="\/demo-sandbox\.html"/);
+  assert.match(html, /Standalone virtual practice · illustrative prices/);
+});

@@ -30,10 +30,19 @@ test("DEMO dashboard shows account history and refreshes it after a manual close
   assert.match(page, /\/api\/bots\/demo\/history/);
   assert.match(page, /await loadDemoTradeHistory\(\)/);
   assert.match(page, /Balance carries across sessions/);
+  assert.match(page, /use the same email on every device/);
+  assert.match(page, /Saved records could not be loaded/);
 });
 
 test("DEMO history API is registered as an explicit Vercel route", async () => {
   const dispatcher = await readFile(new URL("../api/router.js", import.meta.url), "utf8");
   assert.match(dispatcher, /handlers\/bots\/demo\/history\.js/);
   assert.match(dispatcher, /\/api\/bots\/demo\/history/);
+});
+
+
+test("DEMO dashboard never presents the default balance as verified when history cannot load", async () => {
+  const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(page, /id="demoVirtualBalance">Virtual balance: Loading saved account/);
+  assert.match(page, /Virtual balance: Unavailable — saved account data could not be verified/);
 });

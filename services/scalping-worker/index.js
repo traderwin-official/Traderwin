@@ -15,8 +15,11 @@ import { runInstrumentEntryAnalysis } from "./lib/scalping-entry-lock.js";
 import { getGdeltNewsRiskStatus } from "./lib/gdelt-news-risk.js";
 import { getBiQuoteCalendarRiskStatus } from "./lib/biquote-calendar-risk.js";
 import { getXausGoldReference, compareGoldReference } from "./lib/xaus-gold-reference.js";
+import { isVerifiedActiveDerivDemoConnection } from "../../lib/deriv-demo-connection.js";
+import { assertIsolatedSupabaseProject } from "../../lib/supabase-project-guard.js";
 
 const PORT=Number(process.env.PORT||8080),URL=process.env.SUPABASE_URL,KEY=process.env.SUPABASE_SERVICE_ROLE_KEY;
+assertIsolatedSupabaseProject({url:URL,expectedProjectRef:process.env.SUPABASE_EXPECTED_PROJECT_REF});
 const ENDPOINT="wss://api.derivws.com/trading/v1/options/ws/public";
 const SCALPING_STRATEGY="TIGER_SCHEME_QUANTUM_SCALPING";
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s/.-]/g,"");
@@ -59,10 +62,18 @@ async function eligibleSymbols(){
   .in("session_id",allSessions.map(s=>s.id));
  if(preferenceError)throw preferenceError;
  const preferenceBySession=new Map((preferences||[]).filter(p=>allSessions.some(s=>s.id===p.session_id&&s.user_id===p.user_id)).map(p=>[p.session_id,p]));
- const {data:profiles,error:profileError}=await db.from("trader_profiles")
-  .select("user_id,account_mode").in("user_id",[...new Set(allSessions.map(s=>s.user_id))]);
+ const userIds=[...new Set(allSessions.map(s=>s.user_id))];
+ const [{data:profiles,error:profileError},{data:connections,error:connectionError}]=await Promise.all([
+  db.from("trader_profiles").select("user_id,account_mode").in("user_id",userIds),
+  db.from("deriv_connections").select("user_id,demo_account_id,accounts,token_expires_at").in("user_id",userIds)
+ ]);
  if(profileError)throw profileError;
+ if(connectionError)throw connectionError;
  const profileByUser=new Map((profiles||[]).map(p=>[p.user_id,p]));
+ const now=Date.now();
+ const connectionByUser=new Map((connections||[]).map(c=>[
+  c.user_id,isVerifiedActiveDerivDemoConnection(c,now)
+ ]));
  const openSessionSet=new Set(openSessionIds);
  const wantedByInstrument=new Map();
  for(const session of allSessions){
@@ -72,6 +83,7 @@ async function eligibleSymbols(){
    session,
    preference,
    profile:profileByUser.get(session.user_id),
+   brokerConnectionVerified:connectionByUser.get(session.user_id)===true,
    hasOpenTrade:openSessionSet.has(session.id)
   });
   if(!permissions.include)continue;

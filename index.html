@@ -104,6 +104,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
   </div>
   <div class="dashboard-actions">
    <a class="dashboard-action" href="#demoSimulator"><span class="dashboard-icon">📊</span><strong>Trade DEMO</strong><small>Open the virtual trading terminal</small></a>
+   <a class="dashboard-action" href="/demo-sandbox.html" target="_blank" rel="noopener"><span class="dashboard-icon">🧪</span><strong>Practice Sandbox</strong><small>Standalone virtual practice · illustrative prices</small></a>
    <a class="dashboard-action" href="#strategyCentre"><span class="dashboard-icon">🧭</span><strong>Strategy Centre</strong><small>Explore independent trading approaches</small></a>
    <a class="dashboard-action" href="#livePositionsMonitor"><span class="dashboard-icon">🗂️</span><strong>Portfolio</strong><small>Review open positions and exposure</small></a>
    <a class="dashboard-action" href="#analysis"><span class="dashboard-icon">📈</span><strong>Market Analysis</strong><small>Charts, live prices and analysis tools</small></a>
@@ -260,7 +261,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
     <p class="muted">Signals are research candidates only. They are not orders or guaranteed trade recommendations.</p>
    </div>
   </div>
-  <p class="result" id="demoVirtualBalance">Virtual balance: USD 10,000.00</p>
+  <p class="result" id="demoVirtualBalance">Virtual balance: Loading saved account…</p>
   <button type="button" id="startDemoSession">Start DEMO Session</button>
   <button type="button" class="secondary" id="stopDemoSession" disabled>Stop DEMO Session</button>
   <p id="demoSessionMessage" class="muted" role="status" aria-live="polite"></p>
@@ -330,7 +331,7 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
      <tbody id="demoHistoryRows"><tr><td colspan="7" style="padding:10px">Loading…</td></tr></tbody>
     </table>
    </div>
-   <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss.</p>
+   <p class="muted">History includes trades from previous DEMO sessions. Your virtual account balance carries forward: USD 10,000 starting funds plus all realised DEMO profit or loss. Your balance and history belong to the signed-in email shown at the top-left; use the same email on every device.</p>
   </div>
   <div class="grid">
    <p class="muted">The scheduled DEMO worker checks the combined portfolio using fresh market quotes and USD-normalised profit. Protection activates at USD 20 peak unrealised profit and protects 80% of that peak. The check runs on the worker schedule, so fast price moves, quote gaps and slippage can affect exit timing. Your manual DEMO positions remain virtual and are never sent to a broker.</p>
@@ -415,10 +416,11 @@ ul{padding-left:20px;color:#dce4ee;line-height:1.8}
    <div class="field"><label for="profileInstrument">Instrument</label><input id="profileInstrument" value="XAUUSD" maxlength="80"></div>
   </div>
   <div class="grid">
-   <div class="field"><label for="profileRisk">Risk per trade (%)</label><input id="profileRisk" type="number" min="0.1" max="2" step="0.1" value="0.5"></div>
-   <div class="field"><label for="profileDailyLoss">Daily loss limit (%)</label><input id="profileDailyLoss" type="number" min="0.5" max="10" step="0.5" value="2"></div>
+   <div class="field"><label for="profileRisk">Risk per trade (%)</label><input id="profileRisk" type="number" min="0.01" max="0.25" step="0.01" value="0.25"></div>
+   <div class="field"><label for="profileDailyLoss">Daily loss limit (%)</label><input id="profileDailyLoss" type="number" min="0.1" max="1" step="0.1" value="1"></div>
    <div class="field"><label for="profileGiveback">Profit giveback limit (%)</label><input id="profileGiveback" type="number" min="1" max="50" step="1" value="20"></div>
   </div>
+  <p class="muted" id="profileRiskHint">DEMO hard caps: 0.25% maximum risk per trade and 1% maximum daily loss. REAL settings are preferences only; live execution remains locked.</p>
   <p class="muted">Profit protection default: once a trade has been profitable, the protective level follows its peak profit. A 20% giveback means the bot aims to retain 80% of the highest unrealised profit, subject to spread, slippage, gaps and broker stop rules.</p>
   <button type="button" id="saveModeProfile">Save This Mode's Settings</button>
   <p id="modeProfileMessage" class="muted" role="status" aria-live="polite"></p>
@@ -1304,7 +1306,21 @@ calculateRisk();
   const profileDaily=document.getElementById("profileDailyLoss");
   const profileGiveback=document.getElementById("profileGiveback");
   const profileMessage=document.getElementById("modeProfileMessage");
+  const profileRiskHint=document.getElementById("profileRiskHint");
+  function applyModeRiskLimits(){
+   const demo=profileMode.value==="DEMO";
+   profileRisk.min=demo?"0.01":"0.1";profileRisk.max=demo?"0.25":"2";profileRisk.step=demo?"0.01":"0.1";
+   profileDaily.min=demo?"0.1":"0.5";profileDaily.max=demo?"1":"10";profileDaily.step=demo?"0.1":"0.5";
+   if(demo){
+    profileRisk.value=String(Math.min(Number(profileRisk.value)||0.25,0.25));
+    profileDaily.value=String(Math.min(Number(profileDaily.value)||1,1));
+    profileRiskHint.textContent="DEMO hard caps: 0.25% maximum risk per trade and 1% maximum daily loss. The database enforces these limits even if a saved preference is higher.";
+   }else{
+    profileRiskHint.textContent="REAL settings are preferences only. Live execution remains locked; these values cannot authorize or place broker orders.";
+   }
+  }
   async function loadModeProfile(){
+   applyModeRiskLimits();
    profileMessage.textContent="Loading "+profileMode.value+" profile...";
    try{
     const {data:auth,error:authError}=await client.auth.getUser();
@@ -1312,13 +1328,15 @@ calculateRisk();
     const {data:p,error}=await client.from("bot_mode_profiles").select("broker,instrument,strategy,max_risk_per_trade_pct,max_daily_loss_pct,profit_giveback_pct").eq("user_id",auth.user.id).eq("account_mode",profileMode.value).maybeSingle();
     if(error)throw error;
     if(p){profileBroker.value=({"DERIV":"DERIV","Deriv":"DERIV","MT5":"MT5","MetaTrader 5":"MT5"})[p.broker]||"DERIV";profileInstrument.value=p.instrument;profileStrategy.value=p.strategy||"MULTI_CONFIRMATION_V1";profileRisk.value=p.max_risk_per_trade_pct;profileDaily.value=p.max_daily_loss_pct;profileGiveback.value=p.profit_giveback_pct;}
-    profileMessage.textContent=profileMode.value+" preferences loaded. Real execution remains locked.";
+    applyModeRiskLimits();
+    profileMessage.textContent=profileMode.value+" preferences loaded. "+(profileMode.value==="REAL"?"Real execution remains locked.":"DEMO risk hard caps are enforced by the database.");
    }catch(e){profileMessage.textContent="Mode profiles will be available after the dual-mode database migration is applied. "+e.message;}
   }
   profileMode.addEventListener("change",loadModeProfile);
   document.getElementById("saveModeProfile").addEventListener("click",async()=>{
    const risk=Number(profileRisk.value),daily=Number(profileDaily.value),giveback=Number(profileGiveback.value),instrument=profileInstrument.value.trim();
-   if(!instrument||!Number.isFinite(risk)||risk<.1||risk>2||!Number.isFinite(daily)||daily<.5||daily>10||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk (0.1–2%), daily loss (0.5–10%) and giveback (1–50%).";return;}
+   const demo=profileMode.value==="DEMO",riskMin=demo?0.01:0.1,riskMax=demo?0.25:2,dailyMin=demo?0.1:0.5,dailyMax=demo?1:10;
+   if(!instrument||!Number.isFinite(risk)||risk<riskMin||risk>riskMax||!Number.isFinite(daily)||daily<dailyMin||daily>dailyMax||!Number.isFinite(giveback)||giveback<1||giveback>50){profileMessage.textContent="Check instrument, risk ("+riskMin+"–"+riskMax+"%), daily loss ("+dailyMin+"–"+dailyMax+"%) and giveback (1–50%).";return;}
    const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user){profileMessage.textContent="Please sign in again.";return;}
    const button=document.getElementById("saveModeProfile");button.disabled=true;
    try{
@@ -1357,6 +1375,24 @@ calculateRisk();
    const recordPaper=document.getElementById("recordPaperTrade");
    const closePaper=document.getElementById("closePaperTrade");
    let activeDemoSession=null;
+   function syncDemoSessionControls(session){
+    const state=String(session?.status||"STOPPED").toUpperCase();
+    const running=state==="RUNNING";
+    activeDemoSession=running?session:null;
+    demoStatus.textContent="Session: "+(session?state:"Not started");
+    const settingsLocked=["RUNNING","PAUSED","RISK_LOCKED"].includes(state);
+    document.getElementById("demoExecutionMode").disabled=settingsLocked;
+    document.getElementById("demoTimeframe").disabled=settingsLocked;
+    // The server enforces the daily-loss lock until the next Nairobi trading day.
+    // Keep Start enabled so the server can safely begin a fresh session after expiry.
+    startDemo.disabled=selectedAccountMode!=="DEMO"||running;
+    stopDemo.disabled=!running;
+    recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
+    startDemo.textContent=state==="RISK_LOCKED"?"Check daily lock / start new DEMO":state==="PAUSED"?"Resume DEMO Session":"Start DEMO Session";
+    if(state==="RISK_LOCKED"){
+     demoMessage.textContent="Daily-loss protection is active until the next Nairobi trading day. The server will reject new entries until the lock expires; then use the button above to start a fresh DEMO session.";
+    }
+   }
    async function callDemoApi(path,payload){
     const {data:s,error:e}=await client.auth.getSession();
     if(e||!s.session)throw new Error("Please sign in again.");
@@ -1393,9 +1429,10 @@ calculateRisk();
       });
      }
     }catch(error){
+     demoBalance.textContent="Virtual balance: Unavailable — saved account data could not be verified.";
      summary.textContent="History unavailable: "+error.message;
      rows.replaceChildren();
-     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="Please refresh after the account-balance database upgrade is applied.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
+     const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="Saved records could not be loaded. They have not been reset; try Refresh History when the service is available.";td.style.padding="10px";tr.appendChild(td);rows.appendChild(tr);
     }finally{if(refresh)refresh.disabled=false;}
    }
    document.getElementById("refreshDemoTradeHistory").addEventListener("click",loadDemoTradeHistory);
@@ -1492,7 +1529,9 @@ calculateRisk();
     try{
      const status=await callDemoApi("/api/bots/demo/control",{action:"STATUS"});
      showDemoWorkerHealth(status.workerHeartbeat);
-     if(status.session)demoStatus.textContent="Session: "+status.session.status;
+     syncDemoSessionControls(status.session);
+     renderOpenPaperPositions(status.openTrades||(status.openTrade?[status.openTrade]:[]));
+     await loadLivePositions();
     }catch(error){demoWorkerHealth.textContent="Worker status unavailable: "+error.message;}
     finally{refresh.disabled=false;}
    });
@@ -1603,17 +1642,17 @@ calculateRisk();
     startDemo.disabled=true;demoMessage.textContent="Starting your website DEMO trading session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"START",instrument:document.getElementById("paperSymbol").value.trim(),timeframe:document.getElementById("demoTimeframe").value,executionMode:document.getElementById("demoExecutionMode").value});
-     activeDemoSession=r.session;demoStatus.textContent="Session: RUNNING";
+     syncDemoSessionControls(r.session);
      showDemoWorkerHealth(null);
      demoBalance.textContent="Virtual balance: USD "+Number(r.session.current_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-     stopDemo.disabled=false;recordPaper.disabled=false;document.getElementById("demoExecutionMode").disabled=true;document.getElementById("demoTimeframe").disabled=true;demoMessage.textContent=r.message;
+     demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;startDemo.disabled=false;}
    });
    stopDemo.addEventListener("click",async()=>{
     stopDemo.disabled=true;demoMessage.textContent="Stopping demo session...";
     try{
      const r=await callDemoApi("/api/bots/demo/control",{action:"STOP"});
-     activeDemoSession=null;demoStatus.textContent="Session: "+(r.session?.status||"STOPPED");recordPaper.disabled=true;startDemo.disabled=selectedAccountMode!=="DEMO";document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session?.status);demoMessage.textContent=r.message;
+     syncDemoSessionControls(r.session||null);demoMessage.textContent=r.message;
     }catch(e){demoMessage.textContent=e.message;stopDemo.disabled=false;}
    });
    const allocationInputs=["paperTp1Percent","paperTp2Percent","paperTp3Percent"].map(id=>document.getElementById(id));
@@ -1765,9 +1804,7 @@ calculateRisk();
    {
     callDemoApi("/api/bots/demo/control",{action:"STATUS"}).then(async r=>{
      if(r.session){
-      activeDemoSession=r.session.status==="RUNNING"?r.session:null;
       showDemoWorkerHealth(r.workerHeartbeat);
-      demoStatus.textContent="Session: "+r.session.status;
       if(r.session.instrument)document.getElementById("paperSymbol").value=r.session.instrument;
       if(["M5","M15","H1","H4"].includes(String(r.session.timeframe||"").toUpperCase()))document.getElementById("demoTimeframe").value=String(r.session.timeframe).toUpperCase();
       const running=r.session.status==="RUNNING";
@@ -1776,15 +1813,13 @@ calculateRisk();
       document.getElementById("demoExecutionMode").value=autoDemoEnabled?"AUTO":"MANUAL";
       document.getElementById("demoExecutionMode").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
       document.getElementById("demoTimeframe").disabled=["RUNNING","PAUSED","RISK_LOCKED"].includes(r.session.status);
-      startDemo.disabled=selectedAccountMode!=="DEMO"||running||r.session.status==="RISK_LOCKED";
-      stopDemo.disabled=!running;recordPaper.disabled=!running||selectedAccountMode!=="DEMO";
-      demoMessage.textContent="Your existing DEMO session has been restored. The scheduled worker manages BOT trades and checks manual SL/TP only when you separately enable that permission.";
+      syncDemoSessionControls(r.session);
+      if(r.session.status!=="RISK_LOCKED")demoMessage.textContent="Your existing DEMO session has been restored. The scheduled worker manages BOT trades and checks manual SL/TP only when you separately enable that permission.";
      }else{
-      demoStatus.textContent="Session: Not started";
+      syncDemoSessionControls(null);
       showDemoWorkerHealth(null);
       const {data:cfg}=await client.from("bot_settings").select("instrument").eq("user_id",data.session.user.id).maybeSingle();
       if(cfg?.instrument)document.getElementById("paperSymbol").value=cfg.instrument;
-      startDemo.disabled=selectedAccountMode!=="DEMO";stopDemo.disabled=true;recordPaper.disabled=true;
      }
      renderOpenPaperPositions(r.openTrades||(r.openTrade?[r.openTrade]:[]));
      if(r.session){

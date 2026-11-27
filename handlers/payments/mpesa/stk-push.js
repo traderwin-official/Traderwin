@@ -60,6 +60,11 @@ export default async function handler(req, res) {
       fx_source: pricing.fxSource, fx_as_of: pricing.fxAsOf, price_basis: pricing.priceBasis,
       currency: "KES", payment_method: "MPESA", phone_number: phone, status: "PENDING"
     }).select("id").single();
+    if (orderError?.code === "23505") {
+      return res.status(409).json({
+        error: "A payment request for this service is already being processed. Check its status before trying again."
+      });
+    }
     if (orderError || !order) {
       console.error("M-Pesa order creation failed:", orderError?.message);
       return res.status(503).json({ error: "Could not create the payment order." });

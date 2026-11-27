@@ -9,8 +9,11 @@ Deploy as a Railway service from this repository with the root directory left at
 Required service variables:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_EXPECTED_PROJECT_REF` (the exact 20-character ref matching the isolated DEMO project)
 
 Expose the generated Railway domain on port 8080. Configure a health check at `/healthz`.
+
+The worker refuses to start if the URL and expected project ref do not match, or if the URL points to the known production Supabase project. Never set the expected ref to the production project.
 
 ## Entry activation gates
 

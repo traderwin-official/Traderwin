@@ -87,6 +87,16 @@ begin
   ) then
     return jsonb_build_object('ok',false,'reason','KILL_SWITCH_ACTIVE');
   end if;
+  -- Honour the legacy account-wide kill switch as well as the DEMO ledger latch.
+  -- This prevents old stop requests from being bypassed during the dual-control transition.
+  if exists (
+    select 1 from public.bot_emergency_controls e
+     where e.user_id=p_user_id and e.account_mode='DEMO'
+       and e.broker='DERIV' and e.broker_account_ref=v_session.broker_account_ref
+       and e.kill_switch_active
+  ) then
+    return jsonb_build_object('ok',false,'reason','KILL_SWITCH_ACTIVE');
+  end if;
 
   select * into v_preference
     from public.demo_scalping_preferences

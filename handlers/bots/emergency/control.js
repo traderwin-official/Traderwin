@@ -59,31 +59,66 @@ export default async function handler(req, res) {
     }
 
     const key = { user_id: userId, account_mode: accountMode, broker, broker_account_ref: accountRef };
+    const usesDemoPaperLatch = accountMode === "DEMO" && broker === "DERIV";
+    const demoKey = { user_id: userId, broker: "DERIV", broker_account_ref: accountRef };
+
     if (req.method === "GET" || action === "STATUS") {
-      const { data, error } = await db.from("bot_emergency_controls")
-        .select("kill_switch_active,reason,changed_at")
-        .match(key).maybeSingle();
-      if (error) return res.status(503).json({ error: "Could not load emergency status. Apply the emergency-controls migration first." });
+      const [{ data, error }, demoResult] = await Promise.all([
+        db.from("bot_emergency_controls")
+          .select("kill_switch_active,reason,changed_at")
+          .match(key).maybeSingle(),
+        usesDemoPaperLatch
+          ? db.from("demo_paper_emergency_controls")
+              .select("entries_blocked,updated_at")
+              .match(demoKey).maybeSingle()
+          : Promise.resolve({ data: null, error: null })
+      ]);
+      if (error || demoResult.error) {
+        return res.status(503).json({ error: "Could not load every emergency-stop control safely." });
+      }
+      const killSwitchActive = data?.kill_switch_active === true || demoResult.data?.entries_blocked === true;
       return res.status(200).json({
         ok: true,
         accountMode,
         broker,
-        killSwitchActive: data?.kill_switch_active ?? false,
-        changedAt: data?.changed_at ?? null,
-        reason: data?.reason ?? null,
+        killSwitchActive,
+        changedAt: data?.changed_at ?? demoResult.data?.updated_at ?? null,
+        reason: killSwitchActive ? (data?.reason || "USER_EMERGENCY_STOP") : null,
         note: "This control blocks new entries only. It does not close open positions."
       });
     }
 
     const active = action === "STOP_ENTRIES";
-    const { data, error } = await db.from("bot_emergency_controls").upsert({
+    const changedAt = new Date().toISOString();
+    const saveLegacy = async () => db.from("bot_emergency_controls").upsert({
       ...key,
       kill_switch_active: active,
       reason: active ? "USER_EMERGENCY_STOP" : null,
-      changed_at: new Date().toISOString()
+      changed_at: changedAt
     }, { onConflict: "user_id,account_mode,broker,broker_account_ref" })
       .select("kill_switch_active,reason,changed_at").single();
-    if (error || !data) return res.status(503).json({ error: "Could not save emergency control." });
+    const saveDemoPaper = async () => db.from("demo_paper_emergency_controls").upsert({
+      ...demoKey,
+      entries_blocked: active,
+      updated_at: changedAt
+    }, { onConflict: "user_id,broker,broker_account_ref" });
+
+    // Set the worker's authoritative paper-entry latch first when stopping.
+    // When clearing, clear the legacy latch first so the paper latch remains
+    // blocking until the final write succeeds. Any partial failure returns 503.
+    let legacyResult, demoResult = { error: null };
+    if (usesDemoPaperLatch && active) {
+      demoResult = await saveDemoPaper();
+      if (demoResult.error) return res.status(503).json({ error: "Could not set the DEMO paper-entry emergency latch." });
+      legacyResult = await saveLegacy();
+    } else {
+      legacyResult = await saveLegacy();
+      if (!legacyResult.error && usesDemoPaperLatch) demoResult = await saveDemoPaper();
+    }
+    const data = legacyResult?.data;
+    if (legacyResult?.error || !data || demoResult.error) {
+      return res.status(503).json({ error: "Could not synchronize every emergency-stop control. The DEMO paper-entry latch remains blocking if a clear operation was incomplete." });
+    }
     await db.from("bot_activity").insert({
       user_id: userId,
       event_type: active ? "STOP_REQUESTED" : "CONFIG_SAVED",
