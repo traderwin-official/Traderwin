@@ -106,3 +106,15 @@ CREATE TEMP TABLE payment_service_code_fk_probe (
   service_code text REFERENCES public.service_catalog(service_code)
 );
 DROP TABLE payment_service_code_fk_probe;
+
+DO $$
+DECLARE
+  v_service public.service_catalog%rowtype;
+BEGIN
+  SELECT * INTO v_service FROM public.service_catalog WHERE service_code='REAL_TRADING';
+  IF NOT FOUND OR v_service.price_usd <> 75.00 OR v_service.renewal_price_usd <> 175.00
+     OR v_service.billing_period <> 'MONTHLY' OR v_service.active IS NOT TRUE THEN
+    RAISE EXCEPTION 'REAL_TRADING catalogue price/renewal contract is incorrect';
+  END IF;
+END
+$$;
