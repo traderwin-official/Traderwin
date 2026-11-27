@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Young Tiger FX — Offline DEMO Sandbox</title>
+<style>
+:root{color-scheme:dark;--bg:#080d17;--panel:#111b2b;--line:#2b3d55;--gold:#f5bd45;--muted:#9eabc0;--green:#25c58a;--red:#f16c75}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f4f6fa;font:15px Arial,sans-serif}
+header{padding:16px 5%;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;background:#101a29}
+.brand{font-weight:900;color:var(--gold);letter-spacing:1px;font-size:20px}
+main{max-width:1180px;margin:auto;padding:22px 4%}
+.banner{padding:14px;border:1px solid #725820;background:#2b2415;color:#f5d58b;border-radius:10px;line-height:1.55}
+h1{font-size:clamp(24px,5vw,36px);margin:18px 0 8px}h1 span{color:var(--gold)}
+.muted{color:var(--muted);line-height:1.5;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:16px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.metric{font-size:26px;font-weight:800;color:var(--gold);margin-top:8px}
+label{display:block;color:var(--muted);font-size:13px;margin:10px 0 6px}
+input,select{width:100%;padding:12px;border-radius:8px;background:#091321;color:white;border:1px solid #3a4b63}
+button{border:0;border-radius:8px;padding:12px 15px;font-weight:700;cursor:pointer;background:var(--gold);color:#111;margin:8px 6px 0 0}
+button.sell{background:#7e3039;color:white}button.neutral{background:#2b3d55;color:white}
+button:disabled{opacity:.45;cursor:not-allowed}
+.pill{display:inline-block;padding:6px 9px;border-radius:30px;background:#123d36;color:#72e2bd;font-size:11px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px 7px;border-bottom:1px solid var(--line)}th{color:var(--muted)}
+.table-wrap{overflow-x:auto}.empty{padding:20px;text-align:center;color:var(--muted)}
+.good{color:var(--green)}.bad{color:var(--red)}
+footer{text-align:center;padding:24px;color:var(--muted);font-size:12px}
+@media(max-width:560px){main{padding:16px 3%}.card{padding:13px}header{padding:14px}}
+</style>
+</head>
+<body>
+<header><div class="brand">YOUNG TIGER FX</div><span class="pill">OFFLINE DEMO SANDBOX</span></header>
+<main>
+<div class="banner"><strong>SAFE TEST MODE — SIMULATED ONLY.</strong> This page runs entirely in your browser. It does not sign you in, contact Supabase, connect Deriv or MT5, send orders, accept payments, or use real market prices. Refreshing resets this practice session.</div>
+<h1>Practise your <span>trading workflow</span></h1>
+<p class="muted">Try the trade ticket, risk calculator, open-position monitor and emergency stop. Values and fills are illustrative so you can test the interface without connecting an account.</p>
+<div class="grid">
+ <div class="card"><div class="muted">Virtual balance</div><div class="metric" id="balance">$10,000.00</div></div>
+ <div class="card"><div class="muted">Equity</div><div class="metric" id="equity">$10,000.00</div></div>
+ <div class="card"><div class="muted">Open positions</div><div class="metric" id="count">0</div></div>
+ <div class="card"><div class="muted">Risk cap per trade</div><div class="metric">0.25%</div><div class="muted">Illustrative hard cap</div></div>
+</div>
+<div class="grid">
+ <section class="card">
+  <h2>DEMO trade ticket</h2>
+  <label for="symbol">Instrument</label><select id="symbol"><option value="XAUUSD">Gold / USD (XAUUSD)</option><option value="EURUSD">EUR / USD</option><option value="GBPUSD">GBP / USD</option><option value="BTCUSD">Bitcoin / USD</option></select>
+  <label for="side">Direction</label><select id="side"><option value="BUY">Buy</option><option value="SELL">Sell</option></select>
+  <label for="entry">Illustrative entry price</label><input id="entry" type="number" min="0.00001" step="any" value="2650">
+  <label for="stop">Stop-loss price</label><input id="stop" type="number" min="0.00001" step="any" value="2640">
+  <label for="size">Position size (units)</label><input id="size" type="number" min="0.00001" step="any" value="0.1">
+  <p class="muted">Estimated stop-risk: <strong id="risk">$1.00</strong> · Maximum allowed: <strong id="maxRisk">$25.00</strong></p>
+  <button id="buy">Open virtual position</button><button class="neutral" id="reset">Reset practice account</button>
+  <p class="muted" id="ticketMessage" role="status">No orders have been placed.</p>
+ </section>
+ <section class="card">
+  <h2>Risk and safety controls</h2>
+  <p class="muted">The sandbox enforces a 0.25% per-position risk cap and a 1% combined open-risk budget.</p>
+  <div class="metric" id="openRisk">$0.00</div><div class="muted">Current open stop-risk</div>
+  <div class="metric" id="remaining">$100.00</div><div class="muted">Remaining combined risk budget</div>
+  <p><span id="stopState" class="pill">Entries enabled</span></p>
+  <button class="sell" id="emergency">Activate emergency stop</button><button class="neutral" id="resume">Clear practice stop</button>
+  <p class="muted" id="safetyMessage" role="status">Emergency stop blocks new practice entries; it does not close open positions.</p>
+ </section>
+</div>
+<section class="card">
+ <h2>Portfolio monitor</h2><div class="table-wrap"><table><thead><tr><th>Instrument</th><th>Side</th><th>Entry</th><th>Stop</th><th>Units</th><th>Stop-risk</th><th>Action</th></tr></thead><tbody id="positions"><tr><td colspan="7" class="empty">No open positions</td></tr></tbody></table></div>
+</section>
+</main>
+<footer>Young Tiger FX · Browser-only practice UI · No account, broker, database or payment connection</footer>
+<script>
+(()=>{
+"use strict";
+const initialBalance=10000, perTradeCap=.0025, totalCap=.01;
+let balance=initialBalance, positions=[], stopped=false, nextId=1;
+const el=id=>document.getElementById(id), money=n=>"$"+Number(n).toFixed(2);
+function side(){return el("side").value}
+function calcRisk(){const entry=Number(el("entry").value),stop=Number(el("stop").value),size=Number(el("size").value);return Math.abs(entry-stop)*size}
+function render(){
+ const openRisk=positions.reduce((s,p)=>s+p.risk,0), maxTrade=balance*perTradeCap, remaining=Math.max(0,balance*totalCap-openRisk);
+ el("balance").textContent=money(balance);el("equity").textContent=money(balance);el("count").textContent=String(positions.length);
+ el("risk").textContent=money(calcRisk());el("maxRisk").textContent=money(maxTrade);
+ el("openRisk").textContent=money(openRisk);el("remaining").textContent=money(remaining);
+ el("stopState").textContent=stopped?"Emergency stop active":"Entries enabled";
+ el("stopState").style.background=stopped?"#54232a":"#123d36";
+ el("positions").innerHTML=positions.length?positions.map(p=>'<tr><td>'+p.symbol+'</td><td>'+p.side+'</td><td>'+p.entry+'</td><td>'+p.stop+'</td><td>'+p.size+'</td><td>'+money(p.risk)+'</td><td><button class="neutral" data-close="'+p.id+'">Close virtual</button></td></tr>').join(""):'<tr><td colspan="7" class="empty">No open positions</td></tr>';
+ el("buy").disabled=stopped;
+}
+function openPosition(){
+ const symbol=el("symbol").value, direction=side(),entry=Number(el("entry").value),stop=Number(el("stop").value),size=Number(el("size").value),risk=calcRisk(),maxTrade=balance*perTradeCap,remaining=balance*totalCap-positions.reduce((s,p)=>s+p.risk,0);
+ if(!(entry>0&&stop>0&&size>0)||!Number.isFinite(risk)||risk<=0){el("ticketMessage").textContent="Enter positive entry, stop and size values; stop must differ from entry.";return}
+ if((direction==="BUY"&&stop>=entry)||(direction==="SELL"&&stop<=entry)){el("ticketMessage").textContent="Stop-loss must be below entry for BUY and above entry for SELL.";return}
+ if(risk>maxTrade+1e-8){el("ticketMessage").textContent="Rejected: per-trade risk exceeds the 0.25% cap.";return}
+ if(risk>remaining+1e-8){el("ticketMessage").textContent="Rejected: combined open-risk budget would exceed 1%.";return}
+ positions.push({id:nextId++,symbol,side:direction,entry,stop,size,risk});
+ el("ticketMessage").textContent="Virtual position opened in this browser session only.";render();
+}
+el("buy").addEventListener("click",openPosition);
+["entry","stop","size"].forEach(id=>el(id).addEventListener("input",()=>{el("risk").textContent=money(calcRisk())}));
+el("emergency").addEventListener("click",()=>{stopped=true;el("safetyMessage").textContent="Emergency stop active. New practice entries are blocked; open positions remain open.";render()});
+el("resume").addEventListener("click",()=>{stopped=false;el("safetyMessage").textContent="Practice stop cleared. This does not affect any real account.";render()});
+el("reset").addEventListener("click",()=>{balance=initialBalance;positions=[];stopped=false;el("ticketMessage").textContent="Practice account reset. All sandbox positions cleared.";el("safetyMessage").textContent="Practice session reset.";render()});
+el("positions").addEventListener("click",event=>{const button=event.target.closest("[data-close]");if(!button)return;const id=Number(button.dataset.close);positions=positions.filter(p=>p.id!==id);el("ticketMessage").textContent="Virtual position closed. No broker order was sent.";render()});
+render();
+})();
+</script>
+</body></html>
