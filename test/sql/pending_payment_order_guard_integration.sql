@@ -10,16 +10,16 @@ insert into public.service_catalog(service_code,active,billing_period)
 values ('TEST_MEMBERSHIP',true,'MONTHLY')
 on conflict (service_code) do nothing;
 
-insert into public.payment_orders(user_id,service_code,amount,currency,payment_method,status)
-values ('33333333-3333-4333-8333-333333333333','TEST_MEMBERSHIP',100,'KES','MPESA','PENDING');
+insert into public.payment_orders(user_id,service_code,amount,currency,status)
+values ('33333333-3333-4333-8333-333333333333','TEST_MEMBERSHIP',100,'KES','PENDING');
 
 do $$
 declare
   v_rejected boolean := false;
 begin
   begin
-    insert into public.payment_orders(user_id,service_code,amount,currency,payment_method,status)
-    values ('33333333-3333-4333-8333-333333333333','TEST_MEMBERSHIP',100,'KES','MPESA','PENDING');
+    insert into public.payment_orders(user_id,service_code,amount,currency,status)
+    values ('33333333-3333-4333-8333-333333333333','TEST_MEMBERSHIP',100,'KES','PENDING');
   exception when unique_violation then
     v_rejected := true;
   end;
@@ -36,8 +36,8 @@ update public.payment_orders
    and service_code='TEST_MEMBERSHIP'
    and status='PENDING';
 
-insert into public.payment_orders(user_id,service_code,amount,currency,payment_method,status)
-values ('33333333-3333-4333-8333-333333333333','TEST_MEMBERSHIP',100,'KES','MPESA','PENDING');
+insert into public.payment_orders(user_id,service_code,amount,currency,status)
+values ('33333333-3333-4333-8333-333333333333','TEST_MEMBERSHIP',100,'KES','PENDING');
 
 do $$
 begin
