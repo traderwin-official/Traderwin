@@ -37,3 +37,10 @@ test("DEMO history API is registered as an explicit Vercel route", async () => {
   assert.match(dispatcher, /handlers\/bots\/demo\/history\.js/);
   assert.match(dispatcher, /\/api\/bots\/demo\/history/);
 });
+
+
+test("DEMO dashboard never presents the default balance as verified when history cannot load", async () => {
+  const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(page, /id="demoVirtualBalance">Virtual balance: Loading saved account/);
+  assert.match(page, /Virtual balance: Unavailable — saved account data could not be verified/);
+});
